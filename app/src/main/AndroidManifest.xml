@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ===== Permissions ===== -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.MyApp"
+        tools:targetApi="34">
+
+        <!-- ===== Main Activity (Profile List) ===== -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ===== Profile Edit Activity ===== -->
+        <activity
+            android:name=".ui.ProfileEditActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- ===== Profile List Activity (ถ้าแยกจาก Main) ===== -->
+        <activity
+            android:name=".ui.ProfileListActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- ===== VPN Service ===== -->
+        <service
+            android:name=".ProxyVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="specialUse">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="vpn_tunnel" />
+        </service>
+
+        <!-- ===== VpnService เผื่อใช้ VpnService.prepare() ===== -->
+        <meta-data
+            android:name="android.net.VpnService"
+            android:value="true" />
+
+    </application>
+</manifest>
