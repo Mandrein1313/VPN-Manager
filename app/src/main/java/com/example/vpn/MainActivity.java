@@ -1,12 +1,15 @@
 package com.example.vpn;
 
 import android.content.Intent;
+import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -34,6 +37,32 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private LinearLayout emptyState;
     private RecyclerView recycler;
 
+    /** เก็บโปรไฟล์ที่รอ request VPN permission อยู่ */
+    private Profile pendingProfile;
+
+    /** Launcher สำหรับขอ VPN permission (Activity Result API) */
+    private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (result.getResultCode() == RESULT_OK && pendingProfile != null) {
+                            startVpnService(pendingProfile);
+                        } else {
+                            Toast.makeText(this,
+                                    "คุณไม่อนุญาตให้ใช้ VPN",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                        pendingProfile = null;
+                    });
+
+    /** Launcher สำหรับขอ POST_NOTIFICATIONS (Android 13+) */
+    private final ActivityResultLauncher<String> notifPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    granted -> {
+                        // ไม่เป็นไรถ้าไม่อนุญาต — VPN ยังทำงานได้
+                    });
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -41,9 +70,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         // ขอ POST_NOTIFICATIONS บน Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissions(new String[]{
-                    android.Manifest.permission.POST_NOTIFICATIONS
-            }, 9001);
+            notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
         }
 
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
@@ -79,21 +106,47 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         startActivityForResult(i, REQ_EDIT);
     }
 
+    // ================== VPN Connection ==================
+
     @Override
     public void onConnect(Profile p) {
         viewModel.markUsed(p);
-        Toast.makeText(this, "เชื่อมต่อ: " + p.name, Toast.LENGTH_SHORT).show();
 
-        // === เปิดใช้งานเมื่อมี ProxyVpnService พร้อม ===
-        // Intent svc = new Intent(this, ProxyVpnService.class);
-        // svc.setAction("START_VPN");
-        // svc.putExtra("profile_id", p.id);
-        // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        //     startForegroundService(svc);
-        // } else {
-        //     startService(svc);
-        // }
+        // 1. เช็คว่าผู้ใช้เคยอนุญาต VPN แล้วหรือยัง
+        Intent prepare = VpnService.prepare(this);
+        if (prepare != null) {
+            // ยังไม่อนุญาต → เก็บไว้ก่อน แล้วเปิด dialog ขออนุญาต
+            pendingProfile = p;
+            vpnPermissionLauncher.launch(prepare);
+            return;
+        }
+
+        // 2. อนุญาตแล้ว → start service
+        startVpnService(p);
     }
+
+    private void startVpnService(Profile p) {
+        Intent svc = new Intent(this, ProxyVpnService.class);
+        svc.setAction(ProxyVpnService.ACTION_START);
+        svc.putExtra(ProxyVpnService.EXTRA_PROFILE_ID, p.id);
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(svc);
+            } else {
+                startService(svc);
+            }
+            Toast.makeText(this,
+                    "กำลังเชื่อมต่อ: " + p.name,
+                    Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this,
+                    "เกิดข้อผิดพลาด: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // ================== Adapter Callbacks ==================
 
     @Override
     public void onEdit(Profile p) {
