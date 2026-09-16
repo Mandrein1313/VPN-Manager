@@ -12,14 +12,18 @@ import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
-import com.zaneschepke.hevtunnel.HevTunnel;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.tunnel.Socks5Server;
 import com.example.vpn.tunnel.SshTunnel;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+
+import hev.htproxy.TProxyService;
 
 public class ProxyVpnService extends VpnService {
 
@@ -38,10 +42,10 @@ public class ProxyVpnService extends VpnService {
     private ParcelFileDescriptor tunFd;
     private Thread workerThread;
     private volatile boolean running = false;
+    private File configFile;
 
     private SshTunnel sshTunnel;
     private Socks5Server socks5Server;
-    private HevTunnel hevTunnel;   // ⭐ เปลี่ยนจาก Tun2Socks
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -127,15 +131,20 @@ public class ProxyVpnService extends VpnService {
 
             Log.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
 
-            // 4. เริ่ม Tun2Socks bridge ด้วย HevTunnel
+            // 4. เริ่ม HevTunnel ผ่าน TProxyService
             updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
 
-            hevTunnel = new HevTunnel();
-            hevTunnel.start(
-                    tunFd.getFd(),
-                    "127.0.0.1",
-                    Socks5Server.LOCAL_PORT
+            // คัดลอก config จาก assets ไปยัง internal storage (hev ต้องอ่านจาก file path จริง)
+            copyConfigFromAssets();
+
+            boolean started = TProxyService.TProxyStartService(
+                    configFile.getAbsolutePath(),
+                    tunFd.getFd()
             );
+
+            if (!started) {
+                throw new IOException("TProxyStartService failed");
+            }
 
             Log.i(TAG, "HevTunnel started — VPN is active");
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
@@ -147,6 +156,16 @@ public class ProxyVpnService extends VpnService {
         }
     }
 
+    private void copyConfigFromAssets() throws IOException {
+        configFile = new File(getFilesDir(), "hev-config.yml");
+        try (InputStream in = getAssets().open("hev-config.yml");
+             FileOutputStream out = new FileOutputStream(configFile)) {
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        }
+    }
+
     private void stopVpn() {
         running = false;
 
@@ -155,11 +174,9 @@ public class ProxyVpnService extends VpnService {
             workerThread = null;
         }
 
-        // หยุด HevTunnel ก่อน (สำคัญ — ต้องหยุดก่อน TUN)
-        if (hevTunnel != null) {
-            try { hevTunnel.stop(); } catch (Exception ignored) {}
-            hevTunnel = null;
-        }
+        try {
+            TProxyService.TProxyStopService();
+        } catch (Exception ignored) {}
 
         if (socks5Server != null) {
             socks5Server.stop();
@@ -174,6 +191,11 @@ public class ProxyVpnService extends VpnService {
         if (tunFd != null) {
             try { tunFd.close(); } catch (IOException ignored) {}
             tunFd = null;
+        }
+
+        if (configFile != null && configFile.exists()) {
+            configFile.delete();
+            configFile = null;
         }
 
         try {
@@ -193,8 +215,6 @@ public class ProxyVpnService extends VpnService {
         stopVpn();
         super.onRevoke();
     }
-
-    // ===== Notification =====
 
     private Notification buildNotification(String text) {
         createChannelIfNeeded();
