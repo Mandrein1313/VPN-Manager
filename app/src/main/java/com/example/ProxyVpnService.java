@@ -18,8 +18,6 @@ import com.example.vpn.model.Profile;
 import com.example.vpn.tunnel.Socks5Server;
 import com.example.vpn.tunnel.SshTunnel;
 
-import com.zaneschepke.hevtunnel.HevTunnel;
-
 import java.io.IOException;
 
 public class ProxyVpnService extends VpnService {
@@ -42,7 +40,6 @@ public class ProxyVpnService extends VpnService {
 
     private SshTunnel sshTunnel;
     private Socks5Server socks5Server;
-    private HevTunnel hevTunnel;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -83,7 +80,6 @@ public class ProxyVpnService extends VpnService {
 
     private void startVpn(Profile profile) {
         try {
-            // 1. สร้าง TUN interface
             Builder builder = new Builder()
                     .setSession(profile.name)
                     .addAddress(VPN_ADDRESS, 32)
@@ -106,7 +102,6 @@ public class ProxyVpnService extends VpnService {
 
             updateNotification("กำลังเชื่อมต่อ SSH...");
 
-            // 2. เชื่อม SSH tunnel
             sshTunnel = new SshTunnel(
                     profile.host,
                     profile.port,
@@ -120,25 +115,14 @@ public class ProxyVpnService extends VpnService {
             }
 
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
-            Log.i(TAG, "SSH OK, starting SOCKS5 server...");
 
-            // 3. เปิด SOCKS5 server (local)
             socks5Server = new Socks5Server(sshTunnel);
             socks5Server.start();
 
             Log.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
-            updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
-
-            // 4. เริ่ม Tun2Socks bridge
-            hevTunnel = new HevTunnel();
-            hevTunnel.start(
-                    tunFd.getFd(),
-                    "127.0.0.1",
-                    Socks5Server.LOCAL_PORT
-            );
-
-            Log.i(TAG, "HevTunnel started (tun2socks bridge active)");
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
+
+            // TODO: TcpForwarder (จะทำในขั้นถัดไป)
 
         } catch (Exception e) {
             Log.e(TAG, "startVpn error", e);
@@ -154,15 +138,6 @@ public class ProxyVpnService extends VpnService {
             workerThread.interrupt();
             workerThread = null;
         }
-
-        // ⭐ หยุด tun2socks ก่อน (สำคัญ: ต้องหยุดก่อน SSH/SOCKS)
-        if (hevTunnel != null) {
-            try {
-                hevTunnel.stop();
-            } catch (Exception ignored) {}
-            hevTunnel = null;
-        }
-
         if (socks5Server != null) {
             socks5Server.stop();
             socks5Server = null;
@@ -192,8 +167,6 @@ public class ProxyVpnService extends VpnService {
         stopVpn();
         super.onRevoke();
     }
-
-    // ===== Notification =====
 
     private Notification buildNotification(String text) {
         createChannelIfNeeded();
