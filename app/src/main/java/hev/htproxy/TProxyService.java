@@ -1,10 +1,11 @@
 package hev.htproxy;
 
 public class TProxyService {
-    private static native boolean TProxyStartService(String config_path, int fd);
-    private static native boolean TProxyStopService();
-    private static native boolean TProxyIsRunning();
-    private static native long[] TProxyGetStats();
+    // ✅ เปลี่ยนจาก private → public
+    public static native boolean TProxyStartService(String config_path, int fd);
+    public static native boolean TProxyStopService();
+    public static native boolean TProxyIsRunning();
+    public static native long[] TProxyGetStats();
 
     static {
         System.loadLibrary("hev-socks5-tunnel");
