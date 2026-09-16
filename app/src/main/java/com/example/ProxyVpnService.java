@@ -12,6 +12,7 @@ import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
+import com.LondonX.tun2socks.Tun2Socks;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
@@ -40,6 +41,7 @@ public class ProxyVpnService extends VpnService {
 
     private SshTunnel sshTunnel;
     private Socks5Server socks5Server;
+    private Tun2Socks tun2socks;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -80,6 +82,9 @@ public class ProxyVpnService extends VpnService {
 
     private void startVpn(Profile profile) {
         try {
+            // ============================================================
+            // 1. สร้าง TUN interface
+            // ============================================================
             Builder builder = new Builder()
                     .setSession(profile.name)
                     .addAddress(VPN_ADDRESS, 32)
@@ -98,8 +103,11 @@ public class ProxyVpnService extends VpnService {
             }
 
             running = true;
-            Log.i(TAG, "TUN established: " + tunFd.getFd());
+            Log.i(TAG, "TUN established: fd=" + tunFd.getFd());
 
+            // ============================================================
+            // 2. เชื่อม SSH tunnel
+            // ============================================================
             updateNotification("กำลังเชื่อมต่อ SSH...");
 
             sshTunnel = new SshTunnel(
@@ -107,7 +115,7 @@ public class ProxyVpnService extends VpnService {
                     profile.port,
                     profile.user,
                     profile.pass,
-                    socket -> protect(socket)
+                    socket -> protect(socket)   // VpnService.protect() — กัน routing loop
             );
 
             if (!sshTunnel.isConnected()) {
@@ -115,14 +123,31 @@ public class ProxyVpnService extends VpnService {
             }
 
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
+            Log.i(TAG, "SSH OK, starting SOCKS5 server...");
 
+            // ============================================================
+            // 3. เปิด SOCKS5 server (127.0.0.1:1080)
+            // ============================================================
             socks5Server = new Socks5Server(sshTunnel);
             socks5Server.start();
 
             Log.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
-            updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
-            // TODO: TcpForwarder (จะทำในขั้นถัดไป)
+            // ============================================================
+            // 4. เริ่ม Tun2Socks bridge (TUN ↔ SOCKS5)
+            // ============================================================
+            updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
+
+            tun2socks = new Tun2Socks();
+            tun2socks.start(
+                    tunFd.getFd(),
+                    "127.0.0.1",
+                    Socks5Server.LOCAL_PORT,
+                    socket -> protect(socket)
+            );
+
+            Log.i(TAG, "Tun2Socks started — VPN is active");
+            updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
         } catch (Exception e) {
             Log.e(TAG, "startVpn error", e);
@@ -138,18 +163,28 @@ public class ProxyVpnService extends VpnService {
             workerThread.interrupt();
             workerThread = null;
         }
+
+        // หยุด Tun2Socks ก่อน (สำคัญ — ต้องหยุดก่อน TUN)
+        if (tun2socks != null) {
+            try { tun2socks.stop(); } catch (Exception ignored) {}
+            tun2socks = null;
+        }
+
         if (socks5Server != null) {
             socks5Server.stop();
             socks5Server = null;
         }
+
         if (sshTunnel != null) {
             sshTunnel.disconnect();
             sshTunnel = null;
         }
+
         if (tunFd != null) {
             try { tunFd.close(); } catch (IOException ignored) {}
             tunFd = null;
         }
+
         try {
             stopForeground(true);
         } catch (Exception ignored) {}
@@ -167,6 +202,8 @@ public class ProxyVpnService extends VpnService {
         stopVpn();
         super.onRevoke();
     }
+
+    // ===== Notification =====
 
     private Notification buildNotification(String text) {
         createChannelIfNeeded();
