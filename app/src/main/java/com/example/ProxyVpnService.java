@@ -12,7 +12,7 @@ import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
-import com.LondonX.tun2socks.Tun2Socks;
+import com.zaneschepke.hevtunnel.HevTunnel;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
@@ -41,7 +41,7 @@ public class ProxyVpnService extends VpnService {
 
     private SshTunnel sshTunnel;
     private Socks5Server socks5Server;
-    private Tun2Socks tun2socks;
+    private HevTunnel hevTunnel;   // ⭐ เปลี่ยนจาก Tun2Socks
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -82,9 +82,7 @@ public class ProxyVpnService extends VpnService {
 
     private void startVpn(Profile profile) {
         try {
-            // ============================================================
             // 1. สร้าง TUN interface
-            // ============================================================
             Builder builder = new Builder()
                     .setSession(profile.name)
                     .addAddress(VPN_ADDRESS, 32)
@@ -105,9 +103,7 @@ public class ProxyVpnService extends VpnService {
             running = true;
             Log.i(TAG, "TUN established: fd=" + tunFd.getFd());
 
-            // ============================================================
             // 2. เชื่อม SSH tunnel
-            // ============================================================
             updateNotification("กำลังเชื่อมต่อ SSH...");
 
             sshTunnel = new SshTunnel(
@@ -115,7 +111,7 @@ public class ProxyVpnService extends VpnService {
                     profile.port,
                     profile.user,
                     profile.pass,
-                    socket -> protect(socket)   // VpnService.protect() — กัน routing loop
+                    socket -> protect(socket)
             );
 
             if (!sshTunnel.isConnected()) {
@@ -125,28 +121,23 @@ public class ProxyVpnService extends VpnService {
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
             Log.i(TAG, "SSH OK, starting SOCKS5 server...");
 
-            // ============================================================
-            // 3. เปิด SOCKS5 server (127.0.0.1:1080)
-            // ============================================================
+            // 3. เปิด SOCKS5 server
             socks5Server = new Socks5Server(sshTunnel);
             socks5Server.start();
 
             Log.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
 
-            // ============================================================
-            // 4. เริ่ม Tun2Socks bridge (TUN ↔ SOCKS5)
-            // ============================================================
+            // 4. เริ่ม Tun2Socks bridge ด้วย HevTunnel
             updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
 
-            tun2socks = new Tun2Socks();
-            tun2socks.start(
+            hevTunnel = new HevTunnel();
+            hevTunnel.start(
                     tunFd.getFd(),
                     "127.0.0.1",
-                    Socks5Server.LOCAL_PORT,
-                    socket -> protect(socket)
+                    Socks5Server.LOCAL_PORT
             );
 
-            Log.i(TAG, "Tun2Socks started — VPN is active");
+            Log.i(TAG, "HevTunnel started — VPN is active");
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
         } catch (Exception e) {
@@ -164,10 +155,10 @@ public class ProxyVpnService extends VpnService {
             workerThread = null;
         }
 
-        // หยุด Tun2Socks ก่อน (สำคัญ — ต้องหยุดก่อน TUN)
-        if (tun2socks != null) {
-            try { tun2socks.stop(); } catch (Exception ignored) {}
-            tun2socks = null;
+        // หยุด HevTunnel ก่อน (สำคัญ — ต้องหยุดก่อน TUN)
+        if (hevTunnel != null) {
+            try { hevTunnel.stop(); } catch (Exception ignored) {}
+            hevTunnel = null;
         }
 
         if (socks5Server != null) {
