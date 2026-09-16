@@ -15,6 +15,8 @@ import androidx.core.app.NotificationCompat;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.tunnel.Socks5Server;
+import com.example.vpn.tunnel.SshTunnel;
 
 import java.io.IOException;
 
@@ -34,6 +36,10 @@ public class ProxyVpnService extends VpnService {
     private ParcelFileDescriptor tunFd;
     private Thread workerThread;
     private volatile boolean running = false;
+
+    // เพิ่ม field ใหม่
+    private SshTunnel sshTunnel;
+    private Socks5Server socks5Server;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -94,31 +100,57 @@ public class ProxyVpnService extends VpnService {
             running = true;
             Log.i(TAG, "TUN established: " + tunFd.getFd());
 
+            updateNotification("กำลังเชื่อมต่อ SSH...");
+
+            // 2. เชื่อม SSH tunnel
+            sshTunnel = new SshTunnel(
+                    profile.host,
+                    profile.port,
+                    profile.user,
+                    profile.pass,
+                    socket -> protect(socket)  // VpnService.protect()
+            );
+
+            if (!sshTunnel.isConnected()) {
+                throw new IOException("SSH not connected");
+            }
+
+            updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
+            Log.i(TAG, "SSH OK, starting SOCKS5 server...");
+
+            // 3. เปิด SOCKS5 server (local)
+            socks5Server = new Socks5Server(sshTunnel);
+            socks5Server.start();
+
+            Log.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
-            // ============================================================
-            // TODO: เริ่ม SshEngine + SocksProxy + PacketForwarder ที่นี่
-            //   - SshEngine       : เชื่อม SSH ผ่าน JSch
-            //   - LocalSocksProxy : เปิด SOCKS5 server ที่ 127.0.0.1:1080
-            //   - PacketForwarder : อ่าน packet จาก TUN → ส่งเข้า SOCKS5
-            // ============================================================
-
-            // ตอนนี้ยังไม่มี forwarder — รอสักครู่แล้วหยุด
-            // (สำหรับทดสอบ notification + TUN เท่านั้น)
-            // Thread.sleep(3000);
-            // stopVpn();
+            // TODO: เริ่ม TcpForwarder (TUN → SOCKS5) ในขั้นถัดไป
+            // TcpForwarder forwarder = new TcpForwarder(tunFd, Socks5Server.LOCAL_PORT);
+            // workerThread = new Thread(forwarder, "forwarder");
+            // workerThread.start();
 
         } catch (Exception e) {
             Log.e(TAG, "startVpn error", e);
+            updateNotification("ผิดพลาด: " + e.getMessage());
             stopVpn();
         }
     }
 
     private void stopVpn() {
         running = false;
+
         if (workerThread != null) {
             workerThread.interrupt();
             workerThread = null;
+        }
+        if (socks5Server != null) {
+            socks5Server.stop();
+            socks5Server = null;
+        }
+        if (sshTunnel != null) {
+            sshTunnel.disconnect();
+            sshTunnel = null;
         }
         if (tunFd != null) {
             try { tunFd.close(); } catch (IOException ignored) {}

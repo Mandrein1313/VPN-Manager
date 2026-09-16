@@ -1,0 +1,199 @@
+package com.example.vpn.tunnel;
+
+import android.util.Log;
+
+import com.jcraft.jsch.ChannelDirectTCPIP;
+
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * SOCKS5 server แบบง่าย ที่ทุกการเชื่อมต่อจะถูกส่งผ่าน SSH tunnel
+ * Listen on 127.0.0.1:LOCAL_PORT
+ */
+public class Socks5Server {
+
+    private static final String TAG = "Socks5Server";
+    public static final int LOCAL_PORT = 1080;
+
+    // SOCKS5 constants
+    private static final int VER = 0x05;
+    private static final int CMD_CONNECT = 0x01;
+    private static final int ATYP_IPV4 = 0x01;
+    private static final int ATYP_DOMAIN = 0x03;
+    private static final int ATYP_IPV6 = 0x04;
+    private static final int REP_SUCCESS = 0x00;
+    private static final int REP_GENERAL_FAIL = 0x01;
+    private static final int REP_CMD_NOT_SUPPORTED = 0x07;
+
+    private final SshTunnel ssh;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    private ServerSocket server;
+    private Thread acceptThread;
+    private final ExecutorService pool = Executors.newCachedThreadPool();
+
+    public Socks5Server(SshTunnel ssh) {
+        this.ssh = ssh;
+    }
+
+    public void start() throws IOException {
+        server = new ServerSocket(LOCAL_PORT, 50,
+                InetAddress.getByName("127.0.0.1"));
+        running.set(true);
+
+        acceptThread = new Thread(this::acceptLoop, "socks5-accept");
+        acceptThread.setDaemon(true);
+        acceptThread.start();
+
+        Log.i(TAG, "SOCKS5 server listening on 127.0.0.1:" + LOCAL_PORT);
+    }
+
+    private void acceptLoop() {
+        while (running.get()) {
+            try {
+                Socket client = server.accept();
+                pool.execute(() -> handleClient(client));
+            } catch (IOException e) {
+                if (running.get()) Log.w(TAG, "accept error", e);
+            }
+        }
+    }
+
+    private void handleClient(Socket client) {
+        ChannelDirectTCPIP channel = null;
+        try {
+            client.setTcpNoDelay(true);
+            DataInputStream in = new DataInputStream(client.getInputStream());
+            OutputStream out = client.getOutputStream();
+
+            // ---- Handshake: client sends [VER, NMETHODS, METHODS...] ----
+            int ver = in.readUnsignedByte();
+            if (ver != VER) { client.close(); return; }
+
+            int nMethods = in.readUnsignedByte();
+            for (int i = 0; i < nMethods; i++) in.readUnsignedByte();
+
+            // Reply: [VER, METHOD=0x00 (no auth)]
+            out.write(new byte[]{VER, 0x00});
+            out.flush();
+
+            // ---- Request: [VER, CMD, RSV, ATYP, DST.ADDR, DST.PORT] ----
+            int rVer = in.readUnsignedByte();
+            int cmd = in.readUnsignedByte();
+            in.readUnsignedByte(); // RSV
+            int atyp = in.readUnsignedByte();
+
+            String destHost;
+            switch (atyp) {
+                case ATYP_IPV4: {
+                    byte[] addr = new byte[4];
+                    in.readFully(addr);
+                    destHost = InetAddress.getByAddress(addr).getHostAddress();
+                    break;
+                }
+                case ATYP_DOMAIN: {
+                    int len = in.readUnsignedByte();
+                    byte[] name = new byte[len];
+                    in.readFully(name);
+                    destHost = new String(name, "UTF-8");
+                    break;
+                }
+                case ATYP_IPV6: {
+                    byte[] addr = new byte[16];
+                    in.readFully(addr);
+                    destHost = InetAddress.getByAddress(addr).getHostAddress();
+                    break;
+                }
+                default:
+                    sendReply(out, REP_GENERAL_FAIL);
+                    client.close();
+                    return;
+            }
+
+            int destPort = in.readUnsignedShort();
+
+            if (cmd != CMD_CONNECT) {
+                sendReply(out, REP_CMD_NOT_SUPPORTED);
+                client.close();
+                return;
+            }
+
+            // ---- เปิด SSH channel ไปปลายทาง ----
+            channel = ssh.openTcp(destHost, destPort);
+
+            // ตอบสำเร็จ (BND.ADDR/PORT = 0)
+            out.write(new byte[]{VER, REP_SUCCESS, 0x00, ATYP_IPV4,
+                    0, 0, 0, 0, 0, 0});
+            out.flush();
+
+            // ---- Pipe bytes 2 ทาง ----
+            final ChannelDirectTCPIP ch = channel;
+            Thread t1 = new Thread(() -> pipe(client, ch));
+            Thread t2 = new Thread(() -> pipe(ch, client));
+            t1.start();
+            t2.start();
+            t1.join();
+            t2.join();
+
+        } catch (Exception e) {
+            Log.w(TAG, "handleClient: " + e.getMessage());
+        } finally {
+            try { client.close(); } catch (IOException ignored) {}
+            if (channel != null) channel.disconnect();
+        }
+    }
+
+    private static void sendReply(OutputStream out, int rep) throws IOException {
+        out.write(new byte[]{VER, rep, 0x00, ATYP_IPV4, 0, 0, 0, 0, 0, 0});
+        out.flush();
+    }
+
+    private static void pipe(Socket client, ChannelDirectTCPIP ch) {
+        try {
+            InputStream in = client.getInputStream();
+            OutputStream out = ch.getOutputStream();
+            copy(in, out);
+        } catch (Exception ignored) {
+        } finally {
+            try { client.shutdownOutput(); } catch (IOException ignored) {}
+            try { ch.getOutputStream().close(); } catch (IOException ignored) {}
+        }
+    }
+
+    private static void pipe(ChannelDirectTCPIP ch, Socket client) {
+        try {
+            InputStream in = ch.getInputStream();
+            OutputStream out = client.getOutputStream();
+            copy(in, out);
+        } catch (Exception ignored) {
+        } finally {
+            try { ch.getInputStream().close(); } catch (IOException ignored) {}
+            try { client.shutdownOutput(); } catch (IOException ignored) {}
+        }
+    }
+
+    private static void copy(InputStream in, OutputStream out) throws IOException {
+        byte[] buf = new byte[8 * 1024];
+        int n;
+        while ((n = in.read(buf)) > 0) {
+            out.write(buf, 0, n);
+            out.flush();
+        }
+    }
+
+    public void stop() {
+        running.set(false);
+        try { if (server != null) server.close(); } catch (IOException ignored) {}
+        pool.shutdownNow();
+        Log.i(TAG, "SOCKS5 server stopped");
+    }
+}
