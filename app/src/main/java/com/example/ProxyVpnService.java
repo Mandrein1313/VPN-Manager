@@ -67,7 +67,8 @@ public class ProxyVpnService extends VpnService {
                 stopVpn();
                 return;
             }
-            new Thread(() -> startVpn(profile), "vpn-worker").start();
+            workerThread = new Thread(() -> startVpn(profile), "vpn-worker");
+            workerThread.start();
         });
     }
 
@@ -79,7 +80,9 @@ public class ProxyVpnService extends VpnService {
                     .addAddress(VPN_ADDRESS, 32)
                     .addRoute(VPN_ROUTE, VPN_PREFIX)
                     .addDnsServer(profile.dns1)
-                    .addDnsServer(profile.dns2);
+                    .addDnsServer(profile.dns2)
+                    .setBlocking(true);
+
             tunFd = builder.establish();
 
             if (tunFd == null) {
@@ -93,8 +96,17 @@ public class ProxyVpnService extends VpnService {
 
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
+            // ============================================================
             // TODO: เริ่ม SshEngine + SocksProxy + PacketForwarder ที่นี่
-            // (จะเติมในขั้นถัดไป)
+            //   - SshEngine       : เชื่อม SSH ผ่าน JSch
+            //   - LocalSocksProxy : เปิด SOCKS5 server ที่ 127.0.0.1:1080
+            //   - PacketForwarder : อ่าน packet จาก TUN → ส่งเข้า SOCKS5
+            // ============================================================
+
+            // ตอนนี้ยังไม่มี forwarder — รอสักครู่แล้วหยุด
+            // (สำหรับทดสอบ notification + TUN เท่านั้น)
+            // Thread.sleep(3000);
+            // stopVpn();
 
         } catch (Exception e) {
             Log.e(TAG, "startVpn error", e);
@@ -112,7 +124,9 @@ public class ProxyVpnService extends VpnService {
             try { tunFd.close(); } catch (IOException ignored) {}
             tunFd = null;
         }
-        stopForeground(true);
+        try {
+            stopForeground(true);
+        } catch (Exception ignored) {}
         stopSelf();
     }
 
@@ -148,7 +162,7 @@ public class ProxyVpnService extends VpnService {
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("VPN Manager")
                 .setContentText(text)
-                .setSmallIcon(android.R.drawable.stat_sys_vpn_ic)
+                .setSmallIcon(R.drawable.ic_vpn)
                 .setContentIntent(pi)
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "หยุด", stopPi)
                 .setOngoing(true)
@@ -168,6 +182,7 @@ public class ProxyVpnService extends VpnService {
                 NotificationChannel ch = new NotificationChannel(
                         CHANNEL_ID, "VPN Status",
                         NotificationManager.IMPORTANCE_LOW);
+                ch.setDescription("สถานะการเชื่อมต่อ VPN");
                 nm.createNotificationChannel(ch);
             }
         }
