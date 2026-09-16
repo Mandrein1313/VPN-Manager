@@ -1,0 +1,11 @@
+<resources>
+    <color name="md_theme_primary">#6750A4</color>
+    <color name="md_theme_primaryVariant">#4F378B</color>
+
+    <color name="proto_ssh">#4CAF50</color>
+    <color name="proto_v2ray">#2196F3</color>
+    <color name="proto_http">#FF9800</color>
+    <color name="proto_trojan">#9C27B0</color>
+    <color name="proto_wg">#E91E63</color>
+    <color name="proto_ss">#00BCD4</color>
+</resources>

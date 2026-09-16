@@ -1,0 +1,12 @@
+tunnel:
+  mtu: 1500
+  ipv4: 10.0.0.2
+
+socks5:
+  port: 1080
+  address: 127.0.0.1
+  udp: 'tcp'
+
+misc:
+  log-file: stderr
+  log-level: warn
