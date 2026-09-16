@@ -58,17 +58,24 @@ public class LogViewerActivity extends AppCompatActivity
 
         btnScrollBottom.setOnClickListener(v -> scrollToBottom());
 
-        VpnLogger.setListener(line -> runOnUiThread(() -> {
-            txtLog.append(line);
-            txtLog.append("\n");
-            scrollToBottom();
-        }));
+        // ลงทะเบียน listener — method onLogAdded() อยู่ด้านล่าง
+        VpnLogger.setListener(this);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         VpnLogger.setListener(null);
+    }
+
+    // ⭐ method ที่ compiler ต้องการ — implement interface
+    @Override
+    public void onLogAdded(String line) {
+        runOnUiThread(() -> {
+            txtLog.append(line);
+            txtLog.append("\n");
+            scrollToBottom();
+        });
     }
 
     private void refreshLog() {
