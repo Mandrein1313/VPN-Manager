@@ -1,3 +1,6 @@
-plugins {
-    id 'com.android.application' version '8.6.1' apply false
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.core:core:1.15.0'
+        force 'androidx.core:core-ktx:1.15.0'
+    }
 }
