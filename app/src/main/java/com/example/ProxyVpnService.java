@@ -17,6 +17,8 @@ import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.tunnel.Socks5Server;
 import com.example.vpn.tunnel.SshTunnel;
+import com.example.vpn.util.StatusBus;
+import com.example.vpn.util.VpnLogger;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -60,7 +62,7 @@ public class ProxyVpnService extends VpnService {
         if (ACTION_START.equals(action)) {
             long profileId = intent.getLongExtra(EXTRA_PROFILE_ID, -1L);
             if (profileId <= 0) {
-                Log.e(TAG, "Invalid profile id");
+                VpnLogger.e(TAG, "Invalid profile id");
                 stopSelf();
                 return START_NOT_STICKY;
             }
@@ -75,7 +77,7 @@ public class ProxyVpnService extends VpnService {
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
         repo.getById(profileId, profile -> {
             if (profile == null) {
-                Log.e(TAG, "Profile not found: " + profileId);
+                VpnLogger.e(TAG, "Profile not found: " + profileId);
                 stopVpn();
                 return;
             }
@@ -84,14 +86,16 @@ public class ProxyVpnService extends VpnService {
         });
     }
 
-    // ⭐ helper ใหม่
     private static String emptyToNull(String s) {
         return (s == null || s.trim().isEmpty()) ? null : s.trim();
     }
 
     private void startVpn(Profile profile) {
         try {
-            // 1. สร้าง TUN interface
+            // ---- 1. TUN ----
+            StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังสร้าง TUN...");
+            VpnLogger.i(TAG, "Creating TUN interface...");
+
             Builder builder = new Builder()
                     .setSession(profile.name)
                     .addAddress(VPN_ADDRESS, 32)
@@ -102,47 +106,52 @@ public class ProxyVpnService extends VpnService {
                     .setBlocking(true);
 
             tunFd = builder.establish();
-
             if (tunFd == null) {
-                Log.e(TAG, "Failed to establish TUN");
-                stopVpn();
-                return;
+                throw new IOException("Failed to establish TUN");
             }
-
             running = true;
-            Log.i(TAG, "TUN established: fd=" + tunFd.getFd());
+            VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd());
 
-            // 2. เชื่อม SSH tunnel (รองรับ HTTP Proxy + Payload + SNI)
+            // ---- 2. SSH ----
+            StatusBus.post(StatusBus.State.CONNECTING_SSH,
+                    "กำลังเชื่อมต่อ SSH: " + profile.host + ":" + profile.port);
             updateNotification("กำลังเชื่อมต่อ SSH...");
+            VpnLogger.i(TAG, "Connecting SSH to " + profile.host + ":" + profile.port);
 
             sshTunnel = new SshTunnel(
                     profile.host,
                     profile.port,
                     profile.user,
                     profile.pass,
-                    emptyToNull(profile.httpProxy),   // ⭐ ใหม่
-                    emptyToNull(profile.payload),     // ⭐ ใหม่
-                    emptyToNull(profile.sni),         // ⭐ ใหม่
+                    emptyToNull(profile.httpProxy),
+                    emptyToNull(profile.payload),
+                    emptyToNull(profile.sni),
                     socket -> protect(socket)
             );
 
             if (!sshTunnel.isConnected()) {
                 throw new IOException("SSH not connected");
             }
-
+            StatusBus.post(StatusBus.State.SSH_CONNECTED, "SSH เชื่อมต่อแล้ว");
+            VpnLogger.i(TAG, "SSH connected");
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
-            Log.i(TAG, "SSH OK, starting SOCKS5 server...");
 
-            // 3. เปิด SOCKS5 server
+            // ---- 3. SOCKS5 ----
+            VpnLogger.i(TAG, "Starting SOCKS5 server...");
             socks5Server = new Socks5Server(sshTunnel);
             socks5Server.start();
 
-            Log.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
+            StatusBus.post(StatusBus.State.SOCKS_READY,
+                    "SOCKS5 พร้อม: 127.0.0.1:" + Socks5Server.LOCAL_PORT);
+            VpnLogger.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
 
-            // 4. เริ่ม HevTunnel ผ่าน TProxyService
+            // ---- 4. Tun2Socks ----
+            StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
             updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
+            VpnLogger.i(TAG, "Starting Tun2Socks bridge...");
 
             copyConfigFromAssets();
+            VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
 
             boolean started = TProxyService.TProxyStartService(
                     configFile.getAbsolutePath(),
@@ -152,12 +161,15 @@ public class ProxyVpnService extends VpnService {
             if (!started) {
                 throw new IOException("TProxyStartService failed");
             }
+            VpnLogger.i(TAG, "Tun2Socks started — VPN is active");
 
-            Log.i(TAG, "HevTunnel started — VPN is active");
+            StatusBus.post(StatusBus.State.CONNECTED,
+                    "เชื่อมต่อแล้ว: " + profile.name);
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
         } catch (Exception e) {
-            Log.e(TAG, "startVpn error", e);
+            VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
+            StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
             updateNotification("ผิดพลาด: " + e.getMessage());
             stopVpn();
         }
@@ -175,6 +187,7 @@ public class ProxyVpnService extends VpnService {
 
     private void stopVpn() {
         running = false;
+        VpnLogger.i(TAG, "Stopping VPN...");
 
         if (workerThread != null) {
             workerThread.interrupt();
@@ -183,16 +196,21 @@ public class ProxyVpnService extends VpnService {
 
         try {
             TProxyService.TProxyStopService();
-        } catch (Exception ignored) {}
+            VpnLogger.i(TAG, "Tun2Socks stopped");
+        } catch (Exception e) {
+            VpnLogger.w(TAG, "TProxyStopService error: " + e.getMessage());
+        }
 
         if (socks5Server != null) {
             socks5Server.stop();
             socks5Server = null;
+            VpnLogger.i(TAG, "SOCKS5 stopped");
         }
 
         if (sshTunnel != null) {
             sshTunnel.disconnect();
             sshTunnel = null;
+            VpnLogger.i(TAG, "SSH disconnected");
         }
 
         if (tunFd != null) {
@@ -209,6 +227,8 @@ public class ProxyVpnService extends VpnService {
             stopForeground(true);
         } catch (Exception ignored) {}
         stopSelf();
+
+        StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
     }
 
     @Override
