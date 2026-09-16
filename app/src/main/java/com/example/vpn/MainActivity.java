@@ -1,5 +1,7 @@
 package com.example.vpn;
 
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Build;
@@ -24,6 +26,7 @@ import com.example.vpn.ui.ProfileAdapter;
 import com.example.vpn.ui.ProfileEditActivity;
 import com.example.vpn.ui.ProfileViewModel;
 import com.example.vpn.ui.ProfileViewModelFactory;
+import com.example.vpn.util.ConfigParser;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
@@ -36,6 +39,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private ProfileAdapter adapter;
     private LinearLayout emptyState;
     private RecyclerView recycler;
+    private ExtendedFloatingActionButton fabImport;
 
     /** เก็บโปรไฟล์ที่รอ request VPN permission อยู่ */
     private Profile pendingProfile;
@@ -92,6 +96,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         ExtendedFloatingActionButton fab = findViewById(R.id.fabAdd);
         fab.setOnClickListener(v -> openEdit(null));
 
+        fabImport = findViewById(R.id.fabImport);
+        fabImport.setOnClickListener(v -> importFromClipboard());
+
         viewModel.getProfiles().observe(this, list -> {
             adapter.submit(list);
             boolean empty = list == null || list.isEmpty();
@@ -144,6 +151,66 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                     "เกิดข้อผิดพลาด: " + e.getMessage(),
                     Toast.LENGTH_LONG).show();
         }
+    }
+
+    // ============================================================
+    // Import from clipboard
+    // ============================================================
+    private void importFromClipboard() {
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null) {
+            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CharSequence text = cm.getPrimaryClip()
+                .getItemAt(0)
+                .coerceToText(this);
+
+        if (text == null || text.length() == 0) {
+            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ConfigParser.Result result = ConfigParser.parse(text.toString());
+
+        if (!result.isSuccess()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Import ไม่สำเร็จ")
+                    .setMessage(result.error + "\n\nข้อมูล:\n" + text)
+                    .setPositiveButton("ตกลง", null)
+                    .show();
+            return;
+        }
+
+        final Profile profile = result.profile;
+
+        String msg = "Host: " + profile.host + "\n"
+                + "Port: " + profile.port + "\n"
+                + "User: " + (profile.user.isEmpty() ? "(ว่าง)" : profile.user) + "\n"
+                + "Pass: " + (profile.pass.isEmpty() ? "(ว่าง)" : "••••••") + "\n\n"
+                + "ต้องการบันทึกเป็นโปรไฟล์ใหม่หรือไม่?";
+
+        new AlertDialog.Builder(this)
+                .setTitle("ยืนยันการ Import")
+                .setMessage(msg)
+                .setPositiveButton("บันทึก", (d, w) -> {
+                    viewModel.save(profile, id -> {
+                        Toast.makeText(this,
+                                "Import สำเร็จ: " + profile.name,
+                                Toast.LENGTH_SHORT).show();
+                    });
+                })
+                .setNegativeButton("แก้ไขก่อน", (d, w) -> {
+                    Intent i = new Intent(this, ProfileEditActivity.class);
+                    i.putExtra(ProfileEditActivity.EXTRA_PREFILL_HOST, profile.host);
+                    i.putExtra(ProfileEditActivity.EXTRA_PREFILL_PORT, profile.port);
+                    i.putExtra(ProfileEditActivity.EXTRA_PREFILL_USER, profile.user);
+                    i.putExtra(ProfileEditActivity.EXTRA_PREFILL_PASS, profile.pass);
+                    startActivityForResult(i, REQ_EDIT);
+                })
+                .setNeutralButton("ยกเลิก", null)
+                .show();
     }
 
     // ================== Adapter Callbacks ==================

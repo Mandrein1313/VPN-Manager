@@ -1,5 +1,6 @@
 package com.example.vpn.ui;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.MenuItem;
@@ -24,11 +25,17 @@ import com.google.android.material.textfield.TextInputEditText;
 
 public class ProfileEditActivity extends AppCompatActivity {
 
+    // ⭐ Constants สำหรับ prefill (ใช้โดย MainActivity.importFromClipboard)
+    public static final String EXTRA_PREFILL_HOST = "prefill_host";
+    public static final String EXTRA_PREFILL_PORT = "prefill_port";
+    public static final String EXTRA_PREFILL_USER = "prefill_user";
+    public static final String EXTRA_PREFILL_PASS = "prefill_pass";
+
     private ProfileViewModel viewModel;
     private Profile existing;
 
     private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
-            edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2;   // ⭐ เพิ่ม edtHttpProxy
+            edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2;
     private MaterialAutoCompleteTextView ddProtocol;
     private LinearLayout groupCredentials, groupSsh;
     private MaterialButton btnSave;
@@ -50,7 +57,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtPort = findViewById(R.id.edtPort);
         edtUser = findViewById(R.id.edtUser);
         edtPass = findViewById(R.id.edtPass);
-        edtHttpProxy = findViewById(R.id.edtHttpProxy);   // ⭐ ใหม่
+        edtHttpProxy = findViewById(R.id.edtHttpProxy);
         edtPayload = findViewById(R.id.edtPayload);
         edtSni = findViewById(R.id.edtSni);
         edtDns1 = findViewById(R.id.edtDns1);
@@ -71,15 +78,24 @@ public class ProfileEditActivity extends AppCompatActivity {
             onProtocolChanged(selected);
         });
 
+        // ⭐ เลือกโหมด: Edit / Prefill (import) / Add
         long id = getIntent().getLongExtra(ProfileListActivity.EXTRA_PROFILE_ID, -1L);
+        Intent intent = getIntent();
+
         if (id > 0) {
+            // โหมด Edit
             tb.setTitle("แก้ไขโปรไฟล์");
             viewModel.getRepo().getById(id, loaded -> {
                 if (loaded == null) { finish(); return; }
                 existing = loaded;
                 bindProfile(loaded);
             });
+        } else if (intent.hasExtra(EXTRA_PREFILL_HOST)) {
+            // โหมด Prefill จาก Clipboard
+            tb.setTitle("เพิ่มโปรไฟล์ (จาก Clipboard)");
+            prefillFromIntent(intent);
         } else {
+            // โหมด Add เปล่าๆ
             tb.setTitle("เพิ่มโปรไฟล์");
             fillDefaults();
         }
@@ -87,6 +103,35 @@ public class ProfileEditActivity extends AppCompatActivity {
         btnSave.setOnClickListener(v -> save());
     }
 
+    // ============================================================
+    // Prefill — เติมข้อมูลที่ parse มาจาก clipboard
+    // ============================================================
+    private void prefillFromIntent(Intent intent) {
+        String host = intent.getStringExtra(EXTRA_PREFILL_HOST);
+        int port = intent.getIntExtra(EXTRA_PREFILL_PORT, 22);
+        String user = intent.getStringExtra(EXTRA_PREFILL_USER);
+        String pass = intent.getStringExtra(EXTRA_PREFILL_PASS);
+
+        // ตั้ง protocol = SSH
+        ddProtocol.setText(Protocol.SSH.displayName, false);
+
+        // ตั้งชื่อโปรไฟล์อัตโนมัติ = host
+        if (host != null && !host.isEmpty()) {
+            edtName.setText(host);
+            edtHost.setText(host);
+        }
+        edtPort.setText(String.valueOf(port));
+        if (user != null) edtUser.setText(user);
+        if (pass != null) edtPass.setText(pass);
+        edtDns1.setText("8.8.8.8");
+        edtDns2.setText("8.8.4.4");
+
+        onProtocolChanged(Protocol.SSH);
+    }
+
+    // ============================================================
+    // Defaults — ตอนกด "เพิ่มโปรไฟล์" เปล่าๆ
+    // ============================================================
     private void fillDefaults() {
         ddProtocol.setText(Protocol.SSH.displayName, false);
         edtPort.setText(String.valueOf(Protocol.SSH.defaultPort));
@@ -95,6 +140,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         onProtocolChanged(Protocol.SSH);
     }
 
+    // ============================================================
+    // Bind — เติมข้อมูลจาก profile ที่มีอยู่
+    // ============================================================
     private void bindProfile(Profile p) {
         edtName.setText(p.name);
         ddProtocol.setText(p.protocol.displayName, false);
@@ -102,7 +150,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtPort.setText(String.valueOf(p.port));
         edtUser.setText(p.user);
         edtPass.setText(p.pass);
-        edtHttpProxy.setText(p.httpProxy);   // ⭐ ใหม่
+        edtHttpProxy.setText(p.httpProxy);
         edtPayload.setText(p.payload);
         edtSni.setText(p.sni);
         edtDns1.setText(p.dns1);
@@ -110,9 +158,17 @@ public class ProfileEditActivity extends AppCompatActivity {
         onProtocolChanged(p.protocol);
     }
 
+    // ============================================================
+    // Protocol change — แสดง/ซ่อน field ตาม protocol
+    // ============================================================
     private void onProtocolChanged(Protocol proto) {
         if (existing == null) {
-            edtPort.setText(String.valueOf(proto.defaultPort));
+            // อย่า override port ถ้า prefill ไว้แล้ว
+            // (เช็คว่า port ปัจจุบันตรงกับ default ของ protocol หรือไม่)
+            String currentPort = text(edtPort);
+            if (currentPort.isEmpty()) {
+                edtPort.setText(String.valueOf(proto.defaultPort));
+            }
         }
         boolean showCredentials = (proto == Protocol.SSH || proto == Protocol.TROJAN);
         groupCredentials.setVisibility(showCredentials ? View.VISIBLE : View.GONE);
@@ -127,6 +183,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         return Protocol.SSH;
     }
 
+    // ============================================================
+    // Save
+    // ============================================================
     private void save() {
         String name = text(edtName);
         String host = text(edtHost);
@@ -147,7 +206,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         p.port = port;
         p.user = text(edtUser);
         p.pass = text(edtPass);
-        p.httpProxy = text(edtHttpProxy);   // ⭐ ใหม่
+        p.httpProxy = text(edtHttpProxy);
         p.payload = text(edtPayload);
         p.sni = text(edtSni);
         p.dns1 = text(edtDns1);
