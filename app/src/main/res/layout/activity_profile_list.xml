@@ -54,21 +54,21 @@
     </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-        android:id="@+id/fabImport"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
-        android:layout_margin="16dp"
-        android:text="วาง"
-        app:icon="@android:drawable/ic_menu_paste" />
+    android:id="@+id/fabImport"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom|start"
+    android:layout_margin="16dp"
+    android:text="วาง"
+    app:icon="@drawable/ic_paste" />
 
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-        android:id="@+id/fabAdd"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:text="เพิ่มโปรไฟล์"
-        app:icon="@android:drawable/ic_input_add" />
+<com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+    android:id="@+id/fabAdd"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom|end"
+    android:layout_margin="16dp"
+    android:text="เพิ่มโปรไฟล์"
+    app:icon="@android:drawable/ic_input_add" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
