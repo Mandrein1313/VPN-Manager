@@ -91,9 +91,11 @@ dependencies {
 
     // ===== Coroutines (เผื่อใช้กับ Java interop) =====
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-
+     // ... dependencies อื่นๆ
+    implementation 'com.zaneschepke:hevtunnel:1.0.1'
     // ===== Testing (ไม่บังคับ) =====
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    
 }
