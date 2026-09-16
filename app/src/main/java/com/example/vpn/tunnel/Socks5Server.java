@@ -69,15 +69,18 @@ public class Socks5Server {
             DataInputStream in = new DataInputStream(client.getInputStream());
             OutputStream out = client.getOutputStream();
 
+            // ---- Handshake: [VER, NMETHODS, METHODS...] ----
             int ver = in.readUnsignedByte();
             if (ver != VER) { client.close(); return; }
 
             int nMethods = in.readUnsignedByte();
             for (int i = 0; i < nMethods; i++) in.readUnsignedByte();
 
-            out.write(new byte[]{VER, 0x00});
+            // Reply: [VER, METHOD=0x00 (no auth)]
+            out.write(new byte[]{(byte) VER, 0x00});
             out.flush();
 
+            // ---- Request: [VER, CMD, RSV, ATYP, DST.ADDR, DST.PORT] ----
             in.readUnsignedByte();           // VER
             int cmd = in.readUnsignedByte(); // CMD
             in.readUnsignedByte();           // RSV
@@ -118,12 +121,17 @@ public class Socks5Server {
                 return;
             }
 
+            // ---- เปิด SSH channel ไปปลายทาง ----
             channel = ssh.openTcp(destHost, destPort);
 
-            out.write(new byte[]{VER, REP_SUCCESS, 0x00, ATYP_IPV4,
-                    0, 0, 0, 0, 0, 0});
+            // ตอบสำเร็จ
+            out.write(new byte[]{
+                    (byte) VER, (byte) REP_SUCCESS, 0x00, (byte) ATYP_IPV4,
+                    0, 0, 0, 0, 0, 0
+            });
             out.flush();
 
+            // ---- Pipe bytes 2 ทาง ----
             final ChannelDirectTCPIP ch = channel;
             Thread t1 = new Thread(() -> pipe(client, ch));
             Thread t2 = new Thread(() -> pipe(ch, client));
@@ -141,7 +149,10 @@ public class Socks5Server {
     }
 
     private static void sendReply(OutputStream out, int rep) throws IOException {
-        out.write(new byte[]{VER, rep, 0x00, ATYP_IPV4, 0, 0, 0, 0, 0, 0});
+        out.write(new byte[]{
+                (byte) VER, (byte) rep, 0x00, (byte) ATYP_IPV4,
+                0, 0, 0, 0, 0, 0
+        });
         out.flush();
     }
 
