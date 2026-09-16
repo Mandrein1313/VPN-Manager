@@ -3,9 +3,12 @@ package com.example.vpn.data;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+
 import com.example.vpn.model.Profile;
 import com.example.vpn.model.Protocol;
+
 import org.json.JSONObject;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -22,6 +25,7 @@ public class ProfileEntity {
     public int port;
     public String user;
     public String pass;
+    public String httpProxy;      // ⭐ ใหม่
     public String payload;
     public String sni;
     public String dns1;
@@ -33,8 +37,6 @@ public class ProfileEntity {
     public boolean isFavorite;
     public long lastUsedAt;
 
-    // ---- Mappers ----
-
     public static ProfileEntity fromDomain(Profile p) {
         ProfileEntity e = new ProfileEntity();
         e.id = p.id;
@@ -44,6 +46,7 @@ public class ProfileEntity {
         e.port = p.port;
         e.user = p.user;
         e.pass = p.pass;
+        e.httpProxy = p.httpProxy;      // ⭐ ใหม่
         e.payload = p.payload;
         e.sni = p.sni;
         e.dns1 = p.dns1;
@@ -63,6 +66,7 @@ public class ProfileEntity {
         p.port = port;
         p.user = user;
         p.pass = pass;
+        p.httpProxy = httpProxy != null ? httpProxy : "";   // ⭐ ใหม่
         p.payload = payload;
         p.sni = sni;
         p.dns1 = dns1;

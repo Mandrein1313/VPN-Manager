@@ -84,6 +84,11 @@ public class ProxyVpnService extends VpnService {
         });
     }
 
+    // ⭐ helper ใหม่
+    private static String emptyToNull(String s) {
+        return (s == null || s.trim().isEmpty()) ? null : s.trim();
+    }
+
     private void startVpn(Profile profile) {
         try {
             // 1. สร้าง TUN interface
@@ -107,7 +112,7 @@ public class ProxyVpnService extends VpnService {
             running = true;
             Log.i(TAG, "TUN established: fd=" + tunFd.getFd());
 
-            // 2. เชื่อม SSH tunnel
+            // 2. เชื่อม SSH tunnel (รองรับ HTTP Proxy + Payload + SNI)
             updateNotification("กำลังเชื่อมต่อ SSH...");
 
             sshTunnel = new SshTunnel(
@@ -115,6 +120,9 @@ public class ProxyVpnService extends VpnService {
                     profile.port,
                     profile.user,
                     profile.pass,
+                    emptyToNull(profile.httpProxy),   // ⭐ ใหม่
+                    emptyToNull(profile.payload),     // ⭐ ใหม่
+                    emptyToNull(profile.sni),         // ⭐ ใหม่
                     socket -> protect(socket)
             );
 
@@ -134,7 +142,6 @@ public class ProxyVpnService extends VpnService {
             // 4. เริ่ม HevTunnel ผ่าน TProxyService
             updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
 
-            // คัดลอก config จาก assets ไปยัง internal storage (hev ต้องอ่านจาก file path จริง)
             copyConfigFromAssets();
 
             boolean started = TProxyService.TProxyStartService(

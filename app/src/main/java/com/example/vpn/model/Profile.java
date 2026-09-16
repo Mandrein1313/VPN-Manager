@@ -11,6 +11,7 @@ public class Profile {
     public int port = 22;
     public String user = "";
     public String pass = "";
+    public String httpProxy = "";     // ⭐ ใหม่
     public String payload = "";
     public String sni = "";
     public String dns1 = "8.8.8.8";
@@ -30,6 +31,7 @@ public class Profile {
         p.port = port;
         p.user = user;
         p.pass = pass;
+        p.httpProxy = httpProxy;    // ⭐ ใหม่
         p.payload = payload;
         p.sni = sni;
         p.dns1 = dns1;

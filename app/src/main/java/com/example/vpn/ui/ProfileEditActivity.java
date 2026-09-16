@@ -28,7 +28,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private Profile existing;
 
     private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
-            edtPayload, edtSni, edtDns1, edtDns2;
+            edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2;   // ⭐ เพิ่ม edtHttpProxy
     private MaterialAutoCompleteTextView ddProtocol;
     private LinearLayout groupCredentials, groupSsh;
     private MaterialButton btnSave;
@@ -42,7 +42,6 @@ public class ProfileEditActivity extends AppCompatActivity {
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
 
-        // Bind views
         MaterialToolbar tb = findViewById(R.id.toolbar);
         tb.setNavigationOnClickListener(v -> finish());
 
@@ -51,6 +50,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtPort = findViewById(R.id.edtPort);
         edtUser = findViewById(R.id.edtUser);
         edtPass = findViewById(R.id.edtPass);
+        edtHttpProxy = findViewById(R.id.edtHttpProxy);   // ⭐ ใหม่
         edtPayload = findViewById(R.id.edtPayload);
         edtSni = findViewById(R.id.edtSni);
         edtDns1 = findViewById(R.id.edtDns1);
@@ -60,7 +60,6 @@ public class ProfileEditActivity extends AppCompatActivity {
         groupSsh = findViewById(R.id.groupSsh);
         btnSave = findViewById(R.id.btnSave);
 
-        // Protocol dropdown
         String[] protoNames = new String[Protocol.values().length];
         for (int i = 0; i < Protocol.values().length; i++) {
             protoNames[i] = Protocol.values()[i].displayName;
@@ -72,7 +71,6 @@ public class ProfileEditActivity extends AppCompatActivity {
             onProtocolChanged(selected);
         });
 
-        // Load existing
         long id = getIntent().getLongExtra(ProfileListActivity.EXTRA_PROFILE_ID, -1L);
         if (id > 0) {
             tb.setTitle("แก้ไขโปรไฟล์");
@@ -104,6 +102,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtPort.setText(String.valueOf(p.port));
         edtUser.setText(p.user);
         edtPass.setText(p.pass);
+        edtHttpProxy.setText(p.httpProxy);   // ⭐ ใหม่
         edtPayload.setText(p.payload);
         edtSni.setText(p.sni);
         edtDns1.setText(p.dns1);
@@ -112,11 +111,9 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
 
     private void onProtocolChanged(Protocol proto) {
-        // Auto port ถ้าเป็นการเพิ่มใหม่
         if (existing == null) {
             edtPort.setText(String.valueOf(proto.defaultPort));
         }
-        // แสดงเฉพาะ field ที่ใช้กับ protocol นั้น
         boolean showCredentials = (proto == Protocol.SSH || proto == Protocol.TROJAN);
         groupCredentials.setVisibility(showCredentials ? View.VISIBLE : View.GONE);
         groupSsh.setVisibility(proto == Protocol.SSH ? View.VISIBLE : View.GONE);
@@ -150,6 +147,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         p.port = port;
         p.user = text(edtUser);
         p.pass = text(edtPass);
+        p.httpProxy = text(edtHttpProxy);   // ⭐ ใหม่
         p.payload = text(edtPayload);
         p.sni = text(edtSni);
         p.dns1 = text(edtDns1);
