@@ -58,7 +58,19 @@ public class SshTunnel {
             @Override
             public Socket createSocket(String h, int p) throws IOException {
                 Socket s = new Socket();
-                if (protector != null) protector.protect(s);
+
+                // ⭐ เพิ่ม log เพื่อดูว่า protect() สำเร็จหรือไม่
+                boolean protectedOk = false;
+                if (protector != null) {
+                    try {
+                        protectedOk = protector.protect(s);
+                    } catch (Exception e) {
+                        Log.w(TAG, "protect() threw exception: " + e.getMessage());
+                    }
+                }
+
+                Log.i(TAG, "Socket to " + h + ":" + p
+                        + " — protected=" + protectedOk);
 
                 try {
                     if (fProxy != null && !fProxy.isEmpty()) {
@@ -66,10 +78,13 @@ public class SshTunnel {
                         return createProxyTunnel(s, fSshHost, fSshPort, fProxy, fPayload);
                     } else {
                         // ---- ต่อตรง ----
+                        Log.i(TAG, "Direct connect to " + h + ":" + p);
                         s.connect(new InetSocketAddress(h, p), 20_000);
+                        Log.i(TAG, "TCP connected to " + h + ":" + p);
                         return s;
                     }
                 } catch (IOException e) {
+                    Log.e(TAG, "connect failed: " + e.getMessage());
                     try { s.close(); } catch (IOException ignored) {}
                     throw e;
                 }
@@ -92,8 +107,10 @@ public class SshTunnel {
         Log.i(TAG, "Connecting SSH to " + host + ":" + port
                 + (httpProxy != null && !httpProxy.isEmpty()
                     ? " via proxy " + httpProxy : ""));
+
         session.connect(25_000);
-        Log.i(TAG, "SSH connected");
+
+        Log.i(TAG, "SSH connected successfully");
     }
 
     // ============================================================
@@ -121,6 +138,7 @@ public class SshTunnel {
         Log.i(TAG, "Connecting to proxy " + proxyHost + ":" + proxyPort);
         s.connect(new InetSocketAddress(proxyHost, proxyPort), 20_000);
         s.setTcpNoDelay(true);
+        Log.i(TAG, "Proxy TCP connected");
 
         // เตรียม payload
         String req;

@@ -7,6 +7,8 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
@@ -66,7 +68,13 @@ public class ProxyVpnService extends VpnService {
                 stopSelf();
                 return START_NOT_STICKY;
             }
-            startForeground(NOTIF_ID, buildNotification("กำลังเชื่อมต่อ..."));
+            try {
+                startForeground(NOTIF_ID, buildNotification("กำลังเชื่อมต่อ..."));
+            } catch (Exception e) {
+                VpnLogger.e(TAG, "startForeground failed", e);
+                stopSelf();
+                return START_NOT_STICKY;
+            }
             loadProfileAndStart(profileId);
         }
 
@@ -102,6 +110,7 @@ public class ProxyVpnService extends VpnService {
                     .addRoute(VPN_ROUTE, VPN_PREFIX)
                     .addDnsServer(profile.dns1)
                     .addDnsServer(profile.dns2)
+                    .addDisallowedApplication(getPackageName())   // ⭐ กัน routing loop
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
 
@@ -169,8 +178,17 @@ public class ProxyVpnService extends VpnService {
 
         } catch (Exception e) {
             VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
-            StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
-            updateNotification("ผิดพลาด: " + e.getMessage());
+
+            // ⭐ แจ้ง error ก่อน แล้วรอ 500ms ค่อย stop
+            try {
+                StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
+                updateNotification("ผิดพลาด: " + e.getMessage());
+            } catch (Exception ignored) {}
+
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ignored) {}
+
             stopVpn();
         }
     }
@@ -196,7 +214,6 @@ public class ProxyVpnService extends VpnService {
 
         try {
             TProxyService.TProxyStopService();
-            VpnLogger.i(TAG, "Tun2Socks stopped");
         } catch (Exception e) {
             VpnLogger.w(TAG, "TProxyStopService error: " + e.getMessage());
         }
@@ -204,13 +221,11 @@ public class ProxyVpnService extends VpnService {
         if (socks5Server != null) {
             socks5Server.stop();
             socks5Server = null;
-            VpnLogger.i(TAG, "SOCKS5 stopped");
         }
 
         if (sshTunnel != null) {
             sshTunnel.disconnect();
             sshTunnel = null;
-            VpnLogger.i(TAG, "SSH disconnected");
         }
 
         if (tunFd != null) {
@@ -226,15 +241,19 @@ public class ProxyVpnService extends VpnService {
         try {
             stopForeground(true);
         } catch (Exception ignored) {}
-        stopSelf();
 
+        // ⭐ แจ้งสถานะ stopped หลังทุกอย่างหยุดหมด
         StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
+
+        // ⭐ ใช้ Handler เลื่อน stopSelf ไป 100ms เพื่อให้ UI อัปเดตทัน
+        new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        stopVpn();
+        // ⭐ ไม่เรียก stopVpn() ใน onDestroy เพราะอาจทำให้เกิด recursion
+        running = false;
     }
 
     @Override
@@ -269,8 +288,12 @@ public class ProxyVpnService extends VpnService {
     }
 
     private void updateNotification(String text) {
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) nm.notify(NOTIF_ID, buildNotification(text));
+        try {
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.notify(NOTIF_ID, buildNotification(text));
+        } catch (Exception e) {
+            VpnLogger.w(TAG, "updateNotification error: " + e.getMessage());
+        }
     }
 
     private void createChannelIfNeeded() {
