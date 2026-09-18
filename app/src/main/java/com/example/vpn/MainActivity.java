@@ -24,12 +24,14 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.ui.CrashLogActivity;
 import com.example.vpn.ui.LogViewerActivity;
 import com.example.vpn.ui.ProfileAdapter;
 import com.example.vpn.ui.ProfileEditActivity;
 import com.example.vpn.ui.ProfileViewModel;
 import com.example.vpn.ui.ProfileViewModelFactory;
 import com.example.vpn.util.ConfigParser;
+import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.StatusBus;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
@@ -74,6 +76,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        // ⭐ ติดตั้ง CrashHandler ก่อนทุกอย่าง
+        CrashHandler.install(this);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile_list);
 
@@ -109,8 +114,15 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         btnLog = findViewById(R.id.btnLog);
 
         if (btnLog != null) {
+            // กดปกติ → เปิด Log Viewer
             btnLog.setOnClickListener(v ->
                     startActivity(new Intent(this, LogViewerActivity.class)));
+
+            // กดค้าง → เปิด Crash Log
+            btnLog.setOnLongClickListener(v -> {
+                startActivity(new Intent(this, CrashLogActivity.class));
+                return true;
+            });
         }
 
         StatusBus.get().observe(this, status -> {
