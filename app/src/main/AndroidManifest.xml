@@ -18,7 +18,7 @@
         android:theme="@style/Theme.MyApp"
         tools:targetApi="34">
 
-        <!-- ===== Main Activity (Profile List) ===== -->
+        <!-- ===== Main Activity ===== -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -29,21 +29,23 @@
             </intent-filter>
         </activity>
 
-        <!-- ===== Profile Edit Activity ===== -->
+        <!-- ===== Profile Edit ===== -->
         <activity
             android:name=".ui.ProfileEditActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
-        <!-- ===== Profile List Activity (ถ้าแยกจาก Main) ===== -->
+        <!-- ===== Log Viewer (⭐ เพิ่มใหม่) ===== -->
         <activity
-            android:name=".ui.ProfileListActivity"
+            android:name=".ui.LogViewerActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
-            <activity
-    android:name=".ui.CrashLogActivity"
-    android:exported="false"
-    android:parentActivityName=".MainActivity" />
+
+        <!-- ===== Crash Log (⭐ เพิ่มใหม่) ===== -->
+        <activity
+            android:name=".ui.CrashLogActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
 
         <!-- ===== VPN Service ===== -->
         <service
@@ -58,11 +60,6 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="vpn_tunnel" />
         </service>
-
-        <!-- ===== VpnService เผื่อใช้ VpnService.prepare() ===== -->
-        <meta-data
-            android:name="android.net.VpnService"
-            android:value="true" />
 
     </application>
 </manifest>
