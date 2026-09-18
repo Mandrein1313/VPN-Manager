@@ -1,13 +1,14 @@
 package com.example.vpn.util;
 
 import android.content.Context;
-import android.content.Intent;
 import android.os.Build;
-import android.os.Process;
 import android.util.Log;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
@@ -39,7 +40,8 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
     }
 
     public static void install(Context ctx) {
-        Thread.UncaughtExceptionHandler current = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.UncaughtExceptionHandler current =
+                Thread.getDefaultUncaughtExceptionHandler();
         if (current instanceof CrashHandler) return;
         Thread.setDefaultUncaughtExceptionHandler(new CrashHandler(ctx, current));
     }
@@ -56,7 +58,7 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
         if (defaultHandler != null) {
             defaultHandler.uncaughtException(thread, ex);
         } else {
-            Process.killProcess(Process.myPid());
+            android.os.Process.killProcess(android.os.Process.myPid());
             System.exit(1);
         }
     }
@@ -65,7 +67,6 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
         File dir = new File(appContext.getFilesDir(), DIR_NAME);
         if (!dir.exists()) dir.mkdirs();
 
-        // ลบไฟล์เก่า
         cleanupOldFiles(dir);
 
         String timestamp = FMT.format(new Date());
@@ -79,7 +80,8 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
         pw.println("Thread: " + thread.getName());
         pw.println();
         pw.println("===== DEVICE INFO =====");
-        pw.println("Android: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
+        pw.println("Android: " + Build.VERSION.RELEASE
+                + " (API " + Build.VERSION.SDK_INT + ")");
         pw.println("Manufacturer: " + Build.MANUFACTURER);
         pw.println("Model: " + Build.MODEL);
         pw.println("Device: " + Build.DEVICE);
@@ -89,6 +91,7 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
         ex.printStackTrace(pw);
         pw.println();
         pw.println("===== CAUSE =====");
+
         Throwable cause = ex.getCause();
         int depth = 0;
         while (cause != null && depth < 5) {
@@ -110,11 +113,17 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
     }
 
     private void saveLogcatSnapshot(File dir, String timestamp) {
+        java.lang.Process process = null;
+        BufferedReader reader = null;
         try {
-            Process process = Runtime.getRuntime()
-                    .exec("logcat -d -t 500 -v threadtime");
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(process.getInputStream()));
+            // ⭐ Android ต้องส่ง arguments เป็น array ไม่ใช่ string
+            process = Runtime.getRuntime().exec(new String[]{
+                    "logcat", "-d", "-t", "500", "-v", "threadtime"
+            });
+
+            reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()));
+
             StringBuilder sb = new StringBuilder();
             String line;
             int lines = 0;
@@ -122,13 +131,17 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
                 sb.append(line).append('\n');
                 lines++;
             }
-            reader.close();
 
             File logFile = new File(dir, "logcat-" + timestamp + ".txt");
             try (FileWriter fw = new FileWriter(logFile)) {
                 fw.write(sb.toString());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            Log.w(TAG, "saveLogcatSnapshot failed: " + e.getMessage());
+        } finally {
+            try { if (reader != null) reader.close(); } catch (Exception ignored) {}
+            if (process != null) process.destroy();
+        }
     }
 
     private void cleanupOldFiles(File dir) {
