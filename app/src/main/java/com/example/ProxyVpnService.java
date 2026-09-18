@@ -47,6 +47,7 @@ public class ProxyVpnService extends VpnService {
     private Thread workerThread;
     private volatile boolean running = false;
     private volatile boolean destroying = false;
+    private volatile boolean tun2socksRunning = false;   // ⭐ track สถานะ native
     private File configFile;
 
     private SshTunnel sshTunnel;
@@ -70,8 +71,6 @@ public class ProxyVpnService extends VpnService {
                 return START_NOT_STICKY;
             }
             try {
-                // Android can redeliver START while the first attempt is active.
-                // Do not tear down the active native tunnel in that case.
                 if (running || workerThread != null || tunFd != null) return START_STICKY;
                 startForeground(NOTIF_ID, buildNotification("กำลังเชื่อมต่อ..."));
             } catch (Throwable e) {
@@ -123,8 +122,6 @@ public class ProxyVpnService extends VpnService {
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
 
-            // Older saved profiles may contain blank/invalid DNS values. Builder
-            // throws for those values, which previously made the service disappear.
             addDnsIfValid(builder, profile.dns1);
             addDnsIfValid(builder, profile.dns2);
 
@@ -176,14 +173,29 @@ public class ProxyVpnService extends VpnService {
             copyConfigFromAssets();
             VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
 
-            boolean started = TProxyService.TProxyStartService(
-                    configFile.getAbsolutePath(),
-                    tunFd.getFd()
-            );
+            // ⭐ ครอบด้วย try-catch(Throwable) — กัน UnsatisfiedLinkError
+            boolean started = false;
+            try {
+                started = TProxyService.TProxyStartService(
+                        configFile.getAbsolutePath(),
+                        tunFd.getFd()
+                );
+            } catch (Throwable t) {
+                VpnLogger.e(TAG, "TProxyStartService threw: " + t.getMessage(),
+                        t instanceof Exception ? (Exception) t : new Exception(t));
+            }
 
             if (!started) {
-                throw new IOException("TProxyStartService failed");
+                // ⭐ ไม่ throw, แค่แจ้งเตือน — SSH/SOCKS5 ยังทำงาน
+                VpnLogger.w(TAG, "Tun2Socks not available — SSH/SOCKS5 only");
+                tun2socksRunning = false;
+                StatusBus.post(StatusBus.State.CONNECTED,
+                        "เชื่อมต่อ (SSH เท่านั้น): " + profile.name);
+                updateNotification("SSH พร้อม — Tun2Socks ไม่ทำงาน");
+                return;
             }
+
+            tun2socksRunning = true;
             VpnLogger.i(TAG, "Tun2Socks started — VPN is active");
 
             StatusBus.post(StatusBus.State.CONNECTED,
@@ -193,7 +205,6 @@ public class ProxyVpnService extends VpnService {
         } catch (Throwable e) {
             VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
 
-            // ⭐ แจ้ง error ก่อน แล้วรอ 500ms ค่อย stop
             try {
                 StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
                 updateNotification("ผิดพลาด: " + e.getMessage());
@@ -213,9 +224,7 @@ public class ProxyVpnService extends VpnService {
         if (!value.matches("[0-9a-fA-F:.]+") || !value.matches(".*[0-9].*")) return;
         try {
             builder.addDnsServer(value);
-        } catch (IllegalArgumentException ignored) {
-            // Ignore malformed persisted DNS; the VPN can still start.
-        }
+        } catch (IllegalArgumentException ignored) {}
     }
 
     private void copyConfigFromAssets() throws IOException {
@@ -237,19 +246,24 @@ public class ProxyVpnService extends VpnService {
             workerThread = null;
         }
 
-        try {
-            TProxyService.TProxyStopService();
-        } catch (Exception e) {
-            VpnLogger.w(TAG, "TProxyStopService error: " + e.getMessage());
+        // ⭐ เรียก TProxyStopService เฉพาะเมื่อ start สำเร็จแล้ว — และ wrap Throwable
+        if (tun2socksRunning) {
+            try {
+                TProxyService.TProxyStopService();
+                VpnLogger.i(TAG, "Tun2Socks stopped");
+            } catch (Throwable t) {
+                VpnLogger.w(TAG, "TProxyStopService error: " + t.getMessage());
+            }
+            tun2socksRunning = false;
         }
 
         if (socks5Server != null) {
-            socks5Server.stop();
+            try { socks5Server.stop(); } catch (Throwable ignored) {}
             socks5Server = null;
         }
 
         if (sshTunnel != null) {
-            sshTunnel.disconnect();
+            try { sshTunnel.disconnect(); } catch (Throwable ignored) {}
             sshTunnel = null;
         }
 
@@ -267,10 +281,8 @@ public class ProxyVpnService extends VpnService {
             stopForeground(true);
         } catch (Exception ignored) {}
 
-        // ⭐ แจ้งสถานะ stopped หลังทุกอย่างหยุดหมด
         StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
 
-        // ⭐ ใช้ Handler เลื่อน stopSelf ไป 100ms เพื่อให้ UI อัปเดตทัน
         if (!destroying) {
             new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
         }
@@ -278,8 +290,6 @@ public class ProxyVpnService extends VpnService {
 
     @Override
     public void onDestroy() {
-        // Always release TUN/native resources when Android kills the service.
-        // stopVpn() is idempotent; avoid posting stopSelf while destroying.
         destroying = true;
         stopVpn();
         super.onDestroy();
