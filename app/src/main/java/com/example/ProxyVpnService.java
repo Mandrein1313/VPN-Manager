@@ -46,6 +46,7 @@ public class ProxyVpnService extends VpnService {
     private ParcelFileDescriptor tunFd;
     private Thread workerThread;
     private volatile boolean running = false;
+    private volatile boolean destroying = false;
     private File configFile;
 
     private SshTunnel sshTunnel;
@@ -69,8 +70,11 @@ public class ProxyVpnService extends VpnService {
                 return START_NOT_STICKY;
             }
             try {
+                // Android can redeliver START while the first attempt is active.
+                // Do not tear down the active native tunnel in that case.
+                if (running || workerThread != null || tunFd != null) return START_STICKY;
                 startForeground(NOTIF_ID, buildNotification("กำลังเชื่อมต่อ..."));
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 VpnLogger.e(TAG, "startForeground failed", e);
                 stopSelf();
                 return START_NOT_STICKY;
@@ -100,6 +104,13 @@ public class ProxyVpnService extends VpnService {
 
     private void startVpn(Profile profile) {
         try {
+            if (profile == null || profile.host == null || profile.host.trim().isEmpty()) {
+                throw new IOException("โปรไฟล์ไม่มี host");
+            }
+            if (profile.port < 1 || profile.port > 65535) {
+                throw new IOException("พอร์ตไม่ถูกต้อง: " + profile.port);
+            }
+
             // ---- 1. TUN ----
             StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังสร้าง TUN...");
             VpnLogger.i(TAG, "Creating TUN interface...");
@@ -108,11 +119,14 @@ public class ProxyVpnService extends VpnService {
                     .setSession(profile.name)
                     .addAddress(VPN_ADDRESS, 32)
                     .addRoute(VPN_ROUTE, VPN_PREFIX)
-                    .addDnsServer(profile.dns1)
-                    .addDnsServer(profile.dns2)
                     .addDisallowedApplication(getPackageName())   // ⭐ กัน routing loop
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
+
+            // Older saved profiles may contain blank/invalid DNS values. Builder
+            // throws for those values, which previously made the service disappear.
+            addDnsIfValid(builder, profile.dns1);
+            addDnsIfValid(builder, profile.dns2);
 
             tunFd = builder.establish();
             if (tunFd == null) {
@@ -176,7 +190,7 @@ public class ProxyVpnService extends VpnService {
                     "เชื่อมต่อแล้ว: " + profile.name);
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
 
             // ⭐ แจ้ง error ก่อน แล้วรอ 500ms ค่อย stop
@@ -190,6 +204,17 @@ public class ProxyVpnService extends VpnService {
             } catch (InterruptedException ignored) {}
 
             stopVpn();
+        }
+    }
+
+    private static void addDnsIfValid(Builder builder, String dns) {
+        if (dns == null || dns.trim().isEmpty()) return;
+        String value = dns.trim();
+        if (!value.matches("[0-9a-fA-F:.]+") || !value.matches(".*[0-9].*")) return;
+        try {
+            builder.addDnsServer(value);
+        } catch (IllegalArgumentException ignored) {
+            // Ignore malformed persisted DNS; the VPN can still start.
         }
     }
 
@@ -246,14 +271,18 @@ public class ProxyVpnService extends VpnService {
         StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
 
         // ⭐ ใช้ Handler เลื่อน stopSelf ไป 100ms เพื่อให้ UI อัปเดตทัน
-        new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
+        if (!destroying) {
+            new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
+        }
     }
 
     @Override
     public void onDestroy() {
+        // Always release TUN/native resources when Android kills the service.
+        // stopVpn() is idempotent; avoid posting stopSelf while destroying.
+        destroying = true;
+        stopVpn();
         super.onDestroy();
-        // ⭐ ไม่เรียก stopVpn() ใน onDestroy เพราะอาจทำให้เกิด recursion
-        running = false;
     }
 
     @Override
