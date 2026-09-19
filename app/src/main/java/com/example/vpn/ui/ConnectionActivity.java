@@ -8,13 +8,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -27,6 +30,8 @@ import com.example.vpn.model.Profile;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.VpnLogger;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.tabs.TabLayout;
 
 import java.util.List;
@@ -36,22 +41,41 @@ public class ConnectionActivity extends AppCompatActivity {
 
     public static final String EXTRA_PROFILE_ID = "profile_id";
 
-    // ===== Views =====
+    // ===== Top bar =====
     private MaterialToolbar toolbar;
     private TabLayout tabLayout;
+
+    // ===== Content containers =====
     private View contentMain;
     private View contentLog;
+
+    // ===== Connect button + status =====
     private ConnectButtonView btnConnect;
     private TextView txtStatus;
+
+    // ===== Profile card =====
+    private MaterialCardView profileCard;
+    private TextView txtProfileIcon;
+    private TextView txtProfileName;
     private TextView txtServerInfo;
-    private TextView txtProfileLeft;
-    private TextView txtProfileRight;
+    private ImageView btnFavorite;
+    private TextView txtProtocolIcon;
+    private TextView txtProtocolName;
+    private MaterialButton btnEdit;
+    private MaterialButton btnDelete;
+    private ProgressBar progressBar;
+
+    // ===== Stats =====
+    private View statsContainer;
     private TextView txtUpload;
     private TextView txtDownload;
     private TextView txtSession;
+
+    // ===== Log tab =====
     private TextView txtLogContent;
 
-    private LinearLayout actionProfiles, actionLog, actionEdit, actionAdd;
+    // ===== Bottom actions =====
+    private LinearLayout actionEdit, actionLog, actionDelete, actionAdd;
 
     // ===== State =====
     private ProfileViewModel viewModel;
@@ -75,7 +99,7 @@ public class ConnectionActivity extends AppCompatActivity {
                         }
                     });
 
-    // ⭐ Launcher: จัดการโปรไฟล์ (รอผลลัพธ์)
+    // ⭐ Launcher: จัดการโปรไฟล์
     private final ActivityResultLauncher<Intent> manageProfilesLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -104,21 +128,31 @@ public class ConnectionActivity extends AppCompatActivity {
         contentLog = findViewById(R.id.contentLog);
         btnConnect = findViewById(R.id.btnConnect);
         txtStatus = findViewById(R.id.txtStatus);
+
+        profileCard = findViewById(R.id.profileCard);
+        txtProfileIcon = findViewById(R.id.txtProfileIcon);
+        txtProfileName = findViewById(R.id.txtProfileName);
         txtServerInfo = findViewById(R.id.txtServerInfo);
-        txtProfileLeft = findViewById(R.id.txtProfileLeft);
-        txtProfileRight = findViewById(R.id.txtProfileRight);
+        btnFavorite = findViewById(R.id.btnFavorite);
+        txtProtocolIcon = findViewById(R.id.txtProtocolIcon);
+        txtProtocolName = findViewById(R.id.txtProtocolName);
+        btnEdit = findViewById(R.id.btnEdit);
+        btnDelete = findViewById(R.id.btnDelete);
+        progressBar = findViewById(R.id.progressBar);
+
+        statsContainer = findViewById(R.id.statsContainer);
         txtUpload = findViewById(R.id.txtUpload);
         txtDownload = findViewById(R.id.txtDownload);
         txtSession = findViewById(R.id.txtSession);
+
         txtLogContent = findViewById(R.id.txtLogContent);
 
-        actionProfiles = findViewById(R.id.actionProfiles);
-        actionLog = findViewById(R.id.actionLog);
         actionEdit = findViewById(R.id.actionEdit);
+        actionLog = findViewById(R.id.actionLog);
+        actionDelete = findViewById(R.id.actionDelete);
         actionAdd = findViewById(R.id.actionAdd);
 
         // ===== Toolbar =====
-        // ⭐ ปุ่ม X = ย่อแอปลง (ไม่ปิดทิ้ง)
         toolbar.setNavigationOnClickListener(v -> moveTaskToBack(true));
 
         // ===== Tabs =====
@@ -135,13 +169,53 @@ public class ConnectionActivity extends AppCompatActivity {
                 }
             }
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {}
+            @Override public void onTabReselected(TabLayout.Tab tab) {
+                if (tab.getPosition() == 1) refreshLogView();
+            }
         });
 
         // ===== ViewModel =====
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
+
+        // ===== Profile card buttons =====
+        btnEdit.setOnClickListener(v -> openEditForCurrent());
+
+        btnDelete.setOnClickListener(v -> {
+            if (targetProfile == null) return;
+            new AlertDialog.Builder(this)
+                    .setTitle("ลบโปรไฟล์?")
+                    .setMessage("คุณต้องการลบ \"" + targetProfile.name + "\" ใช่หรือไม่?")
+                    .setPositiveButton("ลบ", (d, w) -> {
+                        final long id = targetProfile.id;
+                        viewModel.delete(targetProfile);
+                        targetProfile = null;
+                        // โหลดโปรไฟล์อื่นแทน
+                        viewModel.getRepo().getById(id, p -> {});
+                        viewModel.getProfiles().observe(this, list -> {
+                            if (list == null || list.isEmpty()) {
+                                txtStatus.setText("ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง");
+                                return;
+                            }
+                            Profile next = null;
+                            for (Profile x : list) if (x.isFavorite) { next = x; break; }
+                            if (next == null) next = list.get(0);
+                            bindProfile(next);
+                        });
+                    })
+                    .setNegativeButton("ยกเลิก", null)
+                    .show();
+        });
+
+        btnFavorite.setOnClickListener(v -> {
+            if (targetProfile == null) return;
+            long id = targetProfile.id;
+            viewModel.toggleFavorite(targetProfile);
+            viewModel.getRepo().getById(id, p -> {
+                if (p != null) bindProfile(p);
+            });
+        });
 
         // ===== อ่าน profile จาก intent =====
         long profileId = getIntent().getLongExtra(EXTRA_PROFILE_ID, -1L);
@@ -157,7 +231,7 @@ public class ConnectionActivity extends AppCompatActivity {
             viewModel.getProfiles().observe(this, list -> {
                 if (targetProfile != null) return;
                 if (list == null || list.isEmpty()) {
-                    txtStatus.setText("ยังไม่มีโปรไฟล์ — กด 'จัดการ' เพื่อเพิ่ม");
+                    txtStatus.setText("ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง");
                     return;
                 }
                 Profile p = null;
@@ -174,12 +248,14 @@ public class ConnectionActivity extends AppCompatActivity {
             btnConnect.setState(mapStatus(status.state));
 
             if (status.state == StatusBus.State.CONNECTED) {
+                statsContainer.setVisibility(View.VISIBLE);
                 if (sessionStartTime == 0L) {
                     sessionStartTime = System.currentTimeMillis();
                     startStatsUpdates();
                 }
             } else if (status.state == StatusBus.State.STOPPED
                     || status.state == StatusBus.State.ERROR) {
+                statsContainer.setVisibility(View.GONE);
                 stopStatsUpdates();
                 sessionStartTime = 0L;
                 txtSession.setText("00:00:00");
@@ -191,7 +267,7 @@ public class ConnectionActivity extends AppCompatActivity {
         // ===== Connect button =====
         btnConnect.setListener(() -> {
             if (targetProfile == null) {
-                Toast.makeText(this, "ไม่มีโปรไฟล์ — กด 'จัดการ' เพื่อเพิ่ม",
+                Toast.makeText(this, "ไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
                         Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -209,24 +285,14 @@ public class ConnectionActivity extends AppCompatActivity {
         });
 
         // ===== Bottom actions =====
-        // ⭐ ใช้ launcher แทน startActivity
-        actionProfiles.setOnClickListener(v -> {
-            Intent i = new Intent(this, MainActivity.class);
-            manageProfilesLauncher.launch(i);
-        });
+        actionEdit.setOnClickListener(v -> openEditForCurrent());
 
-        actionLog.setOnClickListener(v -> {
-            tabLayout.selectTab(tabLayout.getTabAt(1));
-        });
+        actionLog.setOnClickListener(v ->
+                tabLayout.selectTab(tabLayout.getTabAt(1)));
 
-        actionEdit.setOnClickListener(v -> {
-            if (targetProfile == null) {
-                Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            Intent i = new Intent(this, ProfileEditActivity.class);
-            i.putExtra(MainActivity.EXTRA_PROFILE_ID, targetProfile.id);
-            startActivity(i);
+        actionDelete.setOnClickListener(v -> {
+            if (targetProfile == null) return;
+            btnDelete.performClick();
         });
 
         actionAdd.setOnClickListener(v -> {
@@ -235,18 +301,23 @@ public class ConnectionActivity extends AppCompatActivity {
         });
     }
 
+    private void openEditForCurrent() {
+        if (targetProfile == null) {
+            Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent i = new Intent(this, ProfileEditActivity.class);
+        i.putExtra(MainActivity.EXTRA_PROFILE_ID, targetProfile.id);
+        startActivity(i);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        // ⭐ โหลดโปรไฟล์ใหม่เมื่อกลับมาจากการแก้ไข (ไม่ใช่จาก launcher)
+        // โหลดโปรไฟล์ใหม่เมื่อกลับมาจากการแก้ไข
         if (targetProfile != null) {
             viewModel.getRepo().getById(targetProfile.id, p -> {
-                if (p != null && !p.name.equals(targetProfile.name)) {
-                    bindProfile(p);
-                } else if (p != null) {
-                    // อัปเดต server info (กรณีแก้ host/port)
-                    bindProfile(p);
-                }
+                if (p != null) bindProfile(p);
             });
         }
     }
@@ -255,9 +326,22 @@ public class ConnectionActivity extends AppCompatActivity {
         targetProfile = p;
         toolbar.setTitle(p.name);
 
-        txtServerInfo.setText("Server: " + p.port + " · " + p.protocol.displayName);
-        txtProfileLeft.setText(p.name);
-        txtProfileRight.setText(p.user.isEmpty() ? "General" : p.user);
+        // ===== Profile card =====
+        txtProfileIcon.setText(p.protocol.icon);
+        txtProfileName.setText(p.name);
+        txtServerInfo.setText(p.host + ":" + p.port);
+
+        txtProtocolIcon.setText(p.protocol.icon);
+        txtProtocolName.setText(p.protocol.displayName);
+
+        // Favorite star
+        btnFavorite.setImageResource(
+                p.isFavorite
+                        ? android.R.drawable.btn_star_big_on
+                        : android.R.drawable.btn_star_big_off);
+
+        // ซ่อน stats จนกว่าจะเชื่อมต่อ
+        statsContainer.setVisibility(View.GONE);
     }
 
     private void requestConnect() {
