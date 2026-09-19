@@ -58,9 +58,9 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     public int getItemCount() { return items.size(); }
 
     static class VH extends RecyclerView.ViewHolder {
-        TextView icon, name, host, protocol, favorite;
+        TextView icon, name, host, protocol;
         ImageButton btnFav;
-        MaterialButton btnConnect, btnEdit, btnDelete;
+        MaterialButton btnEdit, btnDelete;    // ⭐ ลบ btnConnect
 
         VH(@NonNull View v) {
             super(v);
@@ -69,9 +69,9 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             host = v.findViewById(R.id.txtHost);
             protocol = v.findViewById(R.id.txtProtocol);
             btnFav = v.findViewById(R.id.btnFavorite);
-            btnConnect = v.findViewById(R.id.btnConnect);
             btnEdit = v.findViewById(R.id.btnEdit);
             btnDelete = v.findViewById(R.id.btnDelete);
+            // ⭐ ลบ btnConnect = v.findViewById(R.id.btnConnect);
         }
 
         void bind(Profile p, Listener l) {
@@ -89,7 +89,11 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
                     ? android.R.drawable.btn_star_big_on
                     : android.R.drawable.btn_star_big_off);
 
-            btnConnect.setOnClickListener(v -> l.onConnect(p));
+            // ⭐ ลบ btnConnect.setOnClickListener
+
+            // ⭐ กดที่การ์ดทั้งใบ = เชื่อมต่อ
+            itemView.setOnClickListener(v -> l.onConnect(p));
+
             btnEdit.setOnClickListener(v -> l.onEdit(p));
             btnDelete.setOnClickListener(v -> l.onDelete(p));
             btnFav.setOnClickListener(v -> l.onToggleFavorite(p));

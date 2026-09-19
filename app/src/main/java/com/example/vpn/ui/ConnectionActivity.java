@@ -81,9 +81,6 @@ public class ConnectionActivity extends AppCompatActivity
     private long lastUploadBytes = 0L;
     private long lastDownloadBytes = 0L;
 
-    /** ⭐ ป้องกัน dialog เด้งซ้ำ */
-    private boolean noProfileDialogShown = false;
-
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
@@ -124,7 +121,7 @@ public class ConnectionActivity extends AppCompatActivity
                         }
                     });
 
-    /** ⭐ เพิ่มโปรไฟล์ใหม่ */
+    /** เพิ่มโปรไฟล์ใหม่ */
     private final ActivityResultLauncher<Intent> addProfileLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -223,7 +220,7 @@ public class ConnectionActivity extends AppCompatActivity
                 bindProfile(p);
             });
         } else {
-            // ⭐ โหลดโปรไฟล์ครั้งแรก
+            // โหลดโปรไฟล์ครั้งแรก (ไม่มี dialog แล้ว)
             viewModel.getProfiles().observe(this, list -> {
                 if (targetProfile != null) return;
                 if (list == null || list.isEmpty()) {
@@ -232,10 +229,8 @@ public class ConnectionActivity extends AppCompatActivity
                     txtConfigLeft.setText("---");
                     txtConfigRight.setText("---");
                     toolbar.setTitle("VPN Manager");
-                    showNoProfileDialog();
                     return;
                 }
-                noProfileDialogShown = false;
                 Profile p = null;
                 for (Profile x : list) if (x.isFavorite) { p = x; break; }
                 if (p == null) p = list.get(0);
@@ -288,11 +283,11 @@ public class ConnectionActivity extends AppCompatActivity
             }
         });
 
-        // ===== Connect button =====
+        // ===== Connect button (⭐ ไม่มี dialog) =====
         btnConnect.setListener(() -> {
             if (targetProfile == null) {
-                showNoProfileDialog();
-                noProfileDialogShown = false;
+                Toast.makeText(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
+                        Toast.LENGTH_SHORT).show();
                 return;
             }
             switch (btnConnect.getState()) {
@@ -320,8 +315,8 @@ public class ConnectionActivity extends AppCompatActivity
         // ===== Bottom actions =====
         actionEdit.setOnClickListener(v -> {
             if (targetProfile == null) {
-                showNoProfileDialog();
-                noProfileDialogShown = false;
+                Toast.makeText(this, "ยังไม่มีโปรไฟล์",
+                        Toast.LENGTH_SHORT).show();
                 return;
             }
             openEditForCurrent();
@@ -346,28 +341,7 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // ⭐ No Profile Dialog
-    // ============================================================
-    private void showNoProfileDialog() {
-        if (noProfileDialogShown) return;
-        noProfileDialogShown = true;
-
-        new AlertDialog.Builder(this)
-                .setTitle("ยังไม่มีโปรไฟล์")
-                .setMessage("คุณต้องสร้างโปรไฟล์ก่อนจึงจะเชื่อมต่อ VPN ได้\n\n" +
-                        "ต้องการสร้างโปรไฟล์ใหม่หรือไม่?")
-                .setCancelable(false)
-                .setPositiveButton("สร้างโปรไฟล์", (d, w) -> {
-                    Intent i = new Intent(this, ProfileEditActivity.class);
-                    addProfileLauncher.launch(i);
-                })
-                .setNeutralButton("จัดการโปรไฟล์", (d, w) -> openProfilePicker())
-                .setNegativeButton("ไว้ทีหลัง", null)
-                .show();
-    }
-
-    // ============================================================
-    // ⭐ Reload Profiles
+    // Reload Profiles
     // ============================================================
     private void reloadProfiles() {
         viewModel.getProfiles().observe(this, list -> {
@@ -380,7 +354,6 @@ public class ConnectionActivity extends AppCompatActivity
                 toolbar.setTitle("VPN Manager");
                 return;
             }
-            noProfileDialogShown = false;
             Profile p = null;
             for (Profile x : list) if (x.isFavorite) { p = x; break; }
             if (p == null) p = list.get(0);
