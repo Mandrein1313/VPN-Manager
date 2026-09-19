@@ -152,7 +152,7 @@ public class ConnectionActivity extends AppCompatActivity
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
-        toolbar.setTitle("HTTP VPN");
+        toolbar.setTitle("VPN Manager");
 
         // Hamburger icon → toggle drawer
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
