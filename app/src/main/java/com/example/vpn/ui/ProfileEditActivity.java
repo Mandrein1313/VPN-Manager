@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.vpn.R;
+import com.example.vpn.MainActivity;              // ⭐ เพิ่มบรรทัดนี้
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
@@ -25,7 +26,6 @@ import com.google.android.material.textfield.TextInputEditText;
 
 public class ProfileEditActivity extends AppCompatActivity {
 
-    // ⭐ Constants สำหรับ prefill (ใช้โดย MainActivity.importFromClipboard)
     public static final String EXTRA_PREFILL_HOST = "prefill_host";
     public static final String EXTRA_PREFILL_PORT = "prefill_port";
     public static final String EXTRA_PREFILL_USER = "prefill_user";
@@ -78,12 +78,10 @@ public class ProfileEditActivity extends AppCompatActivity {
             onProtocolChanged(selected);
         });
 
-        // ⭐ เลือกโหมด: Edit / Prefill (import) / Add
         long id = getIntent().getLongExtra(MainActivity.EXTRA_PROFILE_ID, -1L);
         Intent intent = getIntent();
 
         if (id > 0) {
-            // โหมด Edit
             tb.setTitle("แก้ไขโปรไฟล์");
             viewModel.getRepo().getById(id, loaded -> {
                 if (loaded == null) { finish(); return; }
@@ -91,11 +89,9 @@ public class ProfileEditActivity extends AppCompatActivity {
                 bindProfile(loaded);
             });
         } else if (intent.hasExtra(EXTRA_PREFILL_HOST)) {
-            // โหมด Prefill จาก Clipboard
             tb.setTitle("เพิ่มโปรไฟล์ (จาก Clipboard)");
             prefillFromIntent(intent);
         } else {
-            // โหมด Add เปล่าๆ
             tb.setTitle("เพิ่มโปรไฟล์");
             fillDefaults();
         }
