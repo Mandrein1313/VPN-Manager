@@ -3,7 +3,6 @@ package com.example.vpn;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -32,9 +31,6 @@ import com.example.vpn.ui.ProfileViewModel;
 import com.example.vpn.ui.ProfileViewModelFactory;
 import com.example.vpn.util.ConfigParser;
 import com.example.vpn.util.CrashHandler;
-import com.example.vpn.util.StatusBus;
-import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
 public class MainActivity extends AppCompatActivity implements ProfileAdapter.Listener {
@@ -46,24 +42,26 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private ProfileAdapter adapter;
     private LinearLayout emptyState;
     private RecyclerView recycler;
-    private ExtendedFloatingActionButton fabImport;
 
-    // ⭐ Status Bar
-    private View statusDot;
-    private TextView txtStatus;
-    private MaterialButton btnLog;
+    private View btnAddConfig;
+    private View btnImportClipboard;
+    private View btnBack;
 
-    /** Launcher สำหรับขอ POST_NOTIFICATIONS */
+    private View navHome, navLogs, navMore;
+
     private final ActivityResultLauncher<String> notifPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.RequestPermission(),
-                    granted -> { /* ไม่เป็นไรถ้าไม่อนุญาต */ });
+                    granted -> { /* ไม่เป็นไร */ });
+
+    private final ActivityResultLauncher<Intent> addProfileLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> { /* list observe เอง */ });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
-        // ⭐ ติดตั้ง CrashHandler ก่อนทุกอย่าง
         CrashHandler.install(this);
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile_list);
 
@@ -75,51 +73,58 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
 
-        // ===== Toolbar + Back button =====
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("จัดการโปรไฟล์");
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);   // ⭐ ปุ่มย้อนกลับ
-        }
-        // ⭐ ปุ่มย้อนกลับ → ปิดหน้านี้ (กลับไป ConnectionActivity)
-        toolbar.setNavigationOnClickListener(v -> finish());
-
+        // ===== Bind views =====
+        btnBack = findViewById(R.id.btnBack);
         emptyState = findViewById(R.id.emptyState);
         recycler = findViewById(R.id.recyclerProfiles);
+        btnAddConfig = findViewById(R.id.btnAddConfig);
+        btnImportClipboard = findViewById(R.id.btnImportClipboard);
+        navHome = findViewById(R.id.navHome);
+        navLogs = findViewById(R.id.navLogs);
+        navMore = findViewById(R.id.navMore);
+
+        // ===== Back button =====
+        btnBack.setOnClickListener(v -> finish());
+
+        // ===== List =====
         recycler.setLayoutManager(new LinearLayoutManager(this));
         adapter = new ProfileAdapter(this);
         recycler.setAdapter(adapter);
 
-        ExtendedFloatingActionButton fab = findViewById(R.id.fabAdd);
-        fab.setOnClickListener(v -> openEdit(null));
-
-        fabImport = findViewById(R.id.fabImport);
-        fabImport.setOnClickListener(v -> importFromClipboard());
-
-        // ⭐ Status Bar
-        statusDot = findViewById(R.id.statusDot);
-        txtStatus = findViewById(R.id.txtStatus);
-        btnLog = findViewById(R.id.btnLog);
-
-        if (btnLog != null) {
-            // กดปกติ → เปิด Log Viewer
-            btnLog.setOnClickListener(v ->
-                    startActivity(new Intent(this, LogViewerActivity.class)));
-
-            // กดค้าง → เปิด Crash Log
-            btnLog.setOnLongClickListener(v -> {
-                startActivity(new Intent(this, CrashLogActivity.class));
-                return true;
-            });
-        }
-
-        StatusBus.get().observe(this, status -> {
-            if (status == null) return;
-            if (txtStatus != null) txtStatus.setText(status.message);
-            updateStatusDot(status.state);
+        // ===== Empty state buttons =====
+        btnAddConfig.setOnClickListener(v -> {
+            Intent i = new Intent(this, ProfileEditActivity.class);
+            addProfileLauncher.launch(i);
         });
 
+        btnImportClipboard.setOnClickListener(v -> importFromClipboard());
+
+        // ===== Bottom nav =====
+        navHome.setOnClickListener(v -> finish());   // กลับไป ConnectionActivity
+
+        navLogs.setOnClickListener(v ->
+                startActivity(new Intent(this, LogViewerActivity.class)));
+
+        navMore.setOnClickListener(v -> {
+            String[] options = {"Crash Log", "เกี่ยวกับ"};
+            new AlertDialog.Builder(this)
+                    .setItems(options, (d, which) -> {
+                        if (which == 0) {
+                            startActivity(new Intent(this, CrashLogActivity.class));
+                        } else {
+                            new AlertDialog.Builder(this)
+                                    .setTitle("เกี่ยวกับ VPN Manager")
+                                    .setMessage("VPN Manager v1.0\n\n" +
+                                            "แอป VPN ที่รองรับ SSH Tunnel\n" +
+                                            "สร้างด้วย ❤️ ในประเทศไทย")
+                                    .setPositiveButton("ตกลง", null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        });
+
+        // ===== Observe profiles =====
         viewModel.getProfiles().observe(this, list -> {
             adapter.submit(list);
             boolean empty = list == null || list.isEmpty();
@@ -128,55 +133,41 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         });
     }
 
-    // ⭐ อัปเดตสี dot ตามสถานะ
-    private void updateStatusDot(StatusBus.State state) {
-        if (statusDot == null) return;
-        int color;
-        switch (state) {
-            case CONNECTED:
-                color = 0xFF4CAF50;  // green
-                break;
-            case ERROR:
-                color = 0xFFE53935;  // red
-                break;
-            case CONNECTING_SSH:
-            case SSH_CONNECTED:
-            case SOCKS_READY:
-            case TUN2SOCKS_READY:
-                color = 0xFFFFA726;  // orange
-                break;
-            case IDLE:
-            case STOPPED:
-            default:
-                color = 0xFF888888;  // gray
-                break;
-        }
-        GradientDrawable bg = new GradientDrawable();
-        bg.setShape(GradientDrawable.OVAL);
-        bg.setColor(color);
-        statusDot.setBackground(bg);
-    }
+    // ============================================================
+    // Adapter callbacks
+    // ============================================================
 
-    private void openEdit(@Nullable Profile profile) {
-        Intent i = new Intent(this, ProfileEditActivity.class);
-        if (profile != null) i.putExtra(EXTRA_PROFILE_ID, profile.id);
-        startActivityForResult(i, REQ_EDIT);
-    }
-
-    // ================== VPN Connection ==================
-
-    /**
-     * ⭐ เมื่อผู้ใช้กด "เชื่อมต่อ" ในรายการโปรไฟล์
-     * → ส่ง profileId กลับให้ ConnectionActivity แล้วปิดหน้านี้
-     */
     @Override
     public void onConnect(Profile p) {
+        // ⭐ เลือกโปรไฟล์ → ส่งกลับ ConnectionActivity ทันที
         viewModel.markUsed(p);
 
         Intent result = new Intent();
         result.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, p.id);
         setResult(RESULT_OK, result);
         finish();
+    }
+
+    @Override
+    public void onEdit(Profile p) {
+        Intent i = new Intent(this, ProfileEditActivity.class);
+        i.putExtra(EXTRA_PROFILE_ID, p.id);
+        startActivityForResult(i, REQ_EDIT);
+    }
+
+    @Override
+    public void onDelete(Profile p) {
+        new AlertDialog.Builder(this)
+                .setTitle("ลบโปรไฟล์?")
+                .setMessage("คุณต้องการลบ \"" + p.name + "\" ใช่หรือไม่?")
+                .setPositiveButton("ลบ", (d, w) -> viewModel.delete(p))
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    @Override
+    public void onToggleFavorite(Profile p) {
+        viewModel.toggleFavorite(p);
     }
 
     // ============================================================
@@ -190,7 +181,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         }
 
         CharSequence text = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
-
         if (text == null || text.length() == 0) {
             Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
             return;
@@ -235,25 +225,12 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 .show();
     }
 
-    // ================== Adapter Callbacks ==================
-
+    // ============================================================
+    // onBackPressed — กลับไป ConnectionActivity
+    // ============================================================
     @Override
-    public void onEdit(Profile p) {
-        openEdit(p);
-    }
-
-    @Override
-    public void onDelete(Profile p) {
-        new AlertDialog.Builder(this)
-                .setTitle("ลบโปรไฟล์?")
-                .setMessage("คุณต้องการลบ \"" + p.name + "\" ใช่หรือไม่?")
-                .setPositiveButton("ลบ", (d, w) -> viewModel.delete(p))
-                .setNegativeButton("ยกเลิก", null)
-                .show();
-    }
-
-    @Override
-    public void onToggleFavorite(Profile p) {
-        viewModel.toggleFavorite(p);
+    public void onBackPressed() {
+        // ถ้าไม่ได้เลือกโปรไฟล์ — แค่ finish กลับ
+        super.onBackPressed();
     }
 }
