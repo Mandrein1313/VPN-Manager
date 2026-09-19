@@ -46,6 +46,10 @@
             android:name=".ui.CrashLogActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
+            <activity
+    android:name=".ui.ConnectionActivity"
+    android:exported="false"
+    android:parentActivityName=".MainActivity" />
 
         <!-- ===== VPN Service ===== -->
         <service

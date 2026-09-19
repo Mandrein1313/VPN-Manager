@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.ui.ConnectionActivity;
 import com.example.vpn.ui.CrashLogActivity;
 import com.example.vpn.ui.LogViewerActivity;
 import com.example.vpn.ui.ProfileAdapter;
@@ -53,14 +54,16 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private TextView txtStatus;
     private MaterialButton btnLog;
 
+    /** เก็บโปรไฟล์ที่รอ request VPN permission อยู่ */
     private Profile pendingProfile;
 
+    /** Launcher สำหรับขอ VPN permission */
     private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> {
                         if (result.getResultCode() == RESULT_OK && pendingProfile != null) {
-                            startVpnService(pendingProfile);
+                            openConnectionScreen(pendingProfile);
                         } else {
                             Toast.makeText(this,
                                     "คุณไม่อนุญาตให้ใช้ VPN",
@@ -69,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                         pendingProfile = null;
                     });
 
+    /** Launcher สำหรับขอ POST_NOTIFICATIONS */
     private final ActivityResultLauncher<String> notifPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.RequestPermission(),
@@ -180,34 +184,26 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     public void onConnect(Profile p) {
         viewModel.markUsed(p);
 
+        // ⭐ ขอ VPN permission ก่อน — ถ้ายังไม่เคยขอ
         Intent prepare = VpnService.prepare(this);
         if (prepare != null) {
             pendingProfile = p;
             vpnPermissionLauncher.launch(prepare);
             return;
         }
-        startVpnService(p);
+
+        // ⭐ อนุญาตแล้ว → เปิดหน้า Connection (ปุ่มกลม)
+        openConnectionScreen(p);
     }
 
-    private void startVpnService(Profile p) {
-        Intent svc = new Intent(this, ProxyVpnService.class);
-        svc.setAction(ProxyVpnService.ACTION_START);
-        svc.putExtra(ProxyVpnService.EXTRA_PROFILE_ID, p.id);
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(svc);
-            } else {
-                startService(svc);
-            }
-            Toast.makeText(this,
-                    "กำลังเชื่อมต่อ: " + p.name,
-                    Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this,
-                    "เกิดข้อผิดพลาด: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
-        }
+    /**
+     * ⭐ เปิดหน้า ConnectionActivity ที่แสดงปุ่มกลม
+     * ConnectionActivity จะเป็นตัวสั่ง start/stop VPN Service เอง
+     */
+    private void openConnectionScreen(Profile p) {
+        Intent i = new Intent(this, ConnectionActivity.class);
+        i.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, p.id);
+        startActivity(i);
     }
 
     // ============================================================

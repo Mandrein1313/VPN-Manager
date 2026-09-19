@@ -13,7 +13,9 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="โปรไฟล์ทั้งหมด" />
+            android:background="?attr/colorPrimaryContainer"
+            app:title="โปรไฟล์ทั้งหมด"
+            app:titleTextColor="?attr/colorOnPrimaryContainer" />
 
         <!-- ⭐ Status Bar -->
         <LinearLayout
@@ -38,6 +40,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
                 android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="2"
                 android:text="พร้อมเชื่อมต่อ"
                 android:textColor="#DDDDDD"
                 android:textSize="13sp" />
@@ -58,7 +62,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:padding="8dp"
+        android:paddingHorizontal="8dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="96dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <LinearLayout
@@ -67,7 +73,8 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:visibility="gone"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <TextView
             android:layout_width="wrap_content"
@@ -87,7 +94,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="กดปุ่ม + เพื่อเพิ่มโปรไฟล์แรก" />
+            android:text="กดปุ่ม + เพื่อเพิ่มโปรไฟล์แรก"
+            android:textColor="#999999" />
     </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
