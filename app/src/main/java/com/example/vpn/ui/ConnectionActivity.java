@@ -80,10 +80,18 @@ public class ConnectionActivity extends AppCompatActivity
     private long sessionStartTime = 0L;
     private long lastUploadBytes = 0L;
     private long lastDownloadBytes = 0L;
+
+    /** ⭐ ป้องกัน dialog เด้งซ้ำ */
+    private boolean noProfileDialogShown = false;
+
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
-    // ===== Launchers =====
+    // ============================================================
+    // Launchers
+    // ============================================================
+
+    /** VPN permission */
     private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -96,6 +104,7 @@ public class ConnectionActivity extends AppCompatActivity
                         }
                     });
 
+    /** จัดการโปรไฟล์ (MainActivity) */
     private final ActivityResultLauncher<Intent> manageProfilesLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -109,8 +118,24 @@ public class ConnectionActivity extends AppCompatActivity
                                     if (p != null) bindProfile(p);
                                 });
                             }
+                        } else {
+                            // กลับมาโดยไม่เลือก → เช็คโปรไฟล์ใหม่
+                            reloadProfiles();
                         }
                     });
+
+    /** ⭐ เพิ่มโปรไฟล์ใหม่ */
+    private final ActivityResultLauncher<Intent> addProfileLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        // หลังกลับมา → โหลดโปรไฟล์ใหม่
+                        reloadProfiles();
+                    });
+
+    // ============================================================
+    // Lifecycle
+    // ============================================================
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -154,14 +179,12 @@ public class ConnectionActivity extends AppCompatActivity
         }
         toolbar.setTitle("VPN Manager");
 
-        // Hamburger icon → toggle drawer
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
                 R.string.app_name, R.string.app_name);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
-        // Navigation view listener
         navView.setNavigationItemSelectedListener(this);
 
         // ===== Tabs =====
@@ -194,17 +217,25 @@ public class ConnectionActivity extends AppCompatActivity
             viewModel.getRepo().getById(profileId, p -> {
                 if (p == null) {
                     Toast.makeText(this, "ไม่พบโปรไฟล์", Toast.LENGTH_SHORT).show();
+                    reloadProfiles();
                     return;
                 }
                 bindProfile(p);
             });
         } else {
+            // ⭐ โหลดโปรไฟล์ครั้งแรก
             viewModel.getProfiles().observe(this, list -> {
                 if (targetProfile != null) return;
                 if (list == null || list.isEmpty()) {
                     txtStatus.setText("[ NO PROFILE ]");
+                    txtConfigName.setText("Not Set");
+                    txtConfigLeft.setText("---");
+                    txtConfigRight.setText("---");
+                    toolbar.setTitle("VPN Manager");
+                    showNoProfileDialog();
                     return;
                 }
+                noProfileDialogShown = false;
                 Profile p = null;
                 for (Profile x : list) if (x.isFavorite) { p = x; break; }
                 if (p == null) p = list.get(0);
@@ -260,8 +291,8 @@ public class ConnectionActivity extends AppCompatActivity
         // ===== Connect button =====
         btnConnect.setListener(() -> {
             if (targetProfile == null) {
-                Toast.makeText(this, "ไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
-                        Toast.LENGTH_SHORT).show();
+                showNoProfileDialog();
+                noProfileDialogShown = false;
                 return;
             }
             switch (btnConnect.getState()) {
@@ -287,16 +318,73 @@ public class ConnectionActivity extends AppCompatActivity
                         Toast.LENGTH_SHORT).show());
 
         // ===== Bottom actions =====
-        actionEdit.setOnClickListener(v -> openEditForCurrent());
+        actionEdit.setOnClickListener(v -> {
+            if (targetProfile == null) {
+                showNoProfileDialog();
+                noProfileDialogShown = false;
+                return;
+            }
+            openEditForCurrent();
+        });
 
         actionLog.setOnClickListener(v ->
                 tabLayout.selectTab(tabLayout.getTabAt(1)));
 
-        actionDelete.setOnClickListener(v -> confirmDeleteCurrent());
+        actionDelete.setOnClickListener(v -> {
+            if (targetProfile == null) {
+                Toast.makeText(this, "ไม่มีโปรไฟล์ให้ลบ",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            confirmDeleteCurrent();
+        });
 
         actionAdd.setOnClickListener(v -> {
             Intent i = new Intent(this, ProfileEditActivity.class);
-            startActivity(i);
+            addProfileLauncher.launch(i);
+        });
+    }
+
+    // ============================================================
+    // ⭐ No Profile Dialog
+    // ============================================================
+    private void showNoProfileDialog() {
+        if (noProfileDialogShown) return;
+        noProfileDialogShown = true;
+
+        new AlertDialog.Builder(this)
+                .setTitle("ยังไม่มีโปรไฟล์")
+                .setMessage("คุณต้องสร้างโปรไฟล์ก่อนจึงจะเชื่อมต่อ VPN ได้\n\n" +
+                        "ต้องการสร้างโปรไฟล์ใหม่หรือไม่?")
+                .setCancelable(false)
+                .setPositiveButton("สร้างโปรไฟล์", (d, w) -> {
+                    Intent i = new Intent(this, ProfileEditActivity.class);
+                    addProfileLauncher.launch(i);
+                })
+                .setNeutralButton("จัดการโปรไฟล์", (d, w) -> openProfilePicker())
+                .setNegativeButton("ไว้ทีหลัง", null)
+                .show();
+    }
+
+    // ============================================================
+    // ⭐ Reload Profiles
+    // ============================================================
+    private void reloadProfiles() {
+        viewModel.getProfiles().observe(this, list -> {
+            if (targetProfile != null) return;
+            if (list == null || list.isEmpty()) {
+                txtStatus.setText("[ NO PROFILE ]");
+                txtConfigName.setText("Not Set");
+                txtConfigLeft.setText("---");
+                txtConfigRight.setText("---");
+                toolbar.setTitle("VPN Manager");
+                return;
+            }
+            noProfileDialogShown = false;
+            Profile p = null;
+            for (Profile x : list) if (x.isFavorite) { p = x; break; }
+            if (p == null) p = list.get(0);
+            bindProfile(p);
         });
     }
 
@@ -308,7 +396,7 @@ public class ConnectionActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_home) {
-            // อยู่หน้าเดิม — แค่ปิด drawer
+            // อยู่หน้าเดิม
         } else if (id == R.id.nav_profiles) {
             openProfilePicker();
         } else if (id == R.id.nav_log) {
@@ -316,7 +404,6 @@ public class ConnectionActivity extends AppCompatActivity
         } else if (id == R.id.nav_crash) {
             startActivity(new Intent(this, CrashLogActivity.class));
         } else if (id == R.id.nav_import) {
-            // TODO: ถ้าต้องการ import จาก drawer
             Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
                     Toast.LENGTH_SHORT).show();
             openProfilePicker();
@@ -359,7 +446,7 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // Methods (เดิม)
+    // Other methods
     // ============================================================
     private void openProfilePicker() {
         Intent i = new Intent(this, MainActivity.class);
@@ -381,7 +468,7 @@ public class ConnectionActivity extends AppCompatActivity
                             txtConfigName.setText("Not Set");
                             txtConfigLeft.setText("---");
                             txtConfigRight.setText("---");
-                            toolbar.setTitle("VPN");
+                            toolbar.setTitle("VPN Manager");
                             return;
                         }
                         Profile next = null;
@@ -407,10 +494,21 @@ public class ConnectionActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+
         if (targetProfile != null) {
+            // โหลดโปรไฟล์เดิมใหม่
             viewModel.getRepo().getById(targetProfile.id, p -> {
-                if (p != null) bindProfile(p);
+                if (p != null) {
+                    bindProfile(p);
+                } else {
+                    // โปรไฟล์ถูกลบ → หาโปรไฟล์อื่นแทน
+                    targetProfile = null;
+                    reloadProfiles();
+                }
             });
+        } else {
+            // ยังไม่มีโปรไฟล์ → เช็คใหม่
+            reloadProfiles();
         }
     }
 
@@ -478,7 +576,9 @@ public class ConnectionActivity extends AppCompatActivity
         }
     }
 
-    // ===== Stats =====
+    // ============================================================
+    // Stats
+    // ============================================================
     private void startStatsUpdates() {
         statsHandler.removeCallbacks(statsRunnable);
         statsHandler.post(statsRunnable);
@@ -518,7 +618,9 @@ public class ConnectionActivity extends AppCompatActivity
                 bytes / (1024.0 * 1024 * 1024));
     }
 
-    // ===== Log =====
+    // ============================================================
+    // Log
+    // ============================================================
     private void refreshLogView() {
         List<String> lines = VpnLogger.snapshot();
         StringBuilder sb = new StringBuilder();
