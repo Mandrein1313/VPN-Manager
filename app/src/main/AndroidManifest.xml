@@ -18,9 +18,9 @@
         android:theme="@style/Theme.MyApp"
         tools:targetApi="34">
 
-        <!-- ===== Main Activity ===== -->
+        <!-- ⭐ ConnectionActivity = LAUNCHER (หน้าแรก) -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.ConnectionActivity"
             android:exported="true"
             android:label="@string/app_name">
             <intent-filter>
@@ -29,29 +29,32 @@
             </intent-filter>
         </activity>
 
-        <!-- ===== Profile Edit ===== -->
+        <!-- MainActivity = Profile Management (เปิดจากปุ่ม) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="จัดการโปรไฟล์"
+            android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- Profile Edit -->
         <activity
             android:name=".ui.ProfileEditActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
-        <!-- ===== Log Viewer (⭐ เพิ่มใหม่) ===== -->
+        <!-- Log Viewer -->
         <activity
             android:name=".ui.LogViewerActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ui.ConnectionActivity" />
 
-        <!-- ===== Crash Log (⭐ เพิ่มใหม่) ===== -->
+        <!-- Crash Log -->
         <activity
             android:name=".ui.CrashLogActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity" />
-            <activity
-    android:name=".ui.ConnectionActivity"
-    android:exported="false"
-    android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".ui.ConnectionActivity" />
 
-        <!-- ===== VPN Service ===== -->
+        <!-- VPN Service -->
         <service
             android:name=".ProxyVpnService"
             android:exported="false"

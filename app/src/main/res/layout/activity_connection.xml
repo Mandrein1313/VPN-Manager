@@ -17,7 +17,7 @@
         app:title="HTTP VPN"
         app:titleTextColor="#FFFFFF" />
 
-    <!-- ===== Tab: MAIN / LOG ===== -->
+    <!-- ===== Tabs ===== -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
         android:layout_width="match_parent"
@@ -57,7 +57,6 @@
                 android:orientation="vertical"
                 android:paddingBottom="16dp">
 
-                <!-- ===== Circular Connect Button ===== -->
                 <com.example.vpn.ui.ConnectButtonView
                     android:id="@+id/btnConnect"
                     android:layout_width="wrap_content"
@@ -66,14 +65,13 @@
                     android:layout_marginTop="16dp"
                     android:layout_marginBottom="8dp" />
 
-                <!-- ===== Status Text ===== -->
                 <TextView
                     android:id="@+id/txtStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="ยังไม่เชื่อมต่อ"
+                    android:text="พร้อมเชื่อมต่อ"
                     android:textColor="#B0BEC5"
                     android:textSize="16sp" />
 
@@ -87,7 +85,6 @@
                     android:textColor="#78909C"
                     android:textSize="13sp" />
 
-                <!-- ===== Profile Selector ===== -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -100,7 +97,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Direct SSH"
+                        android:text="—"
                         android:textColor="#FFFFFF"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -111,12 +108,11 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:text="General Profile"
+                        android:text="—"
                         android:textColor="#888888"
                         android:textSize="14sp" />
                 </LinearLayout>
 
-                <!-- ===== Stats Row ===== -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -124,7 +120,6 @@
                     android:orientation="horizontal"
                     android:paddingHorizontal="16dp">
 
-                    <!-- Upload -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -152,11 +147,8 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <Space
-                        android:layout_width="8dp"
-                        android:layout_height="1dp" />
+                    <Space android:layout_width="8dp" android:layout_height="1dp" />
 
-                    <!-- Download -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -184,11 +176,8 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <Space
-                        android:layout_width="8dp"
-                        android:layout_height="1dp" />
+                    <Space android:layout_width="8dp" android:layout_height="1dp" />
 
-                    <!-- Session -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -220,7 +209,7 @@
         </ScrollView>
     </FrameLayout>
 
-    <!-- ===== LOG Content (ซ่อนไว้ เปิดเมื่อกด tab) ===== -->
+    <!-- ===== LOG Content ===== -->
     <FrameLayout
         android:id="@+id/contentLog"
         android:layout_width="match_parent"
@@ -241,7 +230,7 @@
             android:textSize="10sp" />
     </FrameLayout>
 
-    <!-- ===== Bottom Action Bar ===== -->
+    <!-- ===== Bottom Action Bar (แก้ใหม่) ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -249,8 +238,9 @@
         android:orientation="horizontal"
         android:paddingVertical="8dp">
 
+        <!-- ⭐ จัดการโปรไฟล์ (เปิด MainActivity) -->
         <LinearLayout
-            android:id="@+id/actionEdit"
+            android:id="@+id/actionProfiles"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -262,19 +252,20 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_edit"
-                android:contentDescription="แก้ไข"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                android:contentDescription="จัดการ"
                 app:tint="#FFFFFF" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="แก้ไข"
+                android:text="จัดการ"
                 android:textColor="#FFFFFF"
                 android:textSize="10sp" />
         </LinearLayout>
 
+        <!-- Log -->
         <LinearLayout
             android:id="@+id/actionLog"
             android:layout_width="0dp"
@@ -301,8 +292,9 @@
                 android:textSize="10sp" />
         </LinearLayout>
 
+        <!-- แก้ไข -->
         <LinearLayout
-            android:id="@+id/actionDelete"
+            android:id="@+id/actionEdit"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -314,19 +306,20 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_delete"
-                android:contentDescription="ลบ"
-                app:tint="#EF5350" />
+                android:src="@android:drawable/ic_menu_edit"
+                android:contentDescription="แก้ไข"
+                app:tint="#FFFFFF" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="ลบ"
-                android:textColor="#EF5350"
+                android:text="แก้ไข"
+                android:textColor="#FFFFFF"
                 android:textSize="10sp" />
         </LinearLayout>
 
+        <!-- เพิ่ม -->
         <LinearLayout
             android:id="@+id/actionAdd"
             android:layout_width="0dp"

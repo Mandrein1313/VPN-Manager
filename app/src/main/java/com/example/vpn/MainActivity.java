@@ -4,7 +4,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
-import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -54,24 +53,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private TextView txtStatus;
     private MaterialButton btnLog;
 
-    /** เก็บโปรไฟล์ที่รอ request VPN permission อยู่ */
-    private Profile pendingProfile;
-
-    /** Launcher สำหรับขอ VPN permission */
-    private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
-            registerForActivityResult(
-                    new ActivityResultContracts.StartActivityForResult(),
-                    result -> {
-                        if (result.getResultCode() == RESULT_OK && pendingProfile != null) {
-                            openConnectionScreen(pendingProfile);
-                        } else {
-                            Toast.makeText(this,
-                                    "คุณไม่อนุญาตให้ใช้ VPN",
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                        pendingProfile = null;
-                    });
-
     /** Launcher สำหรับขอ POST_NOTIFICATIONS */
     private final ActivityResultLauncher<String> notifPermissionLauncher =
             registerForActivityResult(
@@ -94,11 +75,15 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
 
+        // ===== Toolbar + Back button =====
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("โปรไฟล์ทั้งหมด");
+            getSupportActionBar().setTitle("จัดการโปรไฟล์");
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);   // ⭐ ปุ่มย้อนกลับ
         }
+        // ⭐ ปุ่มย้อนกลับ → ปิดหน้านี้ (กลับไป ConnectionActivity)
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         emptyState = findViewById(R.id.emptyState);
         recycler = findViewById(R.id.recyclerProfiles);
@@ -180,30 +165,18 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
     // ================== VPN Connection ==================
 
+    /**
+     * ⭐ เมื่อผู้ใช้กด "เชื่อมต่อ" ในรายการโปรไฟล์
+     * → ส่ง profileId กลับให้ ConnectionActivity แล้วปิดหน้านี้
+     */
     @Override
     public void onConnect(Profile p) {
         viewModel.markUsed(p);
 
-        // ⭐ ขอ VPN permission ก่อน — ถ้ายังไม่เคยขอ
-        Intent prepare = VpnService.prepare(this);
-        if (prepare != null) {
-            pendingProfile = p;
-            vpnPermissionLauncher.launch(prepare);
-            return;
-        }
-
-        // ⭐ อนุญาตแล้ว → เปิดหน้า Connection (ปุ่มกลม)
-        openConnectionScreen(p);
-    }
-
-    /**
-     * ⭐ เปิดหน้า ConnectionActivity ที่แสดงปุ่มกลม
-     * ConnectionActivity จะเป็นตัวสั่ง start/stop VPN Service เอง
-     */
-    private void openConnectionScreen(Profile p) {
-        Intent i = new Intent(this, ConnectionActivity.class);
-        i.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, p.id);
-        startActivity(i);
+        Intent result = new Intent();
+        result.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, p.id);
+        setResult(RESULT_OK, result);
+        finish();
     }
 
     // ============================================================

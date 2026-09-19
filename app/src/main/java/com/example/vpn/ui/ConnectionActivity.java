@@ -15,10 +15,10 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.example.vpn.MainActivity;
 import com.example.vpn.ProxyVpnService;
 import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
@@ -51,7 +51,7 @@ public class ConnectionActivity extends AppCompatActivity {
     private TextView txtSession;
     private TextView txtLogContent;
 
-    private LinearLayout actionEdit, actionLog, actionDelete, actionAdd;
+    private LinearLayout actionProfiles, actionLog, actionEdit, actionAdd;
 
     // ===== State =====
     private ProfileViewModel viewModel;
@@ -62,6 +62,7 @@ public class ConnectionActivity extends AppCompatActivity {
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
+    // ⭐ Launcher: VPN permission
     private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -71,6 +72,23 @@ public class ConnectionActivity extends AppCompatActivity {
                         } else {
                             Toast.makeText(this, "คุณไม่อนุญาตให้ใช้ VPN",
                                     Toast.LENGTH_SHORT).show();
+                        }
+                    });
+
+    // ⭐ Launcher: จัดการโปรไฟล์ (รอผลลัพธ์)
+    private final ActivityResultLauncher<Intent> manageProfilesLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (result.getResultCode() == RESULT_OK
+                                && result.getData() != null) {
+                            long profileId = result.getData()
+                                    .getLongExtra(EXTRA_PROFILE_ID, -1L);
+                            if (profileId > 0) {
+                                viewModel.getRepo().getById(profileId, p -> {
+                                    if (p != null) bindProfile(p);
+                                });
+                            }
                         }
                     });
 
@@ -94,13 +112,14 @@ public class ConnectionActivity extends AppCompatActivity {
         txtSession = findViewById(R.id.txtSession);
         txtLogContent = findViewById(R.id.txtLogContent);
 
-        actionEdit = findViewById(R.id.actionEdit);
+        actionProfiles = findViewById(R.id.actionProfiles);
         actionLog = findViewById(R.id.actionLog);
-        actionDelete = findViewById(R.id.actionDelete);
+        actionEdit = findViewById(R.id.actionEdit);
         actionAdd = findViewById(R.id.actionAdd);
 
         // ===== Toolbar =====
-        toolbar.setNavigationOnClickListener(v -> finish());
+        // ⭐ ปุ่ม X = ย่อแอปลง (ไม่ปิดทิ้ง)
+        toolbar.setNavigationOnClickListener(v -> moveTaskToBack(true));
 
         // ===== Tabs =====
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -130,16 +149,17 @@ public class ConnectionActivity extends AppCompatActivity {
             viewModel.getRepo().getById(profileId, p -> {
                 if (p == null) {
                     Toast.makeText(this, "ไม่พบโปรไฟล์", Toast.LENGTH_SHORT).show();
-                    finish();
                     return;
                 }
                 bindProfile(p);
             });
         } else {
-            // ถ้าไม่มี profile — ใช้ favorite หรือ profile แรก
             viewModel.getProfiles().observe(this, list -> {
-                if (targetProfile != null) return; // โหลดแล้ว
-                if (list == null || list.isEmpty()) return;
+                if (targetProfile != null) return;
+                if (list == null || list.isEmpty()) {
+                    txtStatus.setText("ยังไม่มีโปรไฟล์ — กด 'จัดการ' เพื่อเพิ่ม");
+                    return;
+                }
                 Profile p = null;
                 for (Profile x : list) if (x.isFavorite) { p = x; break; }
                 if (p == null) p = list.get(0);
@@ -153,7 +173,6 @@ public class ConnectionActivity extends AppCompatActivity {
             txtStatus.setText(status.message);
             btnConnect.setState(mapStatus(status.state));
 
-            // เริ่มจับ session time เมื่อ connected
             if (status.state == StatusBus.State.CONNECTED) {
                 if (sessionStartTime == 0L) {
                     sessionStartTime = System.currentTimeMillis();
@@ -172,7 +191,8 @@ public class ConnectionActivity extends AppCompatActivity {
         // ===== Connect button =====
         btnConnect.setListener(() -> {
             if (targetProfile == null) {
-                Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "ไม่มีโปรไฟล์ — กด 'จัดการ' เพื่อเพิ่ม",
+                        Toast.LENGTH_SHORT).show();
                 return;
             }
             switch (btnConnect.getState()) {
@@ -189,35 +209,46 @@ public class ConnectionActivity extends AppCompatActivity {
         });
 
         // ===== Bottom actions =====
-        actionEdit.setOnClickListener(v -> {
-            if (targetProfile == null) return;
-            Intent i = new Intent(this, ProfileEditActivity.class);
-            i.putExtra(ProfileListActivity.EXTRA_PROFILE_ID, targetProfile.id);
-            startActivity(i);
+        // ⭐ ใช้ launcher แทน startActivity
+        actionProfiles.setOnClickListener(v -> {
+            Intent i = new Intent(this, MainActivity.class);
+            manageProfilesLauncher.launch(i);
         });
 
         actionLog.setOnClickListener(v -> {
             tabLayout.selectTab(tabLayout.getTabAt(1));
         });
 
-        actionDelete.setOnClickListener(v -> {
-            if (targetProfile == null) return;
-            new AlertDialog.Builder(this)
-                    .setTitle("ลบโปรไฟล์?")
-                    .setMessage("คุณต้องการลบ \"" + targetProfile.name + "\" ใช่หรือไม่?")
-                    .setPositiveButton("ลบ", (d, w) -> {
-                        viewModel.delete(targetProfile);
-                        finish();
-                    })
-                    .setNegativeButton("ยกเลิก", null)
-                    .show();
+        actionEdit.setOnClickListener(v -> {
+            if (targetProfile == null) {
+                Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Intent i = new Intent(this, ProfileEditActivity.class);
+            i.putExtra(MainActivity.EXTRA_PROFILE_ID, targetProfile.id);
+            startActivity(i);
         });
 
         actionAdd.setOnClickListener(v -> {
             Intent i = new Intent(this, ProfileEditActivity.class);
             startActivity(i);
-            finish();
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // ⭐ โหลดโปรไฟล์ใหม่เมื่อกลับมาจากการแก้ไข (ไม่ใช่จาก launcher)
+        if (targetProfile != null) {
+            viewModel.getRepo().getById(targetProfile.id, p -> {
+                if (p != null && !p.name.equals(targetProfile.name)) {
+                    bindProfile(p);
+                } else if (p != null) {
+                    // อัปเดต server info (กรณีแก้ host/port)
+                    bindProfile(p);
+                }
+            });
+        }
     }
 
     private void bindProfile(Profile p) {
@@ -279,7 +310,7 @@ public class ConnectionActivity extends AppCompatActivity {
     }
 
     // ============================================================
-    // Stats updates
+    // Stats
     // ============================================================
     private void startStatsUpdates() {
         statsHandler.removeCallbacks(statsRunnable);
@@ -293,14 +324,12 @@ public class ConnectionActivity extends AppCompatActivity {
     private void updateStats() {
         if (sessionStartTime == 0L) return;
 
-        // Session time
         long elapsed = System.currentTimeMillis() - sessionStartTime;
         long h = elapsed / 3_600_000L;
         long m = (elapsed % 3_600_000L) / 60_000L;
         long s = (elapsed % 60_000L) / 1000L;
         txtSession.setText(String.format(Locale.US, "%02d:%02d:%02d", h, m, s));
 
-        // Traffic (per-app)
         long rx = TrafficStats.getUidRxBytes(android.os.Process.myUid());
         long tx = TrafficStats.getUidTxBytes(android.os.Process.myUid());
         if (rx < 0) rx = 0;
@@ -309,19 +338,21 @@ public class ConnectionActivity extends AppCompatActivity {
         txtDownload.setText(formatBytes(rx - lastDownloadBytes));
         txtUpload.setText(formatBytes(tx - lastUploadBytes));
 
-        // อัปเดตทุก 1 วินาที
         statsHandler.postDelayed(statsRunnable, 1000);
     }
 
     private static String formatBytes(long bytes) {
         if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format(Locale.US, "%.1f KB", bytes / 1024.0);
-        if (bytes < 1024L * 1024 * 1024) return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024));
-        return String.format(Locale.US, "%.2f GB", bytes / (1024.0 * 1024 * 1024));
+        if (bytes < 1024 * 1024)
+            return String.format(Locale.US, "%.1f KB", bytes / 1024.0);
+        if (bytes < 1024L * 1024 * 1024)
+            return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024));
+        return String.format(Locale.US, "%.2f GB",
+                bytes / (1024.0 * 1024 * 1024));
     }
 
     // ============================================================
-    // Log tab
+    // Log
     // ============================================================
     private void refreshLogView() {
         List<String> lines = VpnLogger.snapshot();
@@ -333,10 +364,6 @@ public class ConnectionActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        statsHandler.removeCallbacks(statsCallbacks);
+        statsHandler.removeCallbacks(statsRunnable);
     }
-
-    private final Runnable statsCallbacks = new Runnable() {
-        @Override public void run() { updateStats(); }
-    };
 }
