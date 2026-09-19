@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -15,9 +16,13 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.vpn.MainActivity;
@@ -28,18 +33,24 @@ import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.VpnLogger;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
 
 import java.util.List;
 import java.util.Locale;
 
-public class ConnectionActivity extends AppCompatActivity {
+public class ConnectionActivity extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener {
 
     public static final String EXTRA_PROFILE_ID = "profile_id";
 
+    // ===== Drawer =====
+    private DrawerLayout drawerLayout;
+    private NavigationView navView;
+    private MaterialToolbar toolbar;
+
     // ===== Views =====
-    private ImageView btnClose;
-    private TextView txtTitle;
     private TabLayout tabLayout;
     private View contentMain;
     private View contentLog;
@@ -72,7 +83,7 @@ public class ConnectionActivity extends AppCompatActivity {
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
-    // ⭐ Launcher: VPN permission
+    // ===== Launchers =====
     private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -85,7 +96,6 @@ public class ConnectionActivity extends AppCompatActivity {
                         }
                     });
 
-    // ⭐ Launcher: เปิด Profile List เพื่อเลือก server
     private final ActivityResultLauncher<Intent> manageProfilesLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -108,8 +118,9 @@ public class ConnectionActivity extends AppCompatActivity {
         setContentView(R.layout.activity_connection);
 
         // ===== Bind views =====
-        btnClose = findViewById(R.id.btnClose);
-        txtTitle = findViewById(R.id.txtTitle);
+        drawerLayout = findViewById(R.id.drawerLayout);
+        navView = findViewById(R.id.navView);
+        toolbar = findViewById(R.id.toolbar);
         tabLayout = findViewById(R.id.tabLayout);
         contentMain = findViewById(R.id.contentMain);
         contentLog = findViewById(R.id.contentLog);
@@ -136,8 +147,22 @@ public class ConnectionActivity extends AppCompatActivity {
         actionDelete = findViewById(R.id.actionDelete);
         actionAdd = findViewById(R.id.actionAdd);
 
-        // ===== Buttons =====
-        btnClose.setOnClickListener(v -> moveTaskToBack(true));
+        // ===== Toolbar + Drawer =====
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
+        toolbar.setTitle("HTTP VPN");
+
+        // Hamburger icon → toggle drawer
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.app_name, R.string.app_name);
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        // Navigation view listener
+        navView.setNavigationItemSelectedListener(this);
 
         // ===== Tabs =====
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -252,11 +277,11 @@ public class ConnectionActivity extends AppCompatActivity {
             }
         });
 
-        // ⭐ Config card → เปิด Profile List เพื่อเลือก server ใหม่
+        // ===== Config card =====
         configCard.setOnClickListener(v -> openProfilePicker());
         btnConfigArrow.setOnClickListener(v -> openProfilePicker());
 
-        // ===== Ad-free (placeholder) =====
+        // ===== Ad-free =====
         adFreeCard.setOnClickListener(v ->
                 Toast.makeText(this, "Ad-free time — เร็วๆ นี้",
                         Toast.LENGTH_SHORT).show());
@@ -275,7 +300,67 @@ public class ConnectionActivity extends AppCompatActivity {
         });
     }
 
-    // ⭐ เปิดหน้า Profile List เพื่อเลือก server
+    // ============================================================
+    // Navigation Drawer
+    // ============================================================
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.nav_home) {
+            // อยู่หน้าเดิม — แค่ปิด drawer
+        } else if (id == R.id.nav_profiles) {
+            openProfilePicker();
+        } else if (id == R.id.nav_log) {
+            tabLayout.selectTab(tabLayout.getTabAt(1));
+        } else if (id == R.id.nav_crash) {
+            startActivity(new Intent(this, CrashLogActivity.class));
+        } else if (id == R.id.nav_import) {
+            // TODO: ถ้าต้องการ import จาก drawer
+            Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
+                    Toast.LENGTH_SHORT).show();
+            openProfilePicker();
+        } else if (id == R.id.nav_about) {
+            showAboutDialog();
+        } else if (id == R.id.nav_exit) {
+            new AlertDialog.Builder(this)
+                    .setTitle("ออกจากแอป?")
+                    .setMessage("คุณต้องการปิดแอปทั้งหมดหรือไม่?")
+                    .setPositiveButton("ออก", (d, w) -> {
+                        stopVpnService();
+                        finishAffinity();
+                    })
+                    .setNegativeButton("ยกเลิก", null)
+                    .show();
+        }
+
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+    private void showAboutDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("เกี่ยวกับ VPN Manager")
+                .setMessage("VPN Manager v1.0\n\n" +
+                        "แอป VPN ที่รองรับ SSH Tunnel\n" +
+                        "และหลาย protocol\n\n" +
+                        "สร้างด้วย ❤️ ในประเทศไทย")
+                .setPositiveButton("ตกลง", null)
+                .show();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    // ============================================================
+    // Methods (เดิม)
+    // ============================================================
     private void openProfilePicker() {
         Intent i = new Intent(this, MainActivity.class);
         manageProfilesLauncher.launch(i);
@@ -296,7 +381,7 @@ public class ConnectionActivity extends AppCompatActivity {
                             txtConfigName.setText("Not Set");
                             txtConfigLeft.setText("---");
                             txtConfigRight.setText("---");
-                            txtTitle.setText("VPN");
+                            toolbar.setTitle("VPN");
                             return;
                         }
                         Profile next = null;
@@ -331,7 +416,7 @@ public class ConnectionActivity extends AppCompatActivity {
 
     private void bindProfile(Profile p) {
         targetProfile = p;
-        txtTitle.setText(p.name);
+        toolbar.setTitle(p.name);
 
         txtConfigName.setText(p.name);
         txtConfigLeft.setText(p.host);
