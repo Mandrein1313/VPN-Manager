@@ -79,7 +79,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         });
 
         // ⭐ เลือกโหมด: Edit / Prefill (import) / Add
-        long id = getIntent().getLongExtra(ProfileListActivity.EXTRA_PROFILE_ID, -1L);
+        long id = getIntent().getLongExtra(MainActivity.EXTRA_PROFILE_ID, -1L);
         Intent intent = getIntent();
 
         if (id > 0) {
@@ -103,19 +103,14 @@ public class ProfileEditActivity extends AppCompatActivity {
         btnSave.setOnClickListener(v -> save());
     }
 
-    // ============================================================
-    // Prefill — เติมข้อมูลที่ parse มาจาก clipboard
-    // ============================================================
     private void prefillFromIntent(Intent intent) {
         String host = intent.getStringExtra(EXTRA_PREFILL_HOST);
         int port = intent.getIntExtra(EXTRA_PREFILL_PORT, 22);
         String user = intent.getStringExtra(EXTRA_PREFILL_USER);
         String pass = intent.getStringExtra(EXTRA_PREFILL_PASS);
 
-        // ตั้ง protocol = SSH
         ddProtocol.setText(Protocol.SSH.displayName, false);
 
-        // ตั้งชื่อโปรไฟล์อัตโนมัติ = host
         if (host != null && !host.isEmpty()) {
             edtName.setText(host);
             edtHost.setText(host);
@@ -129,9 +124,6 @@ public class ProfileEditActivity extends AppCompatActivity {
         onProtocolChanged(Protocol.SSH);
     }
 
-    // ============================================================
-    // Defaults — ตอนกด "เพิ่มโปรไฟล์" เปล่าๆ
-    // ============================================================
     private void fillDefaults() {
         ddProtocol.setText(Protocol.SSH.displayName, false);
         edtPort.setText(String.valueOf(Protocol.SSH.defaultPort));
@@ -140,9 +132,6 @@ public class ProfileEditActivity extends AppCompatActivity {
         onProtocolChanged(Protocol.SSH);
     }
 
-    // ============================================================
-    // Bind — เติมข้อมูลจาก profile ที่มีอยู่
-    // ============================================================
     private void bindProfile(Profile p) {
         edtName.setText(p.name);
         ddProtocol.setText(p.protocol.displayName, false);
@@ -158,13 +147,8 @@ public class ProfileEditActivity extends AppCompatActivity {
         onProtocolChanged(p.protocol);
     }
 
-    // ============================================================
-    // Protocol change — แสดง/ซ่อน field ตาม protocol
-    // ============================================================
     private void onProtocolChanged(Protocol proto) {
         if (existing == null) {
-            // อย่า override port ถ้า prefill ไว้แล้ว
-            // (เช็คว่า port ปัจจุบันตรงกับ default ของ protocol หรือไม่)
             String currentPort = text(edtPort);
             if (currentPort.isEmpty()) {
                 edtPort.setText(String.valueOf(proto.defaultPort));
@@ -183,9 +167,6 @@ public class ProfileEditActivity extends AppCompatActivity {
         return Protocol.SSH;
     }
 
-    // ============================================================
-    // Save
-    // ============================================================
     private void save() {
         String name = text(edtName);
         String host = text(edtHost);
