@@ -27,7 +27,7 @@
                 android:background="#0D1117"
                 app:navigationIcon="@android:drawable/ic_menu_sort_by_size"
                 app:navigationIconTint="#FFFFFF"
-                app:title="HTTP VPN"
+                app:title="VPN Manager"
                 app:titleTextColor="#FFFFFF" />
 
             <!-- ===== Tabs ===== -->
