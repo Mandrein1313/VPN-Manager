@@ -4,7 +4,12 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Green shield -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,1L3,5v6c0,5.55 3.84,10.74 9,12 5.16,-1.26 9,-6.45 9,-12V5L12,1zM12,11.99h7c-0.53,4.12 -3.28,7.79 -7,8.94V12H5V6.3l7,-3.11v8.8z" />
+        android:fillColor="#00E676"
+        android:pathData="M12,1 L4,4 L4,11 C4,16.55 7.41,21.74 12,23 C16.59,21.74 20,16.55 20,11 L20,4 Z" />
+    <!-- Checkmark inside -->
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M10.5,14.5 L8,12 L6.5,13.5 L10.5,17.5 L17.5,10.5 L16,9 Z" />
 </vector>
