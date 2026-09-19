@@ -6,24 +6,46 @@
     android:background="#0D1117"
     android:orientation="vertical">
 
-    <!-- ===== Top Toolbar ===== -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- ===== Top Bar ===== -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="#0D1117"
-        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
-        app:navigationIconTint="#FFFFFF"
-        app:title="HTTP VPN"
-        app:titleTextColor="#FFFFFF" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp">
 
-    <!-- ===== Tabs: MAIN / LOG ===== -->
+        <ImageView
+            android:id="@+id/btnClose"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            app:tint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/txtTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="ทรู"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- ===== Tabs ===== -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#0D1117"
         app:tabIndicatorColor="#00BCD4"
+        app:tabIndicatorFullWidth="false"
         app:tabIndicatorHeight="3dp"
         app:tabSelectedTextColor="#00BCD4"
         app:tabTextColor="#888888">
@@ -49,7 +71,8 @@
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:fillViewport="true"
+            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -63,266 +86,268 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginTop="12dp" />
 
                 <!-- ===== Status Text ===== -->
                 <TextView
                     android:id="@+id/txtStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="16dp"
+                    android:fontFamily="monospace"
                     android:gravity="center"
-                    android:text="พร้อมเชื่อมต่อ"
-                    android:textColor="#B0BEC5"
-                    android:textSize="15sp" />
+                    android:letterSpacing="0.15"
+                    android:text="[ NOT CONNECTED ]"
+                    android:textColor="#00E676"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
-                <!-- ===== Profile Card ===== -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/profileCard"
+                <!-- ===== Ad-free time card ===== -->
+                <LinearLayout
+                    android:id="@+id/adFreeCard"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="20dp"
-                    android:layout_marginTop="20dp"
-                    app:cardBackgroundColor="#161B22"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="#253044"
-                    app:strokeWidth="1dp">
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_dark_card"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="14dp">
 
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@android:drawable/star_big_on"
+                        app:tint="#00E676" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="Ad-free time"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/txtAdFreeTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 pts"
+                        android:textColor="#00E676"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="8dp"
+                        android:src="@android:drawable/arrow_down_float"
+                        android:rotation="-90"
+                        app:tint="#888888" />
+                </LinearLayout>
+
+                <!-- ===== Active Configuration Card ===== -->
+                <LinearLayout
+                    android:id="@+id/configCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="20dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/bg_dark_card"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Header -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ACTIVE CONFIGURATION"
+                        android:letterSpacing="0.15"
+                        android:textColor="#888888"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <!-- Row: Icon + Name + Arrow -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                        <!-- Row 1: Icon + Name + Star -->
+                        <ImageView
+                            android:id="@+id/imgConfigIcon"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:src="@android:drawable/ic_menu_upload"
+                            app:tint="#00E676" />
+
                         <LinearLayout
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
-                            <!-- Profile Icon -->
                             <TextView
-                                android:id="@+id/txtProfileIcon"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
-                                android:background="@drawable/bg_circle"
-                                android:gravity="center"
-                                android:text="🔐"
-                                android:textSize="22sp" />
-
-                            <!-- Name + Host -->
-                            <LinearLayout
-                                android:layout_width="0dp"
+                                android:id="@+id/txtConfigName"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="12dp"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
+                                android:text="Not Set"
+                                android:textColor="#FFFFFF"
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:orientation="horizontal">
 
                                 <TextView
-                                    android:id="@+id/txtProfileName"
-                                    android:layout_width="wrap_content"
+                                    android:id="@+id/txtConfigLeft"
+                                    android:layout_width="0dp"
                                     android:layout_height="wrap_content"
-                                    android:text="ทรู"
-                                    android:textColor="#FFFFFF"
-                                    android:textSize="15sp"
-                                    android:textStyle="bold" />
+                                    android:layout_weight="1"
+                                    android:text="---"
+                                    android:textColor="#666666"
+                                    android:textSize="12sp" />
 
                                 <TextView
-                                    android:id="@+id/txtServerInfo"
+                                    android:id="@+id/txtConfigRight"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="jp6.vpnjantit.com:22"
-                                    android:textColor="#888888"
+                                    android:text="---"
+                                    android:textColor="#666666"
                                     android:textSize="12sp" />
                             </LinearLayout>
-
-                            <!-- Star (Favorite) -->
-                            <ImageView
-                                android:id="@+id/btnFavorite"
-                                android:layout_width="28dp"
-                                android:layout_height="28dp"
-                                android:background="?attr/selectableItemBackgroundBorderless"
-                                android:clickable="true"
-                                android:focusable="true"
-                                android:padding="2dp"
-                                android:src="@android:drawable/btn_star_big_off"
-                                app:tint="#FFC107" />
                         </LinearLayout>
 
-                        <!-- Row 2: Protocol chip -->
+                        <ImageView
+                            android:id="@+id/btnConfigArrow"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:padding="4dp"
+                            android:src="@android:drawable/arrow_down_float"
+                            android:rotation="-90"
+                            app:tint="#00E676" />
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="14dp"
+                        android:background="#1F2733" />
+
+                    <!-- Stats row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:orientation="horizontal">
+
+                        <!-- Download -->
                         <LinearLayout
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
                             <TextView
-                                android:id="@+id/txtProtocolIcon"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="🔐"
-                                android:textSize="12sp" />
-
-                            <TextView
-                                android:id="@+id/txtProtocolName"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="4dp"
-                                android:background="#1A4CAF50"
-                                android:paddingHorizontal="8dp"
-                                android:paddingVertical="2dp"
-                                android:text="SSH Tunnel"
-                                android:textColor="#4CAF50"
-                                android:textSize="12sp"
+                                android:text="DOWNLINK"
+                                android:letterSpacing="0.1"
+                                android:textColor="#888888"
+                                android:textSize="11sp"
                                 android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@android:drawable/arrow_down_float"
+                                    app:tint="#00E676" />
+
+                                <TextView
+                                    android:id="@+id/txtDownload"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:text="0 B"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
                         </LinearLayout>
 
-                        <!-- Row 3: Edit + Delete buttons -->
+                        <!-- Upload -->
                         <LinearLayout
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:gravity="end"
-                            android:orientation="horizontal">
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnEdit"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                            <TextView
                                 android:layout_width="wrap_content"
-                                android:layout_height="36dp"
-                                android:text="แก้ไข"
-                                android:textColor="#B0BEC5"
-                                android:textSize="12sp"
-                                app:cornerRadius="18dp"
-                                app:strokeColor="#3A4556" />
+                                android:layout_height="wrap_content"
+                                android:text="UPLINK"
+                                android:letterSpacing="0.1"
+                                android:textColor="#888888"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDelete"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                            <LinearLayout
                                 android:layout_width="wrap_content"
-                                android:layout_height="36dp"
-                                android:layout_marginStart="8dp"
-                                android:text="ลบ"
-                                android:textColor="#B0BEC5"
-                                android:textSize="12sp"
-                                app:cornerRadius="18dp"
-                                app:strokeColor="#3A4556" />
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@android:drawable/arrow_up_float"
+                                    app:tint="#00E676" />
+
+                                <TextView
+                                    android:id="@+id/txtUpload"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:text="0 B"
+                                    android:textColor="#FFFFFF"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
                         </LinearLayout>
-
-                        <!-- Row 4: Progress bar -->
-                        <ProgressBar
-                            android:id="@+id/progressBar"
-                            style="?android:attr/progressBarStyleHorizontal"
-                            android:layout_width="match_parent"
-                            android:layout_height="2dp"
-                            android:layout_marginTop="12dp"
-                            android:indeterminate="false"
-                            android:max="100"
-                            android:progress="0"
-                            android:progressTint="#4A90C2" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- ===== Stats Row (แสดงเมื่อ connected) ===== -->
-                <LinearLayout
-                    android:id="@+id/statsContainer"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="20dp"
-                    android:visibility="gone">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:background="@drawable/bg_stat_card"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:paddingVertical="10dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="อัปโหลด"
-                            android:textColor="#B0BEC5"
-                            android:textSize="11sp" />
-
-                        <TextView
-                            android:id="@+id/txtUpload"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="0 B"
-                            android:textColor="#FFFFFF"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-
-                    <Space android:layout_width="8dp" android:layout_height="1dp" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:background="@drawable/bg_stat_card"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:paddingVertical="10dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="ดาวน์โหลด"
-                            android:textColor="#B0BEC5"
-                            android:textSize="11sp" />
-
-                        <TextView
-                            android:id="@+id/txtDownload"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="0 B"
-                            android:textColor="#FFFFFF"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-
-                    <Space android:layout_width="8dp" android:layout_height="1dp" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:background="@drawable/bg_stat_card"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:paddingVertical="10dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="เซสชัน"
-                            android:textColor="#B0BEC5"
-                            android:textSize="11sp" />
-
-                        <TextView
-                            android:id="@+id/txtSession"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="00:00:00"
-                            android:textColor="#FFFFFF"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
+
+                <!-- ===== Session time (ซ่อนไว้ก่อน) ===== -->
+                <TextView
+                    android:id="@+id/txtSession"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="monospace"
+                    android:text="00:00:00"
+                    android:textColor="#666666"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
             </LinearLayout>
         </ScrollView>
     </FrameLayout>
@@ -352,11 +377,10 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#161B22"
+        android:background="#0D1117"
         android:orientation="horizontal"
         android:paddingVertical="8dp">
 
-        <!-- แก้ไข -->
         <LinearLayout
             android:id="@+id/actionEdit"
             android:layout_width="0dp"
@@ -372,7 +396,6 @@
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@android:drawable/ic_menu_edit"
-                android:contentDescription="แก้ไข"
                 app:tint="#B0BEC5" />
 
             <TextView
@@ -384,7 +407,6 @@
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- Log -->
         <LinearLayout
             android:id="@+id/actionLog"
             android:layout_width="0dp"
@@ -400,7 +422,6 @@
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@android:drawable/ic_menu_info_details"
-                android:contentDescription="Log"
                 app:tint="#B0BEC5" />
 
             <TextView
@@ -412,7 +433,6 @@
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- ลบ -->
         <LinearLayout
             android:id="@+id/actionDelete"
             android:layout_width="0dp"
@@ -428,7 +448,6 @@
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@android:drawable/ic_menu_delete"
-                android:contentDescription="ลบ"
                 app:tint="#EF5350" />
 
             <TextView
@@ -440,7 +459,6 @@
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- เพิ่ม -->
         <LinearLayout
             android:id="@+id/actionAdd"
             android:layout_width="0dp"
@@ -456,7 +474,6 @@
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@android:drawable/ic_input_add"
-                android:contentDescription="เพิ่ม"
                 app:tint="#B0BEC5" />
 
             <TextView
