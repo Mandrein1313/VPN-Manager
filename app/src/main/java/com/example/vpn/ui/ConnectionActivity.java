@@ -72,6 +72,7 @@ public class ConnectionActivity extends AppCompatActivity {
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
+    // ⭐ Launcher: VPN permission
     private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -84,6 +85,7 @@ public class ConnectionActivity extends AppCompatActivity {
                         }
                     });
 
+    // ⭐ Launcher: เปิด Profile List เพื่อเลือก server
     private final ActivityResultLauncher<Intent> manageProfilesLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -189,7 +191,6 @@ public class ConnectionActivity extends AppCompatActivity {
         StatusBus.get().observe(this, status -> {
             if (status == null) return;
 
-            // Status text
             switch (status.state) {
                 case CONNECTED:
                     txtStatus.setText("[ CONNECTED ]");
@@ -251,9 +252,9 @@ public class ConnectionActivity extends AppCompatActivity {
             }
         });
 
-        // ===== Config card =====
-        configCard.setOnClickListener(v -> openEditForCurrent());
-        btnConfigArrow.setOnClickListener(v -> openEditForCurrent());
+        // ⭐ Config card → เปิด Profile List เพื่อเลือก server ใหม่
+        configCard.setOnClickListener(v -> openProfilePicker());
+        btnConfigArrow.setOnClickListener(v -> openProfilePicker());
 
         // ===== Ad-free (placeholder) =====
         adFreeCard.setOnClickListener(v ->
@@ -274,6 +275,12 @@ public class ConnectionActivity extends AppCompatActivity {
         });
     }
 
+    // ⭐ เปิดหน้า Profile List เพื่อเลือก server
+    private void openProfilePicker() {
+        Intent i = new Intent(this, MainActivity.class);
+        manageProfilesLauncher.launch(i);
+    }
+
     private void confirmDeleteCurrent() {
         if (targetProfile == null) return;
         new AlertDialog.Builder(this)
@@ -283,7 +290,6 @@ public class ConnectionActivity extends AppCompatActivity {
                     viewModel.delete(targetProfile);
                     targetProfile = null;
 
-                    // โหลดโปรไฟล์อื่นแทน
                     viewModel.getProfiles().observe(this, list -> {
                         if (list == null || list.isEmpty()) {
                             txtStatus.setText("[ NO PROFILE ]");
@@ -327,12 +333,10 @@ public class ConnectionActivity extends AppCompatActivity {
         targetProfile = p;
         txtTitle.setText(p.name);
 
-        // Config card
         txtConfigName.setText(p.name);
         txtConfigLeft.setText(p.host);
         txtConfigRight.setText(String.valueOf(p.port));
 
-        // Icon ตาม protocol
         if (p.protocol == com.example.vpn.model.Protocol.SSH) {
             imgConfigIcon.setImageResource(android.R.drawable.ic_lock_lock);
         } else {
