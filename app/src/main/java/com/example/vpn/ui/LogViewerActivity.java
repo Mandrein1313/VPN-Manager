@@ -3,7 +3,6 @@ package com.example.vpn.ui;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.SpannableStringBuilder;
@@ -27,18 +26,18 @@ import java.util.List;
 public class LogViewerActivity extends AppCompatActivity
         implements VpnLogger.Listener {
 
-    // ⭐ สีของแต่ละระดับ
-    private static final int COLOR_TIME      = 0xFF888888;  // เทา — timestamp
-    private static final int COLOR_TAG       = 0xFF4A90C2;  // ฟ้า — tag (Service name)
-    private static final int COLOR_MSG_INFO  = 0xFFDDDDDD;  // เทาอ่อน — ข้อความ I
-    private static final int COLOR_MSG_DEBUG = 0xFF808080;  // เทา — ข้อความ D
-    private static final int COLOR_MSG_WARN  = 0xFFFFA726;  // ส้ม — ข้อความ W
-    private static final int COLOR_MSG_ERROR = 0xFFEF5350;  // แดง — ข้อความ E
+    // ===== สีของแต่ละระดับ =====
+    private static final int COLOR_TIME      = 0xFF888888;
+    private static final int COLOR_TAG       = 0xFF4A90C2;
+    private static final int COLOR_MSG_INFO  = 0xFFDDDDDD;
+    private static final int COLOR_MSG_DEBUG = 0xFF808080;
+    private static final int COLOR_MSG_WARN  = 0xFFFFA726;
+    private static final int COLOR_MSG_ERROR = 0xFFEF5350;
 
-    private static final int COLOR_LVL_INFO  = 0xFF00E676;  // เขียว — I
-    private static final int COLOR_LVL_DEBUG = 0xFF888888;  // เทา — D
-    private static final int COLOR_LVL_WARN  = 0xFFFFA726;  // ส้ม — W
-    private static final int COLOR_LVL_ERROR = 0xFFEF5350;  // แดง — E
+    private static final int COLOR_LVL_INFO  = 0xFF00E676;
+    private static final int COLOR_LVL_DEBUG = 0xFF888888;
+    private static final int COLOR_LVL_WARN  = 0xFFFFA726;
+    private static final int COLOR_LVL_ERROR = 0xFFEF5350;
 
     private TextView txtLog;
     private ScrollView scroll;
@@ -58,6 +57,7 @@ public class LogViewerActivity extends AppCompatActivity
         MaterialButton btnClear = findViewById(R.id.btnClear);
         MaterialButton btnScrollBottom = findViewById(R.id.btnScrollBottom);
 
+        // ⭐ โหลด log ที่มีอยู่ + ใส่สี
         refreshLog();
 
         btnCopy.setOnClickListener(v -> {
@@ -76,6 +76,7 @@ public class LogViewerActivity extends AppCompatActivity
 
         btnScrollBottom.setOnClickListener(v -> scrollToBottom());
 
+        // ⭐ ลงทะเบียน listener — log ใหม่จะถูกใส่สีอัตโนมัติ
         VpnLogger.setListener(this);
     }
 
@@ -85,6 +86,9 @@ public class LogViewerActivity extends AppCompatActivity
         VpnLogger.setListener(null);
     }
 
+    // ============================================================
+    // ⭐ เมื่อมี log ใหม่ — ใส่สีแล้ว append
+    // ============================================================
     @Override
     public void onLogAdded(String line) {
         runOnUiThread(() -> {
@@ -102,20 +106,17 @@ public class LogViewerActivity extends AppCompatActivity
     private CharSequence coloredLine(String line) {
         SpannableStringBuilder ssb = new SpannableStringBuilder(line);
 
-        if (line == null || line.length() < 3) {
+        if (line == null || line.length() < 15) {
             return ssb;
         }
 
-        // รูปแบบ: "HH:mm:ss.SSS L/Tag: message"
-        // ตัวอย่าง: "20:51:11.973 I/ProxyVpnService: Creating TUN interface..."
-        //
-        // ตำแหน่ง:
-        // - [0..12]   = timestamp (12 ตัว: "20:51:11.973")
-        // - [13]      = space
-        // - [14]      = level (I/D/W/E)
-        // - [15]      = '/'
-        // - [16..]    = tag จนเจอ ':'
-        // - หลัง ': '  = message
+        // รูปแบบ: "20:51:11.973 I/ProxyVpnService: Creating TUN interface..."
+        // [0..12]   = timestamp
+        // [13]      = space
+        // [14]      = level (I/D/W/E)
+        // [15]      = '/'
+        // [16..]    = tag จนเจอ ':'
+        // หลัง ': '  = message
 
         // ---- Timestamp ----
         int timestampEnd = line.indexOf(' ');
@@ -131,23 +132,11 @@ public class LogViewerActivity extends AppCompatActivity
         int levelColor;
         int msgColor;
         switch (level) {
-            case 'E':
-                levelColor = COLOR_LVL_ERROR;
-                msgColor = COLOR_MSG_ERROR;
-                break;
-            case 'W':
-                levelColor = COLOR_LVL_WARN;
-                msgColor = COLOR_MSG_WARN;
-                break;
-            case 'D':
-                levelColor = COLOR_LVL_DEBUG;
-                msgColor = COLOR_MSG_DEBUG;
-                break;
+            case 'E': levelColor = COLOR_LVL_ERROR; msgColor = COLOR_MSG_ERROR; break;
+            case 'W': levelColor = COLOR_LVL_WARN;  msgColor = COLOR_MSG_WARN;  break;
+            case 'D': levelColor = COLOR_LVL_DEBUG; msgColor = COLOR_MSG_DEBUG; break;
             case 'I':
-            default:
-                levelColor = COLOR_LVL_INFO;
-                msgColor = COLOR_MSG_INFO;
-                break;
+            default:  levelColor = COLOR_LVL_INFO;  msgColor = COLOR_MSG_INFO;  break;
         }
 
         ssb.setSpan(new ForegroundColorSpan(levelColor),
@@ -156,7 +145,7 @@ public class LogViewerActivity extends AppCompatActivity
                 levelPos, levelPos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         // ---- Tag ----
-        int tagStart = levelPos + 2;   // ข้าม "I/"
+        int tagStart = levelPos + 2;
         int tagEnd = line.indexOf(':', tagStart);
         if (tagEnd < 0) tagEnd = line.length();
 
@@ -164,32 +153,25 @@ public class LogViewerActivity extends AppCompatActivity
                 tagStart, tagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         // ---- Message ----
-        int msgStart = tagEnd + 2;   // ข้าม ": "
+        int msgStart = tagEnd + 2;
         if (msgStart < line.length()) {
             ssb.setSpan(new ForegroundColorSpan(msgColor),
                     msgStart, line.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
-            // ⭐ เน้นคำสำคัญในข้อความ error
-            highlightKeywords(ssb, line, msgStart, msgColor);
+            highlightKeywords(ssb, line, msgStart);
         }
 
         return ssb;
     }
 
-    /** ⭐ เน้น keywords เช่น "successfully", "error", "failed" */
-    private void highlightKeywords(SpannableStringBuilder ssb, String line,
-                                    int from, int defaultColor) {
+    /** ⭐ เน้นคำสำคัญ */
+    private void highlightKeywords(SpannableStringBuilder ssb, String line, int from) {
         String lower = line.toLowerCase();
 
-        // คำที่แสดงสีเขียว (สำเร็จ)
         String[] greenWords = {"successfully", "success", "connected", "established",
-                "ready", "พร้อม", "สำเร็จ", "connected successfully"};
-
-        // คำที่แสดงสีแดง (ผิดพลาด)
+                "ready", "พร้อม", "สำเร็จ"};
         String[] redWords = {"error", "failed", "reject", "timeout", "abort",
-                "ผิดพลาด", "ล้มเหลว", "ไม่ได้"};
-
-        // คำที่แสดงสีส้ม (เตือน)
+                "ผิดพลาด", "ล้มเหลว"};
         String[] orangeWords = {"no response", "continue", "unexpected",
                 "not found", "warning"};
 
@@ -197,11 +179,9 @@ public class LogViewerActivity extends AppCompatActivity
             int idx = lower.indexOf(w, from - 1);
             if (idx >= 0) {
                 ssb.setSpan(new ForegroundColorSpan(0xFF00E676),
-                        idx, idx + w.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        idx, idx + w.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 ssb.setSpan(new StyleSpan(Typeface.BOLD),
-                        idx, idx + w.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        idx, idx + w.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
 
@@ -209,11 +189,9 @@ public class LogViewerActivity extends AppCompatActivity
             int idx = lower.indexOf(w, from - 1);
             if (idx >= 0) {
                 ssb.setSpan(new ForegroundColorSpan(0xFFEF5350),
-                        idx, idx + w.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        idx, idx + w.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 ssb.setSpan(new StyleSpan(Typeface.BOLD),
-                        idx, idx + w.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        idx, idx + w.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
 
@@ -221,8 +199,7 @@ public class LogViewerActivity extends AppCompatActivity
             int idx = lower.indexOf(w, from - 1);
             if (idx >= 0) {
                 ssb.setSpan(new ForegroundColorSpan(0xFFFFA726),
-                        idx, idx + w.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        idx, idx + w.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
     }
