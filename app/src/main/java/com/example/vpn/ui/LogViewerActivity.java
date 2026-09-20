@@ -3,7 +3,13 @@ package com.example.vpn.ui;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -20,6 +26,19 @@ import java.util.List;
 
 public class LogViewerActivity extends AppCompatActivity
         implements VpnLogger.Listener {
+
+    // ⭐ สีของแต่ละระดับ
+    private static final int COLOR_TIME      = 0xFF888888;  // เทา — timestamp
+    private static final int COLOR_TAG       = 0xFF4A90C2;  // ฟ้า — tag (Service name)
+    private static final int COLOR_MSG_INFO  = 0xFFDDDDDD;  // เทาอ่อน — ข้อความ I
+    private static final int COLOR_MSG_DEBUG = 0xFF808080;  // เทา — ข้อความ D
+    private static final int COLOR_MSG_WARN  = 0xFFFFA726;  // ส้ม — ข้อความ W
+    private static final int COLOR_MSG_ERROR = 0xFFEF5350;  // แดง — ข้อความ E
+
+    private static final int COLOR_LVL_INFO  = 0xFF00E676;  // เขียว — I
+    private static final int COLOR_LVL_DEBUG = 0xFF888888;  // เทา — D
+    private static final int COLOR_LVL_WARN  = 0xFFFFA726;  // ส้ม — W
+    private static final int COLOR_LVL_ERROR = 0xFFEF5350;  // แดง — E
 
     private TextView txtLog;
     private ScrollView scroll;
@@ -39,7 +58,6 @@ public class LogViewerActivity extends AppCompatActivity
         MaterialButton btnClear = findViewById(R.id.btnClear);
         MaterialButton btnScrollBottom = findViewById(R.id.btnScrollBottom);
 
-        // แสดง log ที่มีอยู่
         refreshLog();
 
         btnCopy.setOnClickListener(v -> {
@@ -58,7 +76,6 @@ public class LogViewerActivity extends AppCompatActivity
 
         btnScrollBottom.setOnClickListener(v -> scrollToBottom());
 
-        // ลงทะเบียน listener — method onLogAdded() อยู่ด้านล่าง
         VpnLogger.setListener(this);
     }
 
@@ -68,21 +85,161 @@ public class LogViewerActivity extends AppCompatActivity
         VpnLogger.setListener(null);
     }
 
-    // ⭐ method ที่ compiler ต้องการ — implement interface
     @Override
     public void onLogAdded(String line) {
         runOnUiThread(() -> {
-            txtLog.append(line);
-            txtLog.append("\n");
+            SpannableStringBuilder ssb = new SpannableStringBuilder();
+            ssb.append(coloredLine(line));
+            ssb.append("\n");
+            txtLog.append(ssb);
             scrollToBottom();
         });
     }
 
+    // ============================================================
+    // ⭐ สร้าง Spannable ที่มีสี
+    // ============================================================
+    private CharSequence coloredLine(String line) {
+        SpannableStringBuilder ssb = new SpannableStringBuilder(line);
+
+        if (line == null || line.length() < 3) {
+            return ssb;
+        }
+
+        // รูปแบบ: "HH:mm:ss.SSS L/Tag: message"
+        // ตัวอย่าง: "20:51:11.973 I/ProxyVpnService: Creating TUN interface..."
+        //
+        // ตำแหน่ง:
+        // - [0..12]   = timestamp (12 ตัว: "20:51:11.973")
+        // - [13]      = space
+        // - [14]      = level (I/D/W/E)
+        // - [15]      = '/'
+        // - [16..]    = tag จนเจอ ':'
+        // - หลัง ': '  = message
+
+        // ---- Timestamp ----
+        int timestampEnd = line.indexOf(' ');
+        if (timestampEnd < 0) timestampEnd = Math.min(12, line.length());
+        ssb.setSpan(new ForegroundColorSpan(COLOR_TIME),
+                0, timestampEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        // ---- Level ----
+        int levelPos = timestampEnd + 1;
+        if (levelPos >= line.length()) return ssb;
+
+        char level = line.charAt(levelPos);
+        int levelColor;
+        int msgColor;
+        switch (level) {
+            case 'E':
+                levelColor = COLOR_LVL_ERROR;
+                msgColor = COLOR_MSG_ERROR;
+                break;
+            case 'W':
+                levelColor = COLOR_LVL_WARN;
+                msgColor = COLOR_MSG_WARN;
+                break;
+            case 'D':
+                levelColor = COLOR_LVL_DEBUG;
+                msgColor = COLOR_MSG_DEBUG;
+                break;
+            case 'I':
+            default:
+                levelColor = COLOR_LVL_INFO;
+                msgColor = COLOR_MSG_INFO;
+                break;
+        }
+
+        ssb.setSpan(new ForegroundColorSpan(levelColor),
+                levelPos, levelPos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ssb.setSpan(new StyleSpan(Typeface.BOLD),
+                levelPos, levelPos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        // ---- Tag ----
+        int tagStart = levelPos + 2;   // ข้าม "I/"
+        int tagEnd = line.indexOf(':', tagStart);
+        if (tagEnd < 0) tagEnd = line.length();
+
+        ssb.setSpan(new ForegroundColorSpan(COLOR_TAG),
+                tagStart, tagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        // ---- Message ----
+        int msgStart = tagEnd + 2;   // ข้าม ": "
+        if (msgStart < line.length()) {
+            ssb.setSpan(new ForegroundColorSpan(msgColor),
+                    msgStart, line.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+            // ⭐ เน้นคำสำคัญในข้อความ error
+            highlightKeywords(ssb, line, msgStart, msgColor);
+        }
+
+        return ssb;
+    }
+
+    /** ⭐ เน้น keywords เช่น "successfully", "error", "failed" */
+    private void highlightKeywords(SpannableStringBuilder ssb, String line,
+                                    int from, int defaultColor) {
+        String lower = line.toLowerCase();
+
+        // คำที่แสดงสีเขียว (สำเร็จ)
+        String[] greenWords = {"successfully", "success", "connected", "established",
+                "ready", "พร้อม", "สำเร็จ", "connected successfully"};
+
+        // คำที่แสดงสีแดง (ผิดพลาด)
+        String[] redWords = {"error", "failed", "reject", "timeout", "abort",
+                "ผิดพลาด", "ล้มเหลว", "ไม่ได้"};
+
+        // คำที่แสดงสีส้ม (เตือน)
+        String[] orangeWords = {"no response", "continue", "unexpected",
+                "not found", "warning"};
+
+        for (String w : greenWords) {
+            int idx = lower.indexOf(w, from - 1);
+            if (idx >= 0) {
+                ssb.setSpan(new ForegroundColorSpan(0xFF00E676),
+                        idx, idx + w.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                ssb.setSpan(new StyleSpan(Typeface.BOLD),
+                        idx, idx + w.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+
+        for (String w : redWords) {
+            int idx = lower.indexOf(w, from - 1);
+            if (idx >= 0) {
+                ssb.setSpan(new ForegroundColorSpan(0xFFEF5350),
+                        idx, idx + w.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                ssb.setSpan(new StyleSpan(Typeface.BOLD),
+                        idx, idx + w.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+
+        for (String w : orangeWords) {
+            int idx = lower.indexOf(w, from - 1);
+            if (idx >= 0) {
+                ssb.setSpan(new ForegroundColorSpan(0xFFFFA726),
+                        idx, idx + w.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+    }
+
+    // ============================================================
+    // Refresh ทั้งหมด
+    // ============================================================
     private void refreshLog() {
         List<String> lines = VpnLogger.snapshot();
-        StringBuilder sb = new StringBuilder();
-        for (String line : lines) sb.append(line).append('\n');
-        txtLog.setText(sb.toString());
+
+        SpannableStringBuilder sb = new SpannableStringBuilder();
+        for (String line : lines) {
+            sb.append(coloredLine(line));
+            sb.append("\n");
+        }
+
+        txtLog.setText(sb);
         scrollToBottom();
     }
 
