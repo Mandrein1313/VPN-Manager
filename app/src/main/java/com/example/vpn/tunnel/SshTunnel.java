@@ -36,7 +36,6 @@ public class SshTunnel {
                      SocketProtector protector) throws Exception {
 
         JSch jsch = new JSch();
-
         session = jsch.getSession(user, host, port);
         session.setPassword(pass);
 
@@ -57,31 +56,23 @@ public class SshTunnel {
 
                 boolean protectedOk = false;
                 if (protector != null) {
-                    try {
-                        protectedOk = protector.protect(s);
-                    } catch (Exception e) {
+                    try { protectedOk = protector.protect(s); }
+                    catch (Exception e) {
                         VpnLogger.w(TAG, "protect() threw: " + e.getMessage());
                     }
                 }
-
-                VpnLogger.i(TAG, "Socket to " + h + ":" + p
-                        + " — protected=" + protectedOk);
+                VpnLogger.i(TAG, "Socket to " + h + ":" + p + " — protected=" + protectedOk);
 
                 try {
                     if (fProxy != null && !fProxy.isEmpty()) {
-                        VpnLogger.i(TAG, "Using HTTP Proxy: " + fProxy);
                         return createProxyTunnel(s, fSshHost, fSshPort, fProxy, fPayload);
                     } else if (fPayload != null && !fPayload.isEmpty()) {
-                        VpnLogger.i(TAG, "Using direct payload (no proxy)");
                         return createDirectPayload(s, h, p, fPayload);
                     } else {
-                        VpnLogger.i(TAG, "Direct connect to " + h + ":" + p);
                         s.connect(new InetSocketAddress(h, p), 20_000);
-                        VpnLogger.i(TAG, "TCP connected to " + h + ":" + p);
                         return s;
                     }
                 } catch (IOException e) {
-                    VpnLogger.e(TAG, "connect failed: " + e.getMessage());
                     try { s.close(); } catch (IOException ignored) {}
                     throw e;
                 }
@@ -106,22 +97,21 @@ public class SshTunnel {
                     ? " via proxy " + httpProxy : ""));
 
         session.connect(25_000);
-
         VpnLogger.i(TAG, "SSH connected successfully");
     }
 
     // ============================================================
-    // ⭐ Direct Payload (ไม่ใช้ proxy)
+    // ⭐ Direct Payload (ไม่มี proxy)
     // ============================================================
     private static Socket createDirectPayload(Socket s, String host, int port,
                                                String payload) throws IOException {
         VpnLogger.i(TAG, "Direct connect + payload to " + host + ":" + port);
-
         s.connect(new InetSocketAddress(host, port), 20_000);
         s.setTcpNoDelay(true);
-        VpnLogger.i(TAG, "TCP connected to " + host + ":" + port);
+        VpnLogger.i(TAG, "TCP connected");
 
-        String req = payload
+        // ⭐ แทนที่ placeholders ก่อนแยก [split]
+        String replaced = payload
                 .replace("[host]", host)
                 .replace("[port]", String.valueOf(port))
                 .replace("[host_port]", host + ":" + port)
@@ -131,21 +121,30 @@ public class SshTunnel {
                 .replace("[cr]", "\r")
                 .replace("[real_host]", host);
 
-        if (req.contains("[split]")) {
-            req = req.split("\\[split\\]")[0];
-        }
+        // ⭐ แยก [split]
+        String[] parts = replaced.split("\\[split\\]");
+        String part1 = parts[0];
+        String part2 = parts.length > 1 ? parts[1] : "";
 
-        VpnLogger.i(TAG, "Sending direct payload (" + req.length() + " chars)");
-        VpnLogger.d(TAG, "Payload content:\n" + req);
+        VpnLogger.i(TAG, "Sending part 1 (" + part1.length() + " chars)");
+        VpnLogger.d(TAG, "Part 1:\n" + part1);
 
         OutputStream out = s.getOutputStream();
-        out.write(req.getBytes(StandardCharsets.UTF_8));
+        out.write(part1.getBytes(StandardCharsets.UTF_8));
         out.flush();
 
-        InputStream in = s.getInputStream();
+        // ⭐ ส่ง part 2 ถ้ามี — รอ 200ms เหมือน NPV Tunnel
+        if (!part2.isEmpty()) {
+            try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+            VpnLogger.i(TAG, "Sending part 2 (" + part2.length() + " chars)");
+            VpnLogger.d(TAG, "Part 2:\n" + part2);
+            out.write(part2.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        }
 
-        // ⭐ ตั้ง timeout 5 วินาที — ถ้าไม่มี response → error
-        s.setSoTimeout(5_000);
+        // อ่าน response
+        InputStream in = s.getInputStream();
+        s.setSoTimeout(10_000);
 
         try {
             BufferedReader reader = new BufferedReader(
@@ -159,8 +158,7 @@ public class SshTunnel {
             }
 
             if (statusLine.startsWith("SSH-")) {
-                VpnLogger.i(TAG, "SSH banner detected — payload not needed!");
-                // คืน socket — เอา timeout ออก ปล่อยให้ JSch อ่าน SSH
+                VpnLogger.i(TAG, "SSH banner detected!");
                 s.setSoTimeout(0);
                 return s;
             }
@@ -171,24 +169,23 @@ public class SshTunnel {
                 VpnLogger.d(TAG, "Header: " + line);
             }
 
-            if (statusLine.contains("101") || statusLine.contains("200")) {
-                VpnLogger.i(TAG, "WebSocket/HTTP tunnel established");
+            if (statusLine.contains("200") || statusLine.contains("101")) {
+                VpnLogger.i(TAG, "Tunnel established");
             } else {
                 VpnLogger.w(TAG, "Unexpected response: " + statusLine);
             }
 
-            // ⭐ เอา timeout ออก — ปล่อยให้ JSch อ่าน SSH ต่อ
             s.setSoTimeout(0);
             return s;
 
         } catch (java.net.SocketTimeoutException e) {
-            VpnLogger.e(TAG, "No response within 5s — server did not reply");
-            throw new IOException("Server did not respond to payload");
+            VpnLogger.e(TAG, "No response within 10s");
+            throw new IOException("Server did not respond");
         }
     }
 
     // ============================================================
-    // Proxy Tunnel
+    // ⭐ Proxy Tunnel + [split]
     // ============================================================
     private static Socket createProxyTunnel(Socket s, String sshHost, int sshPort,
                                             String httpProxy, String payload)
@@ -199,11 +196,8 @@ public class SshTunnel {
         int colon = httpProxy.lastIndexOf(':');
         if (colon > 0) {
             proxyHost = httpProxy.substring(0, colon);
-            try {
-                proxyPort = Integer.parseInt(httpProxy.substring(colon + 1));
-            } catch (NumberFormatException e) {
-                proxyPort = 80;
-            }
+            try { proxyPort = Integer.parseInt(httpProxy.substring(colon + 1)); }
+            catch (NumberFormatException e) { proxyPort = 80; }
         } else {
             proxyHost = httpProxy;
         }
@@ -213,36 +207,42 @@ public class SshTunnel {
         s.setTcpNoDelay(true);
         VpnLogger.i(TAG, "Proxy TCP connected");
 
-        String req;
-        if (payload != null && !payload.isEmpty()) {
-            req = payload
-                    .replace("[host]", sshHost)
-                    .replace("[port]", String.valueOf(sshPort))
-                    .replace("[host_port]", sshHost + ":" + sshPort)
-                    .replace("[protocol]", "HTTP/1.1")
-                    .replace("[ua]", "Mozilla/5.0 (Linux; Android 10)")
-                    .replace("[crlf]", "\r\n")
-                    .replace("[cr]", "\r")
-                    .replace("[real_host]", sshHost);
-            if (req.contains("[split]")) {
-                req = req.split("\\[split\\]")[0];
-            }
-        } else {
-            req = "CONNECT " + sshHost + ":" + sshPort + " HTTP/1.1\r\n"
-                    + "Host: " + sshHost + ":" + sshPort + "\r\n"
-                    + "User-Agent: Mozilla/5.0 (Linux; Android 10)\r\n"
-                    + "Connection: keep-alive\r\n\r\n";
-        }
+        // ⭐ แทนที่ placeholders
+        String replaced = payload
+                .replace("[host]", sshHost)
+                .replace("[port]", String.valueOf(sshPort))
+                .replace("[host_port]", sshHost + ":" + sshPort)
+                .replace("[protocol]", "HTTP/1.1")
+                .replace("[ua]", "Mozilla/5.0 (Linux; Android 10)")
+                .replace("[crlf]", "\r\n")
+                .replace("[cr]", "\r")
+                .replace("[real_host]", sshHost);
 
-        VpnLogger.i(TAG, "Sending payload (" + req.length() + " chars)");
+        // ⭐ แยก [split]
+        String[] parts = replaced.split("\\[split\\]");
+        String part1 = parts[0];
+        String part2 = parts.length > 1 ? parts[1] : "";
+
+        VpnLogger.i(TAG, "Sending part 1 (" + part1.length() + " chars)");
+        VpnLogger.d(TAG, "Part 1:\n" + part1);
 
         OutputStream out = s.getOutputStream();
-        out.write(req.getBytes(StandardCharsets.UTF_8));
+        out.write(part1.getBytes(StandardCharsets.UTF_8));
         out.flush();
 
-        s.setSoTimeout(5_000);
+        // ⭐ ส่ง part 2 หลัง 200ms
+        if (!part2.isEmpty()) {
+            try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+            VpnLogger.i(TAG, "Sending part 2 (" + part2.length() + " chars)");
+            VpnLogger.d(TAG, "Part 2:\n" + part2);
+            out.write(part2.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        }
 
+        // อ่าน response
         InputStream in = s.getInputStream();
+        s.setSoTimeout(10_000);
+
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(in, StandardCharsets.UTF_8));
 
@@ -255,7 +255,7 @@ public class SshTunnel {
 
         String line;
         while ((line = reader.readLine()) != null && !line.isEmpty()) {
-            VpnLogger.d(TAG, "Proxy header: " + line);
+            VpnLogger.d(TAG, "Header: " + line);
         }
 
         if (statusLine.contains("200") || statusLine.contains("101")) {
