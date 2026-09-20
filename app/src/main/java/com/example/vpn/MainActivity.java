@@ -37,11 +37,9 @@ import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.ProfileExporter;
 import com.example.vpn.util.ProfileImporter;
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 public class MainActivity extends AppCompatActivity implements ProfileAdapter.Listener {
 
@@ -58,9 +56,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private View btnBack;
 
     private View navHome, navLogs, navMore;
-
-    // ⭐ FAB ยืนยันการเลือก
-    private ExtendedFloatingActionButton fabConfirm;
 
     private List<Profile> cachedProfiles = new ArrayList<>();
 
@@ -97,7 +92,10 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         navHome = findViewById(R.id.navHome);
         navLogs = findViewById(R.id.navLogs);
         navMore = findViewById(R.id.navMore);
-        fabConfirm = findViewById(R.id.fabConfirm);
+
+        // ⭐ ซ่อน fabConfirm ถ้ามี
+        View fabConfirm = findViewById(R.id.fabConfirm);
+        if (fabConfirm != null) fabConfirm.setVisibility(View.GONE);
 
         // ===== Toolbar =====
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -118,12 +116,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         adapter = new ProfileAdapter(this);
         recycler.setAdapter(adapter);
 
-        // ===== FAB confirm ⭐ =====
-        if (fabConfirm != null) {
-            fabConfirm.setVisibility(View.GONE);
-            fabConfirm.setOnClickListener(v -> confirmSelection());
-        }
-
         // ===== Empty state buttons =====
         btnAddConfig.setOnClickListener(v -> {
             Intent i = new Intent(this, ProfileEditActivity.class);
@@ -143,7 +135,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         // ===== Observe profiles =====
         viewModel.getProfiles().observe(this, list -> {
             cachedProfiles = (list != null) ? new ArrayList<>(list) : new ArrayList<>();
-
             adapter.submit(list);
             boolean empty = list == null || list.isEmpty();
             emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
@@ -152,120 +143,42 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // ⭐ Selection handling
+    // ⭐ Adapter callbacks
     // ============================================================
+
+    /**
+     * ⭐ กดที่การ์ดโปรไฟล์ → ส่ง profileId กลับ ConnectionActivity ทันที
+     */
     @Override
-    public void onProfileSelected(int totalSelected) {
-        if (fabConfirm == null) return;
-
-        if (totalSelected > 0) {
-            fabConfirm.setVisibility(View.VISIBLE);
-            fabConfirm.setText("ตกลง (" + totalSelected + ")");
-        } else {
-            fabConfirm.setVisibility(View.GONE);
-        }
-    }
-
-    /** ยืนยันการเลือก — ส่งโปรไฟล์แรกกลับ ConnectionActivity */
-    private void confirmSelection() {
-        Set<Long> selected = adapter.getSelectedIds();
-        if (selected.isEmpty()) return;
-
-        // ⭐ ถ้าเลือกอันเดียว → ส่งกลับเหมือนเดิม
-        if (selected.size() == 1) {
-            long firstId = selected.iterator().next();
-            sendProfileBack(firstId);
-            return;
-        }
-
-        // ⭐ เลือกหลายอัน → แสดงตัวเลือก
-        String[] options = {
-                "📤 ส่งออกที่เลือก (" + selected.size() + ")",
-                "⭐ เพิ่มในรายการโปรด",
-                "🗑️ ลบที่เลือก",
-                "❌ ยกเลิก"
-        };
-
-        new AlertDialog.Builder(this)
-                .setTitle("เลือก " + selected.size() + " โปรไฟล์")
-                .setItems(options, (d, which) -> {
-                    if (which == 0) exportSelected(selected);
-                    else if (which == 1) favoriteSelected(selected);
-                    else if (which == 2) deleteSelected(selected);
-                })
-                .show();
-    }
-
-    /** ⭐ ส่งโปรไฟล์กลับ ConnectionActivity */
-    private void sendProfileBack(long id) {
-        Profile target = null;
-        for (Profile p : cachedProfiles) {
-            if (p.id == id) { target = p; break; }
-        }
-        if (target != null) viewModel.markUsed(target);
+    public void onConnect(Profile p) {
+        viewModel.markUsed(p);
 
         Intent result = new Intent();
-        result.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, id);
+        result.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, p.id);
         setResult(RESULT_OK, result);
         finish();
     }
 
-    /** ⭐ Export โปรไฟล์ที่เลือก */
-    private void exportSelected(Set<Long> ids) {
-        List<Profile> selected = new ArrayList<>();
-        for (Profile p : cachedProfiles) {
-            if (ids.contains(p.id)) selected.add(p);
-        }
-        if (selected.isEmpty()) return;
+    @Override
+    public void onEdit(Profile p) {
+        Intent i = new Intent(this, ProfileEditActivity.class);
+        i.putExtra(EXTRA_PROFILE_ID, p.id);
+        startActivityForResult(i, REQ_EDIT);
+    }
 
-        String json = ProfileExporter.export(selected);
-
+    @Override
+    public void onDelete(Profile p) {
         new AlertDialog.Builder(this)
-                .setTitle("ส่งออก " + selected.size() + " โปรไฟล์")
-                .setMessage("คัดลอก JSON ลง clipboard หรือแชร์?")
-                .setPositiveButton("คัดลอก", (d, w) -> {
-                    ClipboardManager cm = (ClipboardManager)
-                            getSystemService(Context.CLIPBOARD_SERVICE);
-                    if (cm != null) {
-                        cm.setPrimaryClip(ClipData.newPlainText("VPN Config", json));
-                        Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNeutralButton("แชร์", (d, w) -> {
-                    Intent share = new Intent(Intent.ACTION_SEND);
-                    share.setType("text/plain");
-                    share.putExtra(Intent.EXTRA_TEXT, json);
-                    startActivity(Intent.createChooser(share, "แชร์ config"));
-                })
+                .setTitle("ลบโปรไฟล์?")
+                .setMessage("คุณต้องการลบ \"" + p.name + "\" ใช่หรือไม่?")
+                .setPositiveButton("ลบ", (d, w) -> viewModel.delete(p))
                 .setNegativeButton("ยกเลิก", null)
                 .show();
     }
 
-    /** ⭐ ตั้งค่า favorite ให้โปรไฟล์ที่เลือก */
-    private void favoriteSelected(Set<Long> ids) {
-        for (Profile p : cachedProfiles) {
-            if (ids.contains(p.id) && !p.isFavorite) {
-                viewModel.toggleFavorite(p);
-            }
-        }
-        adapter.clearSelection();
-        Toast.makeText(this, "เพิ่มในรายการโปรดแล้ว", Toast.LENGTH_SHORT).show();
-    }
-
-    /** ⭐ ลบโปรไฟล์ที่เลือก */
-    private void deleteSelected(Set<Long> ids) {
-        new AlertDialog.Builder(this)
-                .setTitle("ลบ " + ids.size() + " โปรไฟล์?")
-                .setMessage("การลบไม่สามารถย้อนกลับได้")
-                .setPositiveButton("ลบทั้งหมด", (d, w) -> {
-                    for (Profile p : cachedProfiles) {
-                        if (ids.contains(p.id)) viewModel.delete(p);
-                    }
-                    adapter.clearSelection();
-                    Toast.makeText(this, "ลบแล้ว", Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("ยกเลิก", null)
-                .show();
+    @Override
+    public void onToggleFavorite(Profile p) {
+        viewModel.toggleFavorite(p);
     }
 
     // ============================================================
@@ -326,7 +239,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // Export / Import
+    // 📤 Export
     // ============================================================
     private void exportAllProfiles() {
         List<Profile> all = cachedProfiles;
@@ -358,6 +271,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 .show();
     }
 
+    // ============================================================
+    // 📥 Import
+    // ============================================================
     private void importFromClipboardDialog() {
         ClipboardManager cm = (ClipboardManager)
                 getSystemService(Context.CLIPBOARD_SERVICE);
@@ -396,60 +312,23 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         new AlertDialog.Builder(this)
                 .setTitle("ยืนยันการนำเข้า")
+                .setMessage(preview.toString())
                 .setPositiveButton("นำเข้าทั้งหมด", (d, w) -> {
                     final int total = count;
-                    final int[] processed = {0};
-                    final int[] updated = {0};
-                    final int[] added = {0};
-
+                    final int[] imported = {0};
                     for (Profile p : result.profiles) {
-                        // ⭐ เช็คชื่อซ้ำก่อน
-                        viewModel.getRepo().findDuplicate(p, existing -> {
-                            if (existing != null) {
-                                // อัปเดตทับของเดิม (ใช้ ID เดิม)
-                                p.id = existing.id;
-                                updated[0]++;
-                            } else {
-                                added[0]++;
+                        viewModel.save(p, id -> {
+                            imported[0]++;
+                            if (imported[0] == total) {
+                                runOnUiThread(() -> Toast.makeText(this,
+                                        "นำเข้าสำเร็จ " + imported[0] + " โปรไฟล์",
+                                        Toast.LENGTH_LONG).show());
                             }
-                            viewModel.save(p, id -> {
-                                processed[0]++;
-                                if (processed[0] == total) {
-                                    runOnUiThread(() -> Toast.makeText(this,
-                                            "เพิ่ม " + added[0] + " / อัปเดต " + updated[0],
-                                            Toast.LENGTH_LONG).show());
-                                }
-                            });
                         });
                     }
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
-    }
-
-    // ============================================================
-    // Adapter callbacks
-    // ============================================================
-    @Override
-    public void onEdit(Profile p) {
-        Intent i = new Intent(this, ProfileEditActivity.class);
-        i.putExtra(EXTRA_PROFILE_ID, p.id);
-        startActivityForResult(i, REQ_EDIT);
-    }
-
-    @Override
-    public void onDelete(Profile p) {
-        new AlertDialog.Builder(this)
-                .setTitle("ลบโปรไฟล์?")
-                .setMessage("คุณต้องการลบ \"" + p.name + "\" ใช่หรือไม่?")
-                .setPositiveButton("ลบ", (d, w) -> viewModel.delete(p))
-                .setNegativeButton("ยกเลิก", null)
-                .show();
-    }
-
-    @Override
-    public void onToggleFavorite(Profile p) {
-        viewModel.toggleFavorite(p);
     }
 
     // ============================================================
@@ -490,35 +369,10 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         new AlertDialog.Builder(this)
                 .setTitle("ยืนยันการ Import")
                 .setMessage(msg)
-                .setPositiveButton("บันทึก", (d, w) -> {
-                    // ⭐ เช็คชื่อซ้ำ
-                    viewModel.getRepo().findDuplicate(profile, existing -> {
-                        if (existing != null) {
-                            new AlertDialog.Builder(this)
-                                    .setTitle("มีโปรไฟล์ชื่อซ้ำ")
-                                    .setMessage("มี \"" + existing.name + "\" อยู่แล้ว\n\n"
-                                            + "ต้องการอัปเดตทับหรือสร้างใหม่?")
-                                    .setPositiveButton("อัปเดตทับ", (d2, w2) -> {
-                                        profile.id = existing.id;
-                                        viewModel.save(profile, id -> Toast.makeText(this,
-                                                "อัปเดตแล้ว: " + profile.name,
-                                                Toast.LENGTH_SHORT).show());
-                                    })
-                                    .setNegativeButton("สร้างใหม่", (d2, w2) -> {
-                                        profile.id = 0;
-                                        profile.name = profile.name + " (2)";
-                                        viewModel.save(profile, id -> Toast.makeText(this,
-                                                "สร้างใหม่: " + profile.name,
-                                                Toast.LENGTH_SHORT).show());
-                                    })
-                                    .show();
-                        } else {
-                            viewModel.save(profile, id -> Toast.makeText(this,
-                                    "Import สำเร็จ: " + profile.name,
-                                    Toast.LENGTH_SHORT).show());
-                        }
-                    });
-                })
+                .setPositiveButton("บันทึก", (d, w) ->
+                        viewModel.save(profile, id -> Toast.makeText(this,
+                                "Import สำเร็จ: " + profile.name,
+                                Toast.LENGTH_SHORT).show()))
                 .setNegativeButton("แก้ไขก่อน", (d, w) -> {
                     Intent i = new Intent(this, ProfileEditActivity.class);
                     i.putExtra(ProfileEditActivity.EXTRA_PREFILL_HOST, profile.host);
