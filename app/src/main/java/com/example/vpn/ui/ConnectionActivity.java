@@ -31,6 +31,7 @@ import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.util.LogColors;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.VpnLogger;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -84,6 +85,19 @@ public class ConnectionActivity extends AppCompatActivity
     /** ⭐ ข้าม onResume reload ครั้งถัดไป (เมื่อเพิ่งเลือกโปรไฟล์ใหม่จาก MainActivity) */
     private boolean skipNextResumeReload = false;
 
+    /** ⭐ listener สำหรับ log ใหม่ (แสดงสีแบบ real-time) */
+    private final VpnLogger.Listener logListener = line -> {
+        if (contentLog == null || txtLogContent == null) return;
+        if (contentLog.getVisibility() != View.VISIBLE) return;
+        runOnUiThread(() -> {
+            android.text.SpannableStringBuilder ssb =
+                    new android.text.SpannableStringBuilder();
+            ssb.append(LogColors.coloredLine(line));
+            ssb.append("\n");
+            txtLogContent.append(ssb);
+        });
+    };
+
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
@@ -91,7 +105,6 @@ public class ConnectionActivity extends AppCompatActivity
     // Launchers
     // ============================================================
 
-    /** VPN permission */
     private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -104,7 +117,6 @@ public class ConnectionActivity extends AppCompatActivity
                         }
                     });
 
-    /** จัดการโปรไฟล์ (MainActivity) */
     private final ActivityResultLauncher<Intent> manageProfilesLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -114,25 +126,19 @@ public class ConnectionActivity extends AppCompatActivity
                             long profileId = result.getData()
                                     .getLongExtra(EXTRA_PROFILE_ID, -1L);
                             if (profileId > 0) {
-                                // ⭐ รับโปรไฟล์ใหม่ → bind ทันที
                                 viewModel.getRepo().getById(profileId, p -> {
                                     if (p != null) bindProfile(p);
                                 });
                                 return;
                             }
                         }
-                        // Canceled → reload
                         reloadProfiles();
                     });
 
-    /** เพิ่มโปรไฟล์ใหม่ */
     private final ActivityResultLauncher<Intent> addProfileLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
-                    result -> {
-                        // หลังกลับมา → โหลดโปรไฟล์ใหม่
-                        reloadProfiles();
-                    });
+                    result -> reloadProfiles());
 
     // ============================================================
     // Lifecycle
@@ -195,10 +201,13 @@ public class ConnectionActivity extends AppCompatActivity
                 if (tab.getPosition() == 0) {
                     contentMain.setVisibility(View.VISIBLE);
                     contentLog.setVisibility(View.GONE);
+                    VpnLogger.setListener(null);
                 } else {
                     contentMain.setVisibility(View.GONE);
                     contentLog.setVisibility(View.VISIBLE);
                     refreshLogView();
+                    // ⭐ เปิด listener real-time
+                    VpnLogger.setListener(logListener);
                 }
             }
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
@@ -425,11 +434,6 @@ public class ConnectionActivity extends AppCompatActivity
     // Other methods
     // ============================================================
 
-    /**
-     * ⭐ เปิดหน้า Profile Picker
-     * ตั้ง skipNextResumeReload = true ก่อน → onResume จะข้ามการ reload
-     * (ป้องกัน race condition ระหว่าง onResume กับ launcher callback)
-     */
     private void openProfilePicker() {
         skipNextResumeReload = true;
         Intent i = new Intent(this, MainActivity.class);
@@ -478,7 +482,6 @@ public class ConnectionActivity extends AppCompatActivity
     protected void onResume() {
         super.onResume();
 
-        // ⭐ ข้าม reload ถ้าเพิ่งเปิด Profile Picker
         if (skipNextResumeReload) {
             skipNextResumeReload = false;
             return;
@@ -605,18 +608,19 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // Log
+    // ⭐ Log — ใช้ LogColors
     // ============================================================
     private void refreshLogView() {
         List<String> lines = VpnLogger.snapshot();
-        StringBuilder sb = new StringBuilder();
-        for (String line : lines) sb.append(line).append('\n');
-        txtLogContent.setText(sb.toString());
+        // ⭐ ใช้ LogColors — ใส่สีตามระดับ
+        txtLogContent.setText(LogColors.build(lines));
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         statsHandler.removeCallbacks(statsRunnable);
+        // ⭐ ยกเลิก listener
+        VpnLogger.setListener(null);
     }
 }
