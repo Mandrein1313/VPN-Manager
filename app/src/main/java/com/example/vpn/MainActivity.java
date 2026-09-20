@@ -396,18 +396,30 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         new AlertDialog.Builder(this)
                 .setTitle("ยืนยันการนำเข้า")
-                .setMessage(preview.toString())
                 .setPositiveButton("นำเข้าทั้งหมด", (d, w) -> {
                     final int total = count;
-                    final int[] imported = {0};
+                    final int[] processed = {0};
+                    final int[] updated = {0};
+                    final int[] added = {0};
+
                     for (Profile p : result.profiles) {
-                        viewModel.save(p, id -> {
-                            imported[0]++;
-                            if (imported[0] == total) {
-                                runOnUiThread(() -> Toast.makeText(this,
-                                        "นำเข้าสำเร็จ " + imported[0] + " โปรไฟล์",
-                                        Toast.LENGTH_LONG).show());
+                        // ⭐ เช็คชื่อซ้ำก่อน
+                        viewModel.getRepo().findDuplicate(p, existing -> {
+                            if (existing != null) {
+                                // อัปเดตทับของเดิม (ใช้ ID เดิม)
+                                p.id = existing.id;
+                                updated[0]++;
+                            } else {
+                                added[0]++;
                             }
+                            viewModel.save(p, id -> {
+                                processed[0]++;
+                                if (processed[0] == total) {
+                                    runOnUiThread(() -> Toast.makeText(this,
+                                            "เพิ่ม " + added[0] + " / อัปเดต " + updated[0],
+                                            Toast.LENGTH_LONG).show());
+                                }
+                            });
                         });
                     }
                 })
@@ -478,10 +490,35 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         new AlertDialog.Builder(this)
                 .setTitle("ยืนยันการ Import")
                 .setMessage(msg)
-                .setPositiveButton("บันทึก", (d, w) ->
-                        viewModel.save(profile, id -> Toast.makeText(this,
-                                "Import สำเร็จ: " + profile.name,
-                                Toast.LENGTH_SHORT).show()))
+                .setPositiveButton("บันทึก", (d, w) -> {
+                    // ⭐ เช็คชื่อซ้ำ
+                    viewModel.getRepo().findDuplicate(profile, existing -> {
+                        if (existing != null) {
+                            new AlertDialog.Builder(this)
+                                    .setTitle("มีโปรไฟล์ชื่อซ้ำ")
+                                    .setMessage("มี \"" + existing.name + "\" อยู่แล้ว\n\n"
+                                            + "ต้องการอัปเดตทับหรือสร้างใหม่?")
+                                    .setPositiveButton("อัปเดตทับ", (d2, w2) -> {
+                                        profile.id = existing.id;
+                                        viewModel.save(profile, id -> Toast.makeText(this,
+                                                "อัปเดตแล้ว: " + profile.name,
+                                                Toast.LENGTH_SHORT).show());
+                                    })
+                                    .setNegativeButton("สร้างใหม่", (d2, w2) -> {
+                                        profile.id = 0;
+                                        profile.name = profile.name + " (2)";
+                                        viewModel.save(profile, id -> Toast.makeText(this,
+                                                "สร้างใหม่: " + profile.name,
+                                                Toast.LENGTH_SHORT).show());
+                                    })
+                                    .show();
+                        } else {
+                            viewModel.save(profile, id -> Toast.makeText(this,
+                                    "Import สำเร็จ: " + profile.name,
+                                    Toast.LENGTH_SHORT).show());
+                        }
+                    });
+                })
                 .setNegativeButton("แก้ไขก่อน", (d, w) -> {
                     Intent i = new Intent(this, ProfileEditActivity.class);
                     i.putExtra(ProfileEditActivity.EXTRA_PREFILL_HOST, profile.host);

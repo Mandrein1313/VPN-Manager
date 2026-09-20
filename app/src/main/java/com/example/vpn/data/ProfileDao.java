@@ -18,6 +18,9 @@ public interface ProfileDao {
     @Query("SELECT * FROM profiles WHERE id = :id LIMIT 1")
     ProfileEntity getById(long id);
 
+    @Query("SELECT * FROM profiles")
+    List<ProfileEntity> getAllSync();
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     long upsert(ProfileEntity profile);
 

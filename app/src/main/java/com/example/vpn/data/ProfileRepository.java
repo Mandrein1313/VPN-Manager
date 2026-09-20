@@ -53,6 +53,29 @@ public class ProfileRepository {
         });
     }
 
+    /**
+     * ⭐ หาโปรไฟล์ที่มีชื่อ+host+port เหมือนกัน (ยกเว้นตัวเอง)
+     */
+    public void findDuplicate(Profile p, Callback<Profile> cb) {
+        io.execute(() -> {
+            List<ProfileEntity> all = dao.getAllSync();   // ⭐ ใช้ method จาก DAO
+            Profile found = null;
+            if (all != null) {
+                for (ProfileEntity e : all) {
+                    if (e.id == p.id) continue;   // ยกเว้นตัวเอง
+                    if (e.name != null && e.name.equals(p.name)
+                            && e.host != null && e.host.equals(p.host)
+                            && e.port == p.port) {
+                        found = e.toDomain();
+                        break;
+                    }
+                }
+            }
+            final Profile result = found;
+            main.post(() -> cb.onResult(result));
+        });
+    }
+
     /** บันทึกโปรไฟล์ (insert หรือ update) แล้ว callback ด้วย id */
     public void save(Profile p, Callback<Long> cb) {
         io.execute(() -> {
