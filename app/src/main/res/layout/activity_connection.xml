@@ -30,7 +30,6 @@
                 app:title="VPN Manager"
                 app:titleTextColor="#FFFFFF" />
 
-            <!-- ===== Tabs ===== -->
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tabLayout"
                 android:layout_width="match_parent"
@@ -73,7 +72,6 @@
                     android:orientation="vertical"
                     android:paddingBottom="16dp">
 
-                    <!-- ===== Circular Connect Button ===== -->
                     <com.example.vpn.ui.ConnectButtonView
                         android:id="@+id/btnConnect"
                         android:layout_width="wrap_content"
@@ -81,7 +79,6 @@
                         android:layout_gravity="center_horizontal"
                         android:layout_marginTop="12dp" />
 
-                    <!-- ===== Status Text ===== -->
                     <TextView
                         android:id="@+id/txtStatus"
                         android:layout_width="match_parent"
@@ -95,7 +92,6 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- ===== Ad-free time card ===== -->
                     <LinearLayout
                         android:id="@+id/adFreeCard"
                         android:layout_width="match_parent"
@@ -141,7 +137,6 @@
                             app:tint="#888888" />
                     </LinearLayout>
 
-                    <!-- ===== Active Configuration Card ===== -->
                     <LinearLayout
                         android:id="@+id/configCard"
                         android:layout_width="match_parent"
@@ -338,7 +333,7 @@
             </ScrollView>
         </FrameLayout>
 
-        <!-- ===== LOG Content ===== -->
+        <!-- ===== LOG Content ⭐ แก้ใหม่ ===== -->
         <FrameLayout
             android:id="@+id/contentLog"
             android:layout_width="match_parent"
@@ -346,17 +341,83 @@
             android:layout_weight="1"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/txtLogContent"
+            <ScrollView
+                android:id="@+id/scrollLogView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="#111111"
-                android:fontFamily="monospace"
-                android:padding="8dp"
-                android:scrollbars="vertical"
-                android:textColor="#DDDDDD"
-                android:textIsSelectable="true"
-                android:textSize="10sp" />
+                android:paddingTop="52dp"
+                android:paddingHorizontal="8dp">
+
+                <TextView
+                    android:id="@+id/txtLogContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textColor="#DDDDDD"
+                    android:textIsSelectable="true"
+                    android:textSize="10sp" />
+            </ScrollView>
+
+            <!-- ⭐ Toolbar ของ LOG -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="#0D1117"
+                android:gravity="end|center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.15"
+                    android:text="LOG"
+                    android:textColor="#888888"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- คัดลอก -->
+                <ImageButton
+                    android:id="@+id/btnLogCopy"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="คัดลอก"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:src="@android:drawable/ic_menu_save"
+                    app:tint="#B0BEC5" />
+
+                <!-- ⭐ ล้าง -->
+                <ImageButton
+                    android:id="@+id/btnLogClear"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="ล้าง log"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:src="@android:drawable/ic_menu_delete"
+                    app:tint="#EF5350" />
+
+                <!-- ลงล่างสุด -->
+                <ImageButton
+                    android:id="@+id/btnLogScrollBottom"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="ล่างสุด"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:src="@android:drawable/arrow_down_float"
+                    app:tint="#00E676" />
+            </LinearLayout>
         </FrameLayout>
 
         <!-- ===== Bottom Action Bar ===== -->

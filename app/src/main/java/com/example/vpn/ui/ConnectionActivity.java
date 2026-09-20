@@ -1,5 +1,8 @@
 package com.example.vpn.ui;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.TrafficStats;
 import android.net.VpnService;
@@ -9,8 +12,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -73,6 +78,12 @@ public class ConnectionActivity extends AppCompatActivity
     private TextView txtSession;
     private TextView txtLogContent;
 
+    // ⭐ Log toolbar
+    private ScrollView scrollLogView;
+    private ImageButton btnLogCopy;
+    private ImageButton btnLogClear;
+    private ImageButton btnLogScrollBottom;
+
     private LinearLayout actionEdit, actionLog, actionDelete, actionAdd;
 
     // ===== State =====
@@ -82,10 +93,8 @@ public class ConnectionActivity extends AppCompatActivity
     private long lastUploadBytes = 0L;
     private long lastDownloadBytes = 0L;
 
-    /** ⭐ ข้าม onResume reload ครั้งถัดไป (เมื่อเพิ่งเลือกโปรไฟล์ใหม่จาก MainActivity) */
     private boolean skipNextResumeReload = false;
 
-    /** ⭐ listener สำหรับ log ใหม่ (แสดงสีแบบ real-time) */
     private final VpnLogger.Listener logListener = line -> {
         if (contentLog == null || txtLogContent == null) return;
         if (contentLog.getVisibility() != View.VISIBLE) return;
@@ -95,6 +104,7 @@ public class ConnectionActivity extends AppCompatActivity
             ssb.append(LogColors.coloredLine(line));
             ssb.append("\n");
             txtLogContent.append(ssb);
+            scrollLogToBottom();
         });
     };
 
@@ -174,10 +184,21 @@ public class ConnectionActivity extends AppCompatActivity
         txtSession = findViewById(R.id.txtSession);
         txtLogContent = findViewById(R.id.txtLogContent);
 
+        // ⭐ Log toolbar
+        scrollLogView = findViewById(R.id.scrollLogView);
+        btnLogCopy = findViewById(R.id.btnLogCopy);
+        btnLogClear = findViewById(R.id.btnLogClear);
+        btnLogScrollBottom = findViewById(R.id.btnLogScrollBottom);
+
         actionEdit = findViewById(R.id.actionEdit);
         actionLog = findViewById(R.id.actionLog);
         actionDelete = findViewById(R.id.actionDelete);
         actionAdd = findViewById(R.id.actionAdd);
+
+        // ⭐ ปุ่มใน log toolbar
+        btnLogCopy.setOnClickListener(v -> copyLogToClipboard());
+        btnLogClear.setOnClickListener(v -> confirmClearLog());
+        btnLogScrollBottom.setOnClickListener(v -> scrollLogToBottom());
 
         // ===== Toolbar + Drawer =====
         setSupportActionBar(toolbar);
@@ -206,7 +227,6 @@ public class ConnectionActivity extends AppCompatActivity
                     contentMain.setVisibility(View.GONE);
                     contentLog.setVisibility(View.VISIBLE);
                     refreshLogView();
-                    // ⭐ เปิด listener real-time
                     VpnLogger.setListener(logListener);
                 }
             }
@@ -315,16 +335,13 @@ public class ConnectionActivity extends AppCompatActivity
             }
         });
 
-        // ===== Config card =====
         configCard.setOnClickListener(v -> openProfilePicker());
         btnConfigArrow.setOnClickListener(v -> openProfilePicker());
 
-        // ===== Ad-free =====
         adFreeCard.setOnClickListener(v ->
                 Toast.makeText(this, "Ad-free time — เร็วๆ นี้",
                         Toast.LENGTH_SHORT).show());
 
-        // ===== Bottom actions =====
         actionEdit.setOnClickListener(v -> {
             if (targetProfile == null) {
                 Toast.makeText(this, "ยังไม่มีโปรไฟล์",
@@ -350,6 +367,45 @@ public class ConnectionActivity extends AppCompatActivity
             Intent i = new Intent(this, ProfileEditActivity.class);
             addProfileLauncher.launch(i);
         });
+    }
+
+    // ============================================================
+    // ⭐ Log toolbar actions
+    // ============================================================
+
+    private void copyLogToClipboard() {
+        String log = VpnLogger.dump();
+        if (log == null || log.isEmpty()) {
+            Toast.makeText(this, "ไม่มี log", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ClipboardManager cm = (ClipboardManager)
+                getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm != null) {
+            cm.setPrimaryClip(ClipData.newPlainText("VPN Log", log));
+            Toast.makeText(this, "คัดลอก log แล้ว",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void confirmClearLog() {
+        new AlertDialog.Builder(this)
+                .setTitle("ล้าง Log?")
+                .setMessage("ลบ log ทั้งหมดใช่หรือไม่?")
+                .setPositiveButton("ล้าง", (d, w) -> {
+                    VpnLogger.clear();
+                    if (txtLogContent != null) txtLogContent.setText("");
+                    Toast.makeText(this, "ล้าง log แล้ว",
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    private void scrollLogToBottom() {
+        if (scrollLogView != null) {
+            scrollLogView.post(() -> scrollLogView.fullScroll(View.FOCUS_DOWN));
+        }
     }
 
     // ============================================================
@@ -608,19 +664,18 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // ⭐ Log — ใช้ LogColors
+    // Log
     // ============================================================
     private void refreshLogView() {
         List<String> lines = VpnLogger.snapshot();
-        // ⭐ ใช้ LogColors — ใส่สีตามระดับ
         txtLogContent.setText(LogColors.build(lines));
+        scrollLogToBottom();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         statsHandler.removeCallbacks(statsRunnable);
-        // ⭐ ยกเลิก listener
         VpnLogger.setListener(null);
     }
 }
