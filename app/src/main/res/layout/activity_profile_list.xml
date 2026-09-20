@@ -175,6 +175,17 @@
                     android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
+
+        <!-- ⭐ FAB ยืนยันการเลือก -->
+        <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+            android:id="@+id/fabConfirm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="16dp"
+            android:text="ตกลง"
+            android:visibility="gone"
+            app:icon="@android:drawable/checkbox_on_background" />
     </FrameLayout>
 
     <!-- ===== Bottom Nav ===== -->

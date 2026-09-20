@@ -16,18 +16,21 @@ import com.example.vpn.model.Profile;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     public interface Listener {
-        void onConnect(Profile p);
+        void onProfileSelected(int totalSelected);
         void onEdit(Profile p);
         void onDelete(Profile p);
         void onToggleFavorite(Profile p);
     }
 
     private final List<Profile> items = new ArrayList<>();
+    private final Set<Long> selectedIds = new HashSet<>();
     private final Listener listener;
 
     public ProfileAdapter(Listener listener) {
@@ -38,6 +41,38 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         items.clear();
         if (newItems != null) items.addAll(newItems);
         notifyDataSetChanged();
+    }
+
+    /** ⭐ สำหรับ MainActivity อ่านรายการที่เลือก */
+    public Set<Long> getSelectedIds() {
+        return new HashSet<>(selectedIds);
+    }
+
+    /** ⭐ ล้างรายการที่เลือก */
+    public void clearSelection() {
+        selectedIds.clear();
+        notifyDataSetChanged();
+        if (listener != null) listener.onProfileSelected(0);
+    }
+
+    /** ⭐ toggle การเลือก */
+    private void toggleSelection(long id) {
+        int position = -1;
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).id == id) {
+                position = i;
+                break;
+            }
+        }
+        if (position < 0) return;
+
+        if (selectedIds.contains(id)) {
+            selectedIds.remove(id);
+        } else {
+            selectedIds.add(id);
+        }
+        notifyItemChanged(position);
+        if (listener != null) listener.onProfileSelected(selectedIds.size());
     }
 
     @NonNull
@@ -51,7 +86,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     @Override
     public void onBindViewHolder(@NonNull VH h, int position) {
         Profile p = items.get(position);
-        h.bind(p, listener);
+        h.bind(p, listener, selectedIds.contains(p.id), this);
     }
 
     @Override
@@ -60,7 +95,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     static class VH extends RecyclerView.ViewHolder {
         TextView icon, name, host, protocol;
         ImageButton btnFav;
-        MaterialButton btnEdit, btnDelete;    // ⭐ ลบ btnConnect
+        MaterialButton btnEdit, btnDelete;
 
         VH(@NonNull View v) {
             super(v);
@@ -71,10 +106,9 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             btnFav = v.findViewById(R.id.btnFavorite);
             btnEdit = v.findViewById(R.id.btnEdit);
             btnDelete = v.findViewById(R.id.btnDelete);
-            // ⭐ ลบ btnConnect = v.findViewById(R.id.btnConnect);
         }
 
-        void bind(Profile p, Listener l) {
+        void bind(Profile p, Listener l, boolean selected, ProfileAdapter adapter) {
             icon.setText(p.protocol.icon);
             name.setText(p.name);
             host.setText(p.host + ":" + p.port);
@@ -83,16 +117,17 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             int color = ContextCompat.getColor(itemView.getContext(), p.protocol.colorRes);
             protocol.setTextColor(color);
             protocol.setBackgroundTintList(ColorStateList.valueOf(
-                    (color & 0x00FFFFFF) | 0x1A000000)); // 10% alpha
+                    (color & 0x00FFFFFF) | 0x1A000000));
 
             btnFav.setImageResource(p.isFavorite
                     ? android.R.drawable.btn_star_big_on
                     : android.R.drawable.btn_star_big_off);
 
-            // ⭐ ลบ btnConnect.setOnClickListener
+            // ⭐ แสดงสถานะ selected
+            itemView.setActivated(selected);
 
-            // ⭐ กดที่การ์ดทั้งใบ = เชื่อมต่อ
-            itemView.setOnClickListener(v -> l.onConnect(p));
+            // ⭐ กดที่การ์ด → toggle การเลือก
+            itemView.setOnClickListener(v -> adapter.toggleSelection(p.id));
 
             btnEdit.setOnClickListener(v -> l.onEdit(p));
             btnDelete.setOnClickListener(v -> l.onDelete(p));

@@ -37,9 +37,11 @@ import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.ProfileExporter;
 import com.example.vpn.util.ProfileImporter;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity implements ProfileAdapter.Listener {
 
@@ -57,7 +59,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
     private View navHome, navLogs, navMore;
 
-    // ⭐ Cache list — ใช้ตอน Export (เพราะ viewModel.getProfiles() สร้าง LiveData ใหม่)
+    // ⭐ FAB ยืนยันการเลือก
+    private ExtendedFloatingActionButton fabConfirm;
+
     private List<Profile> cachedProfiles = new ArrayList<>();
 
     private final ActivityResultLauncher<String> notifPermissionLauncher =
@@ -93,8 +97,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         navHome = findViewById(R.id.navHome);
         navLogs = findViewById(R.id.navLogs);
         navMore = findViewById(R.id.navMore);
+        fabConfirm = findViewById(R.id.fabConfirm);
 
-        // ===== Toolbar (ถ้ามี) =====
+        // ===== Toolbar =====
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
             setSupportActionBar(toolbar);
@@ -113,6 +118,12 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         adapter = new ProfileAdapter(this);
         recycler.setAdapter(adapter);
 
+        // ===== FAB confirm ⭐ =====
+        if (fabConfirm != null) {
+            fabConfirm.setVisibility(View.GONE);
+            fabConfirm.setOnClickListener(v -> confirmSelection());
+        }
+
         // ===== Empty state buttons =====
         btnAddConfig.setOnClickListener(v -> {
             Intent i = new Intent(this, ProfileEditActivity.class);
@@ -129,9 +140,8 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         navMore.setOnClickListener(v -> showMoreMenu());
 
-        // ===== Observe profiles ⭐ =====
+        // ===== Observe profiles =====
         viewModel.getProfiles().observe(this, list -> {
-            // ⭐ Cache list ไว้ — ใช้สำหรับ Export
             cachedProfiles = (list != null) ? new ArrayList<>(list) : new ArrayList<>();
 
             adapter.submit(list);
@@ -142,7 +152,124 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // Toolbar Menu (Export/Import)
+    // ⭐ Selection handling
+    // ============================================================
+    @Override
+    public void onProfileSelected(int totalSelected) {
+        if (fabConfirm == null) return;
+
+        if (totalSelected > 0) {
+            fabConfirm.setVisibility(View.VISIBLE);
+            fabConfirm.setText("ตกลง (" + totalSelected + ")");
+        } else {
+            fabConfirm.setVisibility(View.GONE);
+        }
+    }
+
+    /** ยืนยันการเลือก — ส่งโปรไฟล์แรกกลับ ConnectionActivity */
+    private void confirmSelection() {
+        Set<Long> selected = adapter.getSelectedIds();
+        if (selected.isEmpty()) return;
+
+        // ⭐ ถ้าเลือกอันเดียว → ส่งกลับเหมือนเดิม
+        if (selected.size() == 1) {
+            long firstId = selected.iterator().next();
+            sendProfileBack(firstId);
+            return;
+        }
+
+        // ⭐ เลือกหลายอัน → แสดงตัวเลือก
+        String[] options = {
+                "📤 ส่งออกที่เลือก (" + selected.size() + ")",
+                "⭐ เพิ่มในรายการโปรด",
+                "🗑️ ลบที่เลือก",
+                "❌ ยกเลิก"
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle("เลือก " + selected.size() + " โปรไฟล์")
+                .setItems(options, (d, which) -> {
+                    if (which == 0) exportSelected(selected);
+                    else if (which == 1) favoriteSelected(selected);
+                    else if (which == 2) deleteSelected(selected);
+                })
+                .show();
+    }
+
+    /** ⭐ ส่งโปรไฟล์กลับ ConnectionActivity */
+    private void sendProfileBack(long id) {
+        Profile target = null;
+        for (Profile p : cachedProfiles) {
+            if (p.id == id) { target = p; break; }
+        }
+        if (target != null) viewModel.markUsed(target);
+
+        Intent result = new Intent();
+        result.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, id);
+        setResult(RESULT_OK, result);
+        finish();
+    }
+
+    /** ⭐ Export โปรไฟล์ที่เลือก */
+    private void exportSelected(Set<Long> ids) {
+        List<Profile> selected = new ArrayList<>();
+        for (Profile p : cachedProfiles) {
+            if (ids.contains(p.id)) selected.add(p);
+        }
+        if (selected.isEmpty()) return;
+
+        String json = ProfileExporter.export(selected);
+
+        new AlertDialog.Builder(this)
+                .setTitle("ส่งออก " + selected.size() + " โปรไฟล์")
+                .setMessage("คัดลอก JSON ลง clipboard หรือแชร์?")
+                .setPositiveButton("คัดลอก", (d, w) -> {
+                    ClipboardManager cm = (ClipboardManager)
+                            getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (cm != null) {
+                        cm.setPrimaryClip(ClipData.newPlainText("VPN Config", json));
+                        Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNeutralButton("แชร์", (d, w) -> {
+                    Intent share = new Intent(Intent.ACTION_SEND);
+                    share.setType("text/plain");
+                    share.putExtra(Intent.EXTRA_TEXT, json);
+                    startActivity(Intent.createChooser(share, "แชร์ config"));
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    /** ⭐ ตั้งค่า favorite ให้โปรไฟล์ที่เลือก */
+    private void favoriteSelected(Set<Long> ids) {
+        for (Profile p : cachedProfiles) {
+            if (ids.contains(p.id) && !p.isFavorite) {
+                viewModel.toggleFavorite(p);
+            }
+        }
+        adapter.clearSelection();
+        Toast.makeText(this, "เพิ่มในรายการโปรดแล้ว", Toast.LENGTH_SHORT).show();
+    }
+
+    /** ⭐ ลบโปรไฟล์ที่เลือก */
+    private void deleteSelected(Set<Long> ids) {
+        new AlertDialog.Builder(this)
+                .setTitle("ลบ " + ids.size() + " โปรไฟล์?")
+                .setMessage("การลบไม่สามารถย้อนกลับได้")
+                .setPositiveButton("ลบทั้งหมด", (d, w) -> {
+                    for (Profile p : cachedProfiles) {
+                        if (ids.contains(p.id)) viewModel.delete(p);
+                    }
+                    adapter.clearSelection();
+                    Toast.makeText(this, "ลบแล้ว", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    // ============================================================
+    // Toolbar Menu
     // ============================================================
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -179,18 +306,10 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 .setTitle("เมนูเพิ่มเติม")
                 .setItems(options, (d, which) -> {
                     switch (which) {
-                        case 0:
-                            exportAllProfiles();
-                            break;
-                        case 1:
-                            importFromClipboardDialog();
-                            break;
-                        case 2:
-                            startActivity(new Intent(this, CrashLogActivity.class));
-                            break;
-                        case 3:
-                            showAboutDialog();
-                            break;
+                        case 0: exportAllProfiles(); break;
+                        case 1: importFromClipboardDialog(); break;
+                        case 2: startActivity(new Intent(this, CrashLogActivity.class)); break;
+                        case 3: showAboutDialog(); break;
                     }
                 })
                 .show();
@@ -207,16 +326,12 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // 📤 Export
+    // Export / Import
     // ============================================================
     private void exportAllProfiles() {
-        // ⭐ ใช้ cachedProfiles แทน viewModel.getProfiles().getValue()
-        // เพราะ getValue() return null ถ้า LiveData ถูกสร้างใหม่
         List<Profile> all = cachedProfiles;
-
         if (all == null || all.isEmpty()) {
-            Toast.makeText(this, "ไม่มีโปรไฟล์ให้ส่งออก",
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "ไม่มีโปรไฟล์ให้ส่งออก", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -224,17 +339,13 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         new AlertDialog.Builder(this)
                 .setTitle("ส่งออกโปรไฟล์")
-                .setMessage("พบ " + all.size() + " โปรไฟล์\n\n"
-                        + "คัดลอก JSON ลง clipboard หรือแชร์ให้เพื่อน?")
+                .setMessage("พบ " + all.size() + " โปรไฟล์\n\nคัดลอก JSON หรือแชร์?")
                 .setPositiveButton("คัดลอก", (d, w) -> {
                     ClipboardManager cm = (ClipboardManager)
                             getSystemService(Context.CLIPBOARD_SERVICE);
                     if (cm != null) {
-                        cm.setPrimaryClip(ClipData.newPlainText(
-                                "VPN Config", json));
-                        Toast.makeText(this,
-                                "คัดลอกแล้ว — paste ที่ไหนก็ได้",
-                                Toast.LENGTH_LONG).show();
+                        cm.setPrimaryClip(ClipData.newPlainText("VPN Config", json));
+                        Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_LONG).show();
                     }
                 })
                 .setNeutralButton("แชร์", (d, w) -> {
@@ -247,9 +358,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 .show();
     }
 
-    // ============================================================
-    // 📥 Import
-    // ============================================================
     private void importFromClipboardDialog() {
         ClipboardManager cm = (ClipboardManager)
                 getSystemService(Context.CLIPBOARD_SERVICE);
@@ -258,10 +366,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             return;
         }
 
-        CharSequence text = cm.getPrimaryClip()
-                .getItemAt(0)
-                .coerceToText(this);
-
+        CharSequence text = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
         if (text == null || text.length() == 0) {
             Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
             return;
@@ -285,8 +390,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         for (int i = 0; i < Math.min(count, 5); i++) {
             Profile p = result.profiles.get(i);
             preview.append("• ").append(p.name)
-                    .append(" — ").append(p.host).append(":").append(p.port)
-                    .append('\n');
+                    .append(" — ").append(p.host).append(":").append(p.port).append('\n');
         }
         if (count > 5) preview.append("... และอีก ").append(count - 5);
 
@@ -314,17 +418,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     // ============================================================
     // Adapter callbacks
     // ============================================================
-
-    @Override
-    public void onConnect(Profile p) {
-        viewModel.markUsed(p);
-
-        Intent result = new Intent();
-        result.putExtra(ConnectionActivity.EXTRA_PROFILE_ID, p.id);
-        setResult(RESULT_OK, result);
-        finish();
-    }
-
     @Override
     public void onEdit(Profile p) {
         Intent i = new Intent(this, ProfileEditActivity.class);
@@ -348,7 +441,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // Import from clipboard (config ปกติ — ไม่ใช่ JSON)
+    // Import config ปกติ (ไม่ใช่ JSON)
     // ============================================================
     private void importFromClipboard() {
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
@@ -375,7 +468,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         }
 
         final Profile profile = result.profile;
-
         String msg = "ชื่อ: " + profile.name + "\n"
                 + "Host: " + profile.host + "\n"
                 + "Port: " + profile.port + "\n"
@@ -402,9 +494,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 .show();
     }
 
-    // ============================================================
-    // onBackPressed
-    // ============================================================
     @Override
     public void onBackPressed() {
         super.onBackPressed();
