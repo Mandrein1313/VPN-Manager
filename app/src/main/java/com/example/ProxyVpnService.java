@@ -47,7 +47,7 @@ public class ProxyVpnService extends VpnService {
     private Thread workerThread;
     private volatile boolean running = false;
     private volatile boolean destroying = false;
-    private volatile boolean tun2socksRunning = false;   // ⭐ track สถานะ native
+    private volatile boolean tun2socksRunning = false;
     private File configFile;
 
     private SshTunnel sshTunnel;
@@ -118,7 +118,7 @@ public class ProxyVpnService extends VpnService {
                     .setSession(profile.name)
                     .addAddress(VPN_ADDRESS, 32)
                     .addRoute(VPN_ROUTE, VPN_PREFIX)
-                    .addDisallowedApplication(getPackageName())   // ⭐ กัน routing loop
+                    .addDisallowedApplication(getPackageName())
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
 
@@ -131,6 +131,13 @@ public class ProxyVpnService extends VpnService {
             }
             running = true;
             VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd());
+
+            // ⭐⭐ รอให้ VPN fully establish ก่อน → protect() จะได้ทำงาน
+            // (สำคัญมาก — ไม่งั้น protected=false → SSH socket จะไม่ถูก protect)
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException ignored) {}
+            VpnLogger.i(TAG, "VPN fully established — starting SSH...");
 
             // ---- 2. SSH ----
             StatusBus.post(StatusBus.State.CONNECTING_SSH,
@@ -173,7 +180,6 @@ public class ProxyVpnService extends VpnService {
             copyConfigFromAssets();
             VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
 
-            // ⭐ ครอบด้วย try-catch(Throwable) — กัน UnsatisfiedLinkError
             boolean started = false;
             try {
                 started = TProxyService.TProxyStartService(
@@ -186,7 +192,6 @@ public class ProxyVpnService extends VpnService {
             }
 
             if (!started) {
-                // ⭐ ไม่ throw, แค่แจ้งเตือน — SSH/SOCKS5 ยังทำงาน
                 VpnLogger.w(TAG, "Tun2Socks not available — SSH/SOCKS5 only");
                 tun2socksRunning = false;
                 StatusBus.post(StatusBus.State.CONNECTED,
@@ -246,7 +251,6 @@ public class ProxyVpnService extends VpnService {
             workerThread = null;
         }
 
-        // ⭐ เรียก TProxyStopService เฉพาะเมื่อ start สำเร็จแล้ว — และ wrap Throwable
         if (tun2socksRunning) {
             try {
                 TProxyService.TProxyStopService();
