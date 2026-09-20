@@ -19,6 +19,12 @@ public class SshTunnel {
 
     private static final String TAG = "SshTunnel";
 
+    /** ⭐ User-Agent แบบ Chrome จริง — ใช้กับ Cloudflare */
+    private static final String USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 13; SM-G991B) "
+            + "AppleWebKit/537.36 (KHTML, like Gecko) "
+            + "Chrome/120.0.0.0 Mobile Safari/537.36";
+
     private final Session session;
 
     public interface SocketProtector {
@@ -93,7 +99,7 @@ public class SshTunnel {
     }
 
     // ============================================================
-    // ⭐ Proxy Tunnel — อ่าน HTTP header ทีละ byte
+    // ⭐ Proxy Tunnel — ส่ง 2 parts + อ่าน response ครบ
     // ============================================================
     private static Socket createProxyTunnel(Socket s, String sshHost, int sshPort,
                                             String httpProxy, String payload)
@@ -121,7 +127,7 @@ public class SshTunnel {
                 .replace("[port]", String.valueOf(sshPort))
                 .replace("[host_port]", sshHost + ":" + sshPort)
                 .replace("[protocol]", "HTTP/1.1")
-                .replace("[ua]", "Mozilla/5.0 (Linux; Android 10)")
+                .replace("[ua]", USER_AGENT)
                 .replace("[crlf]", "\r\n")
                 .replace("[cr]", "\r")
                 .replace("[real_host]", sshHost);
@@ -149,12 +155,13 @@ public class SshTunnel {
         out.write(part1.getBytes(StandardCharsets.UTF_8));
         out.flush();
 
-        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+        // ⭐ รอ 800ms ให้ server ตอบครบ
+        try { Thread.sleep(800); } catch (InterruptedException ignored) {}
 
-        // ---- อ่าน header part 1 (byte-by-byte) ----
-        s.setSoTimeout(2_000);
+        // ---- อ่าน response Part 1 ทั้งก้อน (header + body) ----
+        s.setSoTimeout(3_000);
         try {
-            String resp1 = readHttpHeaderByteByByte(in);
+            String resp1 = readFullHttpResponse(in);
             VpnLogger.i(TAG, "Part 1 response: " + firstLine(resp1));
         } catch (java.net.SocketTimeoutException e) {
             VpnLogger.i(TAG, "No response to part 1 — continue");
@@ -162,6 +169,9 @@ public class SshTunnel {
 
         // ---- ส่ง Part 2 ----
         if (!part2.isEmpty()) {
+            // ⭐ รออีก 300ms ให้ชัวร์
+            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+
             VpnLogger.i(TAG, "Sending part 2 (" + part2.length() + " chars)");
             out.write(part2.getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -170,12 +180,14 @@ public class SshTunnel {
 
             s.setSoTimeout(3_000);
             try {
-                String resp2 = readHttpHeaderByteByByte(in);
+                String resp2 = readFullHttpResponse(in);
                 String line2 = firstLine(resp2);
                 VpnLogger.i(TAG, "Part 2 response: " + line2);
 
-                if (line2.contains("101") || line2.contains("200")) {
-                    VpnLogger.i(TAG, "WebSocket upgrade success!");
+                if (line2.contains("101")) {
+                    VpnLogger.i(TAG, "WebSocket upgrade 101 — tunnel ready");
+                } else if (line2.contains("200")) {
+                    VpnLogger.i(TAG, "HTTP 200 — tunnel ready");
                 } else {
                     VpnLogger.w(TAG, "Part 2 unexpected response");
                 }
@@ -190,9 +202,124 @@ public class SshTunnel {
     }
 
     // ============================================================
-    // ⭐ อ่าน HTTP header ทีละ byte — หยุดที่ \r\n\r\n
-    // ไม่อ่านเกิน — ปล่อยให้ SSH banner อยู่ใน buffer
+    // ⭐ อ่าน HTTP response ทั้งก้อน (header + chunked/content-length body)
     // ============================================================
+    private static String readFullHttpResponse(InputStream in) throws IOException {
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        int consecutiveLf = 0;
+        int b;
+        int totalRead = 0;
+        final int MAX_HEADER = 8192;
+
+        // ---- อ่าน header จนเจอ \r\n\r\n ----
+        while ((b = in.read()) != -1) {
+            buf.write(b);
+            totalRead++;
+
+            if (b == '\n') {
+                consecutiveLf++;
+                if (consecutiveLf >= 2) break;
+            } else if (b == '\r') {
+                // pass
+            } else {
+                consecutiveLf = 0;
+            }
+
+            if (totalRead > MAX_HEADER) {
+                VpnLogger.w(TAG, "Header > 8KB — stop");
+                break;
+            }
+        }
+
+        String header = buf.toString("UTF-8");
+        String lowerHeader = header.toLowerCase();
+
+        // ---- อ่าน body ถ้ามี ----
+        if (lowerHeader.contains("transfer-encoding: chunked")) {
+            VpnLogger.d(TAG, "Reading chunked body...");
+            try {
+                readChunkedBody(in);
+            } catch (Exception e) {
+                VpnLogger.w(TAG, "Chunked drain error: " + e.getMessage());
+            }
+        } else if (lowerHeader.contains("content-length:")) {
+            int idx = lowerHeader.indexOf("content-length:");
+            int end = header.indexOf('\r', idx);
+            if (end < 0) end = header.indexOf('\n', idx);
+            if (end > idx) {
+                try {
+                    int len = Integer.parseInt(
+                            header.substring(idx + 15, end).trim());
+                    byte[] body = new byte[len];
+                    int read = 0;
+                    while (read < len) {
+                        int n = in.read(body, read, len - read);
+                        if (n < 0) break;
+                        read += n;
+                    }
+                    VpnLogger.d(TAG, "Read body: " + read + " bytes");
+                } catch (Exception e) {
+                    VpnLogger.w(TAG, "Body read error: " + e.getMessage());
+                }
+            }
+        }
+
+        return header;
+    }
+
+    // ============================================================
+    // ⭐ อ่าน chunked body จนเจอ "0\r\n\r\n"
+    // ============================================================
+    private static void readChunkedBody(InputStream in) throws IOException {
+        int maxChunks = 100;
+        int totalBytes = 0;
+
+        while (maxChunks-- > 0) {
+            // อ่าน chunk size (hex)
+            StringBuilder sizeStr = new StringBuilder();
+            int b;
+            while ((b = in.read()) != -1) {
+                if (b == '\r') continue;
+                if (b == '\n') break;
+                sizeStr.append((char) b);
+            }
+
+            String s = sizeStr.toString().trim();
+            int semi = s.indexOf(';');
+            if (semi > 0) s = s.substring(0, semi);
+
+            int chunkSize;
+            try {
+                chunkSize = Integer.parseInt(s, 16);
+            } catch (NumberFormatException e) {
+                break;
+            }
+
+            if (chunkSize == 0) {
+                // trailing CRLF
+                in.read();
+                in.read();
+                break;
+            }
+
+            // อ่าน chunk data
+            int totalRead = 0;
+            while (totalRead < chunkSize) {
+                long skipped = in.skip(chunkSize - totalRead);
+                if (skipped <= 0) break;
+                totalRead += skipped;
+            }
+            totalBytes += totalRead;
+
+            // CRLF หลัง chunk
+            in.read();
+            in.read();
+        }
+
+        VpnLogger.d(TAG, "Chunked body drained: " + totalBytes + " bytes");
+    }
+
+    // ⭐ อ่าน header เท่านั้น (สำหรับกรณีที่ไม่อยากอ่าน body)
     private static String readHttpHeaderByteByByte(InputStream in) throws IOException {
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         int consecutiveLf = 0;
@@ -206,19 +333,14 @@ public class SshTunnel {
 
             if (b == '\n') {
                 consecutiveLf++;
-                if (consecutiveLf >= 2) {
-                    break;   // เจอ \r\n\r\n แล้ว
-                }
+                if (consecutiveLf >= 2) break;
             } else if (b == '\r') {
-                // ปล่อยผ่าน
+                // pass
             } else {
                 consecutiveLf = 0;
             }
 
-            if (totalRead > MAX_HEADER) {
-                VpnLogger.w(TAG, "Header > 8KB — stop reading");
-                break;
-            }
+            if (totalRead > MAX_HEADER) break;
         }
 
         return buf.toString("UTF-8");
@@ -247,7 +369,7 @@ public class SshTunnel {
                 .replace("[port]", String.valueOf(port))
                 .replace("[host_port]", host + ":" + port)
                 .replace("[protocol]", "HTTP/1.1")
-                .replace("[ua]", "Mozilla/5.0 (Linux; Android 10)")
+                .replace("[ua]", USER_AGENT)
                 .replace("[crlf]", "\r\n")
                 .replace("[cr]", "\r")
                 .replace("[real_host]", host);
@@ -266,18 +388,19 @@ public class SshTunnel {
         out.write(part1.getBytes(StandardCharsets.UTF_8));
         out.flush();
 
-        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+        try { Thread.sleep(800); } catch (InterruptedException ignored) {}
 
         if (!part2.isEmpty()) {
             VpnLogger.i(TAG, "Sending part 2 (" + part2.length() + " chars)");
             out.write(part2.getBytes(StandardCharsets.UTF_8));
             out.flush();
+            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
         }
 
         s.setSoTimeout(3_000);
         InputStream in = s.getInputStream();
         try {
-            String resp = readHttpHeaderByteByByte(in);
+            String resp = readFullHttpResponse(in);
             VpnLogger.i(TAG, "Server response: " + firstLine(resp));
         } catch (java.net.SocketTimeoutException e) {
             VpnLogger.i(TAG, "No response — try SSH anyway");
