@@ -30,52 +30,136 @@ jobs:
         accept-android-sdk-licenses: true
         log-accepted-android-sdk-licenses: true
 
-    # ⭐ ดาวน์โหลด v2rayNG APK + extract .so
-    - name: Download v2rayNG and Extract .so files
+    # ⭐ ดาวน์โหลด .so จากหลายแหล่ง (เรียงตามลำดับความน่าใช้)
+    - name: Download and Extract hev-socks5-tunnel .so
       run: |
-        # ดาวน์โหลด APK ล่าสุดจาก GitHub Release
-        echo "Downloading v2rayNG APK..."
-        curl -L -o v2rayNG.apk \
-          "https://github.com/2dust/v2rayNG/releases/download/1.9.16/v2rayNG_1.9.16_arm64-v8a.apk" \
-          || curl -L -o v2rayNG.apk \
-          "https://github.com/2dust/v2rayNG/releases/latest/download/v2rayNG_1.9.16_arm64-v8a.apk"
+        set -e
         
-        # ตรวจว่าโหลดสำเร็จ
-        ls -lh v2rayNG.apk
-        
-        # สร้างโฟลเดอร์ jniLibs
+        # สร้างโฟลเดอร์
         mkdir -p app/src/main/jniLibs/arm64-v8a
         mkdir -p app/src/main/jniLibs/armeabi-v7a
         mkdir -p app/src/main/jniLibs/x86
         mkdir -p app/src/main/jniLibs/x86_64
         
-        # Extract APK
-        unzip -o v2rayNG.apk -d v2rayNG_extracted
+        FOUND=0
         
-        # ตรวจสอบว่ามี lib ไหม
-        echo "=== Files in lib/ ==="
-        find v2rayNG_extracted/lib -name "*.so" | head -20 || echo "No .so found!"
+        # ============================================================
+        # ตัวเลือกที่ 1: v2rayNG 1.7.5 (รุ่นเก่า — ใช้ hev-socks5-tunnel ต้นฉบับ)
+        # ============================================================
+        echo "===== Trying v2rayNG 1.7.5 ====="
+        if curl -fSL -o apk.zip \
+          "https://github.com/2dust/v2rayNG/releases/download/1.7.5/v2rayNG_1.7.5_arm64-v8a.apk" 2>/dev/null; then
+          echo "Downloaded 1.7.5 successfully"
+          mkdir -p extract_1_7_5 && unzip -o apk.zip -d extract_1_7_5 2>/dev/null || true
+          
+          if [ -f extract_1_7_5/lib/arm64-v8a/libhev-socks5-tunnel.so ]; then
+            cp extract_1_7_5/lib/arm64-v8a/libhev-socks5-tunnel.so app/src/main/jniLibs/arm64-v8a/
+            FOUND=1
+            echo "✅ Found in v2rayNG 1.7.5"
+          fi
+        fi
         
-        # Copy libhev-socks5-tunnel.so ถ้ามี
-        [ -f v2rayNG_extracted/lib/arm64-v8a/libhev-socks5-tunnel.so ] && \
-          cp v2rayNG_extracted/lib/arm64-v8a/libhev-socks5-tunnel.so app/src/main/jniLibs/arm64-v8a/ || \
-          echo "arm64-v8a: not found"
+        # ============================================================
+        # ตัวเลือกที่ 2: Hiddify (ใช้ hev-socks5-tunnel ต้นฉบับ)
+        # ============================================================
+        if [ $FOUND -eq 0 ]; then
+          echo "===== Trying Hiddify ====="
+          if curl -fSL -o hiddify.apk \
+            "https://github.com/hiddify/hiddify-next/releases/latest/download/hiddify-android-universal.apk" 2>/dev/null; then
+            echo "Downloaded Hiddify successfully"
+            mkdir -p extract_hiddify && unzip -o hiddify.apk -d extract_hiddify 2>/dev/null || true
+            
+            echo "=== Files in Hiddify lib/ ==="
+            find extract_hiddify/lib -name "*.so" 2>/dev/null | head -20 || echo "No .so"
+            
+            # หา libhev-socks5-tunnel.so ในทุก ABI
+            for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+              if [ -f "extract_hiddify/lib/$abi/libhev-socks5-tunnel.so" ]; then
+                cp "extract_hiddify/lib/$abi/libhev-socks5-tunnel.so" "app/src/main/jniLibs/$abi/"
+                echo "✅ Copied $abi"
+                FOUND=1
+              fi
+            done
+          fi
+        fi
         
-        [ -f v2rayNG_extracted/lib/armeabi-v7a/libhev-socks5-tunnel.so ] && \
-          cp v2rayNG_extracted/lib/armeabi-v7a/libhev-socks5-tunnel.so app/src/main/jniLibs/armeabi-v7a/ || \
-          echo "armeabi-v7a: not found"
+        # ============================================================
+        # ตัวเลือกที่ 3: v2rayNG 1.8.0 (รุ่นกลาง)
+        # ============================================================
+        if [ $FOUND -eq 0 ]; then
+          echo "===== Trying v2rayNG 1.8.0 ====="
+          if curl -fSL -o apk.zip \
+            "https://github.com/2dust/v2rayNG/releases/download/1.8.0/v2rayNG_1.8.0_arm64-v8a.apk" 2>/dev/null; then
+            mkdir -p extract_1_8 && unzip -o apk.zip -d extract_1_8 2>/dev/null || true
+            
+            if [ -f extract_1_8/lib/arm64-v8a/libhev-socks5-tunnel.so ]; then
+              cp extract_1_8/lib/arm64-v8a/libhev-socks5-tunnel.so app/src/main/jniLibs/arm64-v8a/
+              FOUND=1
+              echo "✅ Found in v2rayNG 1.8.0"
+            fi
+          fi
+        fi
         
-        [ -f v2rayNG_extracted/lib/x86/libhev-socks5-tunnel.so ] && \
-          cp v2rayNG_extracted/lib/x86/libhev-socks5-tunnel.so app/src/main/jniLibs/x86/ || \
-          echo "x86: not found"
+        # ============================================================
+        # ตัวเลือกที่ 4: v2rayNG 1.8.5
+        # ============================================================
+        if [ $FOUND -eq 0 ]; then
+          echo "===== Trying v2rayNG 1.8.5 ====="
+          if curl -fSL -o apk.zip \
+            "https://github.com/2dust/v2rayNG/releases/download/1.8.5/v2rayNG_1.8.5_arm64-v8a.apk" 2>/dev/null; then
+            mkdir -p extract_1_8_5 && unzip -o apk.zip -d extract_1_8_5 2>/dev/null || true
+            
+            if [ -f extract_1_8_5/lib/arm64-v8a/libhev-socks5-tunnel.so ]; then
+              cp extract_1_8_5/lib/arm64-v8a/libhev-socks5-tunnel.so app/src/main/jniLibs/arm64-v8a/
+              FOUND=1
+              echo "✅ Found in v2rayNG 1.8.5"
+            fi
+          fi
+        fi
         
-        [ -f v2rayNG_extracted/lib/x86_64/libhev-socks5-tunnel.so ] && \
-          cp v2rayNG_extracted/lib/x86_64/libhev-socks5-tunnel.so app/src/main/jniLibs/x86_64/ || \
-          echo "x86_64: not found"
+        # ============================================================
+        # ตัวเลือกที่ 5: v2rayNG 1.9.0
+        # ============================================================
+        if [ $FOUND -eq 0 ]; then
+          echo "===== Trying v2rayNG 1.9.0 ====="
+          if curl -fSL -o apk.zip \
+            "https://github.com/2dust/v2rayNG/releases/download/1.9.0/v2rayNG_1.9.0_arm64-v8a.apk" 2>/dev/null; then
+            mkdir -p extract_1_9 && unzip -o apk.zip -d extract_1_9 2>/dev/null || true
+            
+            if [ -f extract_1_9/lib/arm64-v8a/libhev-socks5-tunnel.so ]; then
+              cp extract_1_9/lib/arm64-v8a/libhev-socks5-tunnel.so app/src/main/jniLibs/arm64-v8a/
+              FOUND=1
+              echo "✅ Found in v2rayNG 1.9.0"
+            fi
+          fi
+        fi
         
-        # ตรวจสอบปลายทาง
+        # ============================================================
+        # ตรวจสอบผลลัพธ์
+        # ============================================================
+        echo ""
+        echo "===== FINAL CHECK ====="
+        if [ $FOUND -eq 0 ]; then
+          echo "❌ No .so file found in any source!"
+          echo "Files in jniLibs/:"
+          find app/src/main/jniLibs -type f
+          exit 1
+        fi
+        
+        echo "✅ .so file(s) copied successfully"
         echo "=== Files in jniLibs/ ==="
-        find app/src/main/jniLibs -name "*.so"
+        find app/src/main/jniLibs -type f -name "*.so" -exec ls -lh {} \;
+        
+        # ⭐ ตรวจสอบ JNI symbols ใน .so
+        echo ""
+        echo "===== Checking JNI symbols ====="
+        if command -v nm &> /dev/null; then
+          for so in $(find app/src/main/jniLibs -name "*.so"); do
+            echo "Symbols in $so:"
+            nm -D "$so" 2>/dev/null | grep -i "TProxy" || \
+              echo "  (No TProxy symbol found — may not match TProxyService.java)"
+          done
+        fi
 
     - name: Setup Gradle 8.13
       uses: gradle/actions/setup-gradle@v4
