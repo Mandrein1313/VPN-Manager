@@ -38,6 +38,7 @@ import com.example.vpn.util.ProfileExporter;
 import com.example.vpn.util.ProfileImporter;
 import com.google.android.material.appbar.MaterialToolbar;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements ProfileAdapter.Listener {
@@ -55,6 +56,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private View btnBack;
 
     private View navHome, navLogs, navMore;
+
+    // ⭐ Cache list — ใช้ตอน Export (เพราะ viewModel.getProfiles() สร้าง LiveData ใหม่)
+    private List<Profile> cachedProfiles = new ArrayList<>();
 
     private final ActivityResultLauncher<String> notifPermissionLauncher =
             registerForActivityResult(
@@ -125,8 +129,11 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         navMore.setOnClickListener(v -> showMoreMenu());
 
-        // ===== Observe profiles =====
+        // ===== Observe profiles ⭐ =====
         viewModel.getProfiles().observe(this, list -> {
+            // ⭐ Cache list ไว้ — ใช้สำหรับ Export
+            cachedProfiles = (list != null) ? new ArrayList<>(list) : new ArrayList<>();
+
             adapter.submit(list);
             boolean empty = list == null || list.isEmpty();
             emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
@@ -135,11 +142,10 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // ⭐ Toolbar Menu (Export/Import)
+    // Toolbar Menu (Export/Import)
     // ============================================================
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // จะสร้าง menu ในไฟล์ menu_profile_list.xml
         getMenuInflater().inflate(R.menu.menu_profile_list, menu);
         return true;
     }
@@ -159,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // ⭐ Bottom Nav "More"
+    // Bottom Nav "More"
     // ============================================================
     private void showMoreMenu() {
         String[] options = {
@@ -204,7 +210,10 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     // 📤 Export
     // ============================================================
     private void exportAllProfiles() {
-        List<Profile> all = viewModel.getProfiles().getValue();
+        // ⭐ ใช้ cachedProfiles แทน viewModel.getProfiles().getValue()
+        // เพราะ getValue() return null ถ้า LiveData ถูกสร้างใหม่
+        List<Profile> all = cachedProfiles;
+
         if (all == null || all.isEmpty()) {
             Toast.makeText(this, "ไม่มีโปรไฟล์ให้ส่งออก",
                     Toast.LENGTH_SHORT).show();
@@ -308,7 +317,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
     @Override
     public void onConnect(Profile p) {
-        // ⭐ เลือกโปรไฟล์ → ส่งกลับ ConnectionActivity ทันที
         viewModel.markUsed(p);
 
         Intent result = new Intent();

@@ -11,13 +11,18 @@ import java.util.List;
 public class ProfileViewModel extends ViewModel {
 
     private final ProfileRepository repo;
+    private LiveData<List<Profile>> cachedLiveData;   // ⭐ cache
 
     public ProfileViewModel(ProfileRepository repo) {
         this.repo = repo;
     }
 
+    /** ⭐ คืน LiveData ตัวเดิมทุกครั้ง — ไม่สร้างใหม่ */
     public LiveData<List<Profile>> getProfiles() {
-        return repo.observeAll();
+        if (cachedLiveData == null) {
+            cachedLiveData = repo.observeAll();
+        }
+        return cachedLiveData;
     }
 
     public void save(Profile p, ProfileRepository.Callback<Long> cb) {

@@ -94,7 +94,7 @@ public class SshTunnel {
     }
 
     // ============================================================
-    // Proxy Tunnel
+    // ⭐ Proxy Tunnel + แยก [split] เป็น 2 requests
     // ============================================================
     private static Socket createProxyTunnel(Socket s, String sshHost, int sshPort,
                                             String httpProxy, String payload)
@@ -127,65 +127,81 @@ public class SshTunnel {
                 .replace("[cr]", "\r")
                 .replace("[real_host]", sshHost);
 
-        // ⭐ ส่งทั้งหมดเป็นชิ้นเดียว ไม่แยก ไม่ delay
-        VpnLogger.i(TAG, "Sending combined payload (" + replaced.length() + " chars)");
+        // ⭐ แยก [split] — ต้องแยกก่อนส่ง
+        String part1;
+        String part2 = "";
 
-        OutputStream out = s.getOutputStream();
-        out.write(replaced.getBytes(StandardCharsets.UTF_8));
-        out.flush();
-
-        // ⭐ รอ response — แต่ไม่ throw ถ้าไม่ใช่ 200/101
-        s.setSoTimeout(8_000);
-        InputStream in = s.getInputStream();
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(in, StandardCharsets.UTF_8));
-
-        try {
-            String statusLine = reader.readLine();
-            VpnLogger.i(TAG, "Proxy first response: " + statusLine);
-
-            if (statusLine == null) {
-                throw new IOException("No response from proxy");
-            }
-
-            // อ่าน header จนเจอ blank
-            String line;
-            int headerCount = 0;
-            while ((line = reader.readLine()) != null && !line.isEmpty() && headerCount < 30) {
-                VpnLogger.d(TAG, "Header: " + line);
-                headerCount++;
-            }
-
-            // ⭐ Log สถานะ — แต่ไม่ throw
-            if (statusLine.contains("101")) {
-                VpnLogger.i(TAG, "WebSocket upgrade 101 — tunnel ready");
-            } else if (statusLine.contains("200")) {
-                VpnLogger.i(TAG, "HTTP 200 — tunnel ready");
-            } else if (statusLine.contains("301") || statusLine.contains("302")) {
-                VpnLogger.w(TAG, "Redirect — proxy may be upgrading. Trying SSH anyway...");
-                // ⭐ ลองอ่าน response ที่ 2 (ถ้ามี)
-                try {
-                    String statusLine2 = reader.readLine();
-                    if (statusLine2 != null && !statusLine2.isEmpty()) {
-                        VpnLogger.i(TAG, "Second response: " + statusLine2);
-                        String l2;
-                        int c2 = 0;
-                        while ((l2 = reader.readLine()) != null && !l2.isEmpty() && c2 < 30) {
-                            VpnLogger.d(TAG, "H2: " + l2);
-                            c2++;
-                        }
-                    }
-                } catch (Exception ignored) {}
-            } else {
-                VpnLogger.w(TAG, "Unexpected status — continue anyway: " + statusLine);
-            }
-        } catch (java.net.SocketTimeoutException e) {
-            VpnLogger.w(TAG, "No proxy response within 8s — try SSH anyway");
+        int splitIdx = replaced.indexOf("[split]");
+        if (splitIdx >= 0) {
+            part1 = replaced.substring(0, splitIdx);
+            part2 = replaced.substring(splitIdx + "[split]".length());
+            // ลบ [cr] ถ้ามีต้น part2
+            if (part2.startsWith("\r")) part2 = part2.substring(1);
+            VpnLogger.i(TAG, "Split payload → part1=" + part1.length()
+                    + " chars, part2=" + part2.length() + " chars");
+        } else {
+            part1 = replaced;
         }
 
-        // ⭐ ล้าง timeout — ปล่อยให้ JSch อ่าน SSH banner
+        OutputStream out = s.getOutputStream();
+        InputStream in = s.getInputStream();
+
+        // ---- ส่ง Part 1 ----
+        VpnLogger.i(TAG, "Sending part 1 (" + part1.length() + " chars)");
+        out.write(part1.getBytes(StandardCharsets.UTF_8));
+        out.flush();
+
+        // ---- รอ 500ms ----
+        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+
+        // ---- อ่าน response ของ part 1 (ถ้ามี) ----
+        s.setSoTimeout(1_500);
+        try {
+            byte[] buf = new byte[4096];
+            int n = in.read(buf);
+            if (n > 0) {
+                String resp = new String(buf, 0, n, StandardCharsets.UTF_8);
+                VpnLogger.i(TAG, "Part 1 response: "
+                        + resp.substring(0, Math.min(80, resp.length())).replace("\r\n", " | "));
+
+                // ⭐ ถ้า response 301 มี Content-Length ต้องอ่าน body ให้ครบ
+                if (resp.contains("Content-Length")) {
+                    try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+                    // drain
+                    s.setSoTimeout(500);
+                    try { while (in.available() > 0) in.read(buf); } catch (Exception ignored) {}
+                }
+            }
+        } catch (java.net.SocketTimeoutException e) {
+            VpnLogger.i(TAG, "No response to part 1 — continue anyway");
+        }
+
+        // ---- ส่ง Part 2 (ถ้ามี) ----
+        if (!part2.isEmpty()) {
+            VpnLogger.i(TAG, "Sending part 2 (" + part2.length() + " chars)");
+            out.write(part2.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+
+            // รอ response part 2
+            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+
+            s.setSoTimeout(2_000);
+            try {
+                byte[] buf = new byte[4096];
+                int n = in.read(buf);
+                if (n > 0) {
+                    String resp = new String(buf, 0, n, StandardCharsets.UTF_8);
+                    VpnLogger.i(TAG, "Part 2 response: "
+                            + resp.substring(0, Math.min(80, resp.length())).replace("\r\n", " | "));
+                }
+            } catch (java.net.SocketTimeoutException e) {
+                VpnLogger.i(TAG, "No response to part 2 — try SSH anyway");
+            }
+        }
+
+        // ---- คืน socket ให้ JSch (timeout = 0) ----
         s.setSoTimeout(0);
-        VpnLogger.i(TAG, "Handing socket to JSch — attempting SSH handshake");
+        VpnLogger.i(TAG, "Handing socket to JSch for SSH handshake");
         return s;
     }
 
@@ -198,7 +214,7 @@ public class SshTunnel {
         s.connect(new InetSocketAddress(host, port), 20_000);
         s.setTcpNoDelay(true);
 
-        String req = payload
+        String replaced = payload
                 .replace("[host]", host)
                 .replace("[port]", String.valueOf(port))
                 .replace("[host_port]", host + ":" + port)
@@ -208,39 +224,40 @@ public class SshTunnel {
                 .replace("[cr]", "\r")
                 .replace("[real_host]", host);
 
-        VpnLogger.i(TAG, "Sending payload (" + req.length() + " chars)");
+        // แยก [split]
+        String part1 = replaced;
+        String part2 = "";
+        int splitIdx = replaced.indexOf("[split]");
+        if (splitIdx >= 0) {
+            part1 = replaced.substring(0, splitIdx);
+            part2 = replaced.substring(splitIdx + "[split]".length());
+            if (part2.startsWith("\r")) part2 = part2.substring(1);
+        }
 
+        VpnLogger.i(TAG, "Sending part 1 (" + part1.length() + " chars)");
         OutputStream out = s.getOutputStream();
-        out.write(req.getBytes(StandardCharsets.UTF_8));
+        out.write(part1.getBytes(StandardCharsets.UTF_8));
         out.flush();
 
-        s.setSoTimeout(8_000);
-        InputStream in = s.getInputStream();
+        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
 
-        try {
-            BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(in, StandardCharsets.UTF_8));
-
-            String statusLine = reader.readLine();
-            VpnLogger.i(TAG, "Server response: " + statusLine);
-
-            if (statusLine != null && statusLine.startsWith("SSH-")) {
-                VpnLogger.i(TAG, "SSH banner detected!");
-                s.setSoTimeout(0);
-                return s;
-            }
-
-            if (statusLine != null) {
-                String line;
-                int c = 0;
-                while ((line = reader.readLine()) != null && !line.isEmpty() && c < 30) {
-                    VpnLogger.d(TAG, "Header: " + line);
-                    c++;
-                }
-            }
-        } catch (java.net.SocketTimeoutException e) {
-            VpnLogger.w(TAG, "No response — try SSH anyway");
+        if (!part2.isEmpty()) {
+            VpnLogger.i(TAG, "Sending part 2 (" + part2.length() + " chars)");
+            out.write(part2.getBytes(StandardCharsets.UTF_8));
+            out.flush();
         }
+
+        s.setSoTimeout(2_000);
+        InputStream in = s.getInputStream();
+        try {
+            byte[] buf = new byte[2048];
+            int n = in.read(buf);
+            if (n > 0) {
+                VpnLogger.i(TAG, "Server response: "
+                        + new String(buf, 0, n, StandardCharsets.UTF_8)
+                        .substring(0, Math.min(80, n)).replace("\r\n", " | "));
+            }
+        } catch (Exception ignored) {}
 
         s.setSoTimeout(0);
         return s;
