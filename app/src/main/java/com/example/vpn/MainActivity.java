@@ -1,17 +1,20 @@
 package com.example.vpn;
 
+import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -31,7 +34,11 @@ import com.example.vpn.ui.ProfileViewModel;
 import com.example.vpn.ui.ProfileViewModelFactory;
 import com.example.vpn.util.ConfigParser;
 import com.example.vpn.util.CrashHandler;
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.example.vpn.util.ProfileExporter;
+import com.example.vpn.util.ProfileImporter;
+import com.google.android.material.appbar.MaterialToolbar;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements ProfileAdapter.Listener {
 
@@ -83,8 +90,19 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         navLogs = findViewById(R.id.navLogs);
         navMore = findViewById(R.id.navMore);
 
+        // ===== Toolbar (ถ้ามี) =====
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayShowTitleEnabled(false);
+            }
+        }
+
         // ===== Back button =====
-        btnBack.setOnClickListener(v -> finish());
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
+        }
 
         // ===== List =====
         recycler.setLayoutManager(new LinearLayoutManager(this));
@@ -100,29 +118,12 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         btnImportClipboard.setOnClickListener(v -> importFromClipboard());
 
         // ===== Bottom nav =====
-        navHome.setOnClickListener(v -> finish());   // กลับไป ConnectionActivity
+        navHome.setOnClickListener(v -> finish());
 
         navLogs.setOnClickListener(v ->
                 startActivity(new Intent(this, LogViewerActivity.class)));
 
-        navMore.setOnClickListener(v -> {
-            String[] options = {"Crash Log", "เกี่ยวกับ"};
-            new AlertDialog.Builder(this)
-                    .setItems(options, (d, which) -> {
-                        if (which == 0) {
-                            startActivity(new Intent(this, CrashLogActivity.class));
-                        } else {
-                            new AlertDialog.Builder(this)
-                                    .setTitle("เกี่ยวกับ VPN Manager")
-                                    .setMessage("VPN Manager v1.0\n\n" +
-                                            "แอป VPN ที่รองรับ SSH Tunnel\n" +
-                                            "สร้างด้วย ❤️ ในประเทศไทย")
-                                    .setPositiveButton("ตกลง", null)
-                                    .show();
-                        }
-                    })
-                    .show();
-        });
+        navMore.setOnClickListener(v -> showMoreMenu());
 
         // ===== Observe profiles =====
         viewModel.getProfiles().observe(this, list -> {
@@ -131,6 +132,174 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
             recycler.setVisibility(empty ? View.GONE : View.VISIBLE);
         });
+    }
+
+    // ============================================================
+    // ⭐ Toolbar Menu (Export/Import)
+    // ============================================================
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // จะสร้าง menu ในไฟล์ menu_profile_list.xml
+        getMenuInflater().inflate(R.menu.menu_profile_list, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_export_all) {
+            exportAllProfiles();
+            return true;
+        }
+        if (id == R.id.action_import) {
+            importFromClipboardDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    // ============================================================
+    // ⭐ Bottom Nav "More"
+    // ============================================================
+    private void showMoreMenu() {
+        String[] options = {
+                "📤 ส่งออกทั้งหมด",
+                "📥 นำเข้าจาก Clipboard",
+                "🐛 Crash Log",
+                "ℹ️ เกี่ยวกับ"
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle("เมนูเพิ่มเติม")
+                .setItems(options, (d, which) -> {
+                    switch (which) {
+                        case 0:
+                            exportAllProfiles();
+                            break;
+                        case 1:
+                            importFromClipboardDialog();
+                            break;
+                        case 2:
+                            startActivity(new Intent(this, CrashLogActivity.class));
+                            break;
+                        case 3:
+                            showAboutDialog();
+                            break;
+                    }
+                })
+                .show();
+    }
+
+    private void showAboutDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("เกี่ยวกับ VPN Manager")
+                .setMessage("VPN Manager v1.0\n\n" +
+                        "แอป VPN ที่รองรับ SSH Tunnel\n" +
+                        "สร้างด้วย ❤️ ในประเทศไทย")
+                .setPositiveButton("ตกลง", null)
+                .show();
+    }
+
+    // ============================================================
+    // 📤 Export
+    // ============================================================
+    private void exportAllProfiles() {
+        List<Profile> all = viewModel.getProfiles().getValue();
+        if (all == null || all.isEmpty()) {
+            Toast.makeText(this, "ไม่มีโปรไฟล์ให้ส่งออก",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String json = ProfileExporter.export(all);
+
+        new AlertDialog.Builder(this)
+                .setTitle("ส่งออกโปรไฟล์")
+                .setMessage("พบ " + all.size() + " โปรไฟล์\n\n"
+                        + "คัดลอก JSON ลง clipboard หรือแชร์ให้เพื่อน?")
+                .setPositiveButton("คัดลอก", (d, w) -> {
+                    ClipboardManager cm = (ClipboardManager)
+                            getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (cm != null) {
+                        cm.setPrimaryClip(ClipData.newPlainText(
+                                "VPN Config", json));
+                        Toast.makeText(this,
+                                "คัดลอกแล้ว — paste ที่ไหนก็ได้",
+                                Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNeutralButton("แชร์", (d, w) -> {
+                    Intent share = new Intent(Intent.ACTION_SEND);
+                    share.setType("text/plain");
+                    share.putExtra(Intent.EXTRA_TEXT, json);
+                    startActivity(Intent.createChooser(share, "แชร์ config"));
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    // ============================================================
+    // 📥 Import
+    // ============================================================
+    private void importFromClipboardDialog() {
+        ClipboardManager cm = (ClipboardManager)
+                getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null) {
+            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CharSequence text = cm.getPrimaryClip()
+                .getItemAt(0)
+                .coerceToText(this);
+
+        if (text == null || text.length() == 0) {
+            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ProfileImporter.Result result = ProfileImporter.importFromJson(text.toString());
+
+        if (!result.isSuccess()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("นำเข้าไม่สำเร็จ")
+                    .setMessage(result.error + "\n\nข้อมูล:\n"
+                            + text.subSequence(0, Math.min(200, text.length())))
+                    .setPositiveButton("ตกลง", null)
+                    .show();
+            return;
+        }
+
+        int count = result.profiles.size();
+        StringBuilder preview = new StringBuilder();
+        preview.append("พบ ").append(count).append(" โปรไฟล์:\n\n");
+        for (int i = 0; i < Math.min(count, 5); i++) {
+            Profile p = result.profiles.get(i);
+            preview.append("• ").append(p.name)
+                    .append(" — ").append(p.host).append(":").append(p.port)
+                    .append('\n');
+        }
+        if (count > 5) preview.append("... และอีก ").append(count - 5);
+
+        new AlertDialog.Builder(this)
+                .setTitle("ยืนยันการนำเข้า")
+                .setMessage(preview.toString())
+                .setPositiveButton("นำเข้าทั้งหมด", (d, w) -> {
+                    final int total = count;
+                    final int[] imported = {0};
+                    for (Profile p : result.profiles) {
+                        viewModel.save(p, id -> {
+                            imported[0]++;
+                            if (imported[0] == total) {
+                                runOnUiThread(() -> Toast.makeText(this,
+                                        "นำเข้าสำเร็จ " + imported[0] + " โปรไฟล์",
+                                        Toast.LENGTH_LONG).show());
+                            }
+                        });
+                    }
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
     }
 
     // ============================================================
@@ -171,7 +340,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // Import from clipboard
+    // Import from clipboard (config ปกติ — ไม่ใช่ JSON)
     // ============================================================
     private void importFromClipboard() {
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
@@ -226,11 +395,10 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     // ============================================================
-    // onBackPressed — กลับไป ConnectionActivity
+    // onBackPressed
     // ============================================================
     @Override
     public void onBackPressed() {
-        // ถ้าไม่ได้เลือกโปรไฟล์ — แค่ finish กลับ
         super.onBackPressed();
     }
 }
