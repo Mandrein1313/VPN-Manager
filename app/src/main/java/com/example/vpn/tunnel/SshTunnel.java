@@ -59,7 +59,6 @@ public class SshTunnel {
             public Socket createSocket(String h, int p) throws IOException {
                 Socket s = new Socket();
 
-                // ⭐ เพิ่ม log เพื่อดูว่า protect() สำเร็จหรือไม่
                 boolean protectedOk = false;
                 if (protector != null) {
                     try {
@@ -74,10 +73,15 @@ public class SshTunnel {
 
                 try {
                     if (fProxy != null && !fProxy.isEmpty()) {
-                        // ---- ผ่าน HTTP Proxy + Payload ----
+                        // ⭐ มี HTTP Proxy → ผ่าน proxy + payload
+                        Log.i(TAG, "Using HTTP Proxy: " + fProxy);
                         return createProxyTunnel(s, fSshHost, fSshPort, fProxy, fPayload);
+                    } else if (fPayload != null && !fPayload.isEmpty()) {
+                        // ⭐ ไม่มี proxy แต่มี payload → ส่ง payload ตรงไปที่ server
+                        Log.i(TAG, "Using direct payload (no proxy)");
+                        return createDirectPayload(s, h, p, fPayload);
                     } else {
-                        // ---- ต่อตรง ----
+                        // ❌ ไม่มีอะไรเลย → ต่อตรง (SSH ธรรมดา)
                         Log.i(TAG, "Direct connect to " + h + ":" + p);
                         s.connect(new InetSocketAddress(h, p), 20_000);
                         Log.i(TAG, "TCP connected to " + h + ":" + p);
@@ -114,13 +118,85 @@ public class SshTunnel {
     }
 
     // ============================================================
+    // ⭐ NEW: ส่ง payload ตรงไปที่ server (ไม่มี HTTP Proxy)
+    // ใช้สำหรับ VPNJantit WebSocket CDN (port 80)
+    // ============================================================
+    private static Socket createDirectPayload(Socket s, String host, int port,
+                                               String payload) throws IOException {
+        Log.i(TAG, "Direct connect + payload to " + host + ":" + port);
+
+        s.connect(new InetSocketAddress(host, port), 20_000);
+        s.setTcpNoDelay(true);
+        Log.i(TAG, "TCP connected to " + host + ":" + port);
+
+        // แทนที่ placeholders
+        String req = payload
+                .replace("[host]", host)
+                .replace("[port]", String.valueOf(port))
+                .replace("[host_port]", host + ":" + port)
+                .replace("[protocol]", "HTTP/1.1")
+                .replace("[ua]", "Mozilla/5.0 (Linux; Android 10)")
+                .replace("[crlf]", "\r\n")
+                .replace("[cr]", "\r")
+                .replace("[real_host]", host);
+
+        // ถ้ามี [split] ให้ใช้แค่ครึ่งแรก
+        if (req.contains("[split]")) {
+            req = req.split("\\[split\\]")[0];
+        }
+
+        Log.i(TAG, "Sending direct payload (" + req.length() + " chars)");
+        Log.d(TAG, "Payload content:\n" + req);
+
+        OutputStream out = s.getOutputStream();
+        out.write(req.getBytes(StandardCharsets.UTF_8));
+        out.flush();
+
+        // อ่าน response จาก server
+        InputStream in = s.getInputStream();
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(in, StandardCharsets.UTF_8));
+
+        String statusLine = reader.readLine();
+        Log.i(TAG, "Server response: " + statusLine);
+
+        if (statusLine == null) {
+            throw new IOException("No response from server");
+        }
+
+        // ⭐ เช็คก่อนว่าเป็น SSH banner ไหม
+        // SSH banner จะขึ้นต้นด้วย "SSH-2.0-..." 
+        if (statusLine.startsWith("SSH-")) {
+            Log.i(TAG, "SSH banner detected — payload not needed!");
+            // Socket นี้พร้อมใช้งานเลย — server ตอบเป็น SSH ตรงๆ
+            return s;
+        }
+
+        // อ่าน HTTP header จนเจอ blank line
+        String line;
+        while ((line = reader.readLine()) != null && !line.isEmpty()) {
+            Log.d(TAG, "Header: " + line);
+        }
+
+        // ตรวจ HTTP status
+        if (statusLine.contains("101") || statusLine.contains("200")) {
+            Log.i(TAG, "WebSocket/HTTP tunnel established");
+        } else {
+            Log.w(TAG, "Unexpected response: " + statusLine);
+            // ⚠️ ลองส่งต่อไปเลย — บาง server ตอบ 400 แต่ยอมรับ tunnel
+            // throw new IOException("Server rejected: " + statusLine);
+        }
+
+        return s;
+    }
+
+    // ============================================================
     // สร้าง tunnel ผ่าน HTTP Proxy + Payload
     // ============================================================
     private static Socket createProxyTunnel(Socket s, String sshHost, int sshPort,
                                             String httpProxy, String payload)
             throws IOException {
 
-        // แยก host:port ของ proxy
         String proxyHost;
         int proxyPort = 80;
         int colon = httpProxy.lastIndexOf(':');
@@ -140,7 +216,6 @@ public class SshTunnel {
         s.setTcpNoDelay(true);
         Log.i(TAG, "Proxy TCP connected");
 
-        // เตรียม payload
         String req;
         if (payload != null && !payload.isEmpty()) {
             req = payload
@@ -153,12 +228,10 @@ public class SshTunnel {
                     .replace("[cr]", "\r")
                     .replace("[real_host]", sshHost);
 
-            // ถ้ามี [split] ให้ใช้แค่ครึ่งแรก
             if (req.contains("[split]")) {
                 req = req.split("\\[split\\]")[0];
             }
         } else {
-            // default HTTP CONNECT
             req = "CONNECT " + sshHost + ":" + sshPort + " HTTP/1.1\r\n"
                     + "Host: " + sshHost + ":" + sshPort + "\r\n"
                     + "User-Agent: Mozilla/5.0 (Linux; Android 10)\r\n"
@@ -171,7 +244,6 @@ public class SshTunnel {
         out.write(req.getBytes(StandardCharsets.UTF_8));
         out.flush();
 
-        // อ่าน response
         InputStream in = s.getInputStream();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(in, StandardCharsets.UTF_8));
@@ -183,14 +255,11 @@ public class SshTunnel {
             throw new IOException("No response from proxy");
         }
 
-        // อ่าน header จนเจอ blank line
         String line;
         while ((line = reader.readLine()) != null && !line.isEmpty()) {
             Log.d(TAG, "Proxy header: " + line);
         }
 
-        // ✅ HTTP CONNECT สำเร็จ (200)
-        // ✅ WebSocket upgrade สำเร็จ (101)
         if (statusLine.contains("200") || statusLine.contains("101")) {
             Log.i(TAG, "Proxy tunnel established");
         } else {
