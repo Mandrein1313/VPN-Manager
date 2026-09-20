@@ -81,6 +81,9 @@ public class ConnectionActivity extends AppCompatActivity
     private long lastUploadBytes = 0L;
     private long lastDownloadBytes = 0L;
 
+    /** ⭐ ข้าม onResume reload ครั้งถัดไป (เมื่อเพิ่งเลือกโปรไฟล์ใหม่จาก MainActivity) */
+    private boolean skipNextResumeReload = false;
+
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
@@ -111,14 +114,15 @@ public class ConnectionActivity extends AppCompatActivity
                             long profileId = result.getData()
                                     .getLongExtra(EXTRA_PROFILE_ID, -1L);
                             if (profileId > 0) {
+                                // ⭐ รับโปรไฟล์ใหม่ → bind ทันที
                                 viewModel.getRepo().getById(profileId, p -> {
                                     if (p != null) bindProfile(p);
                                 });
+                                return;
                             }
-                        } else {
-                            // กลับมาโดยไม่เลือก → เช็คโปรไฟล์ใหม่
-                            reloadProfiles();
                         }
+                        // Canceled → reload
+                        reloadProfiles();
                     });
 
     /** เพิ่มโปรไฟล์ใหม่ */
@@ -220,7 +224,6 @@ public class ConnectionActivity extends AppCompatActivity
                 bindProfile(p);
             });
         } else {
-            // โหลดโปรไฟล์ครั้งแรก (ไม่มี dialog แล้ว)
             viewModel.getProfiles().observe(this, list -> {
                 if (targetProfile != null) return;
                 if (list == null || list.isEmpty()) {
@@ -283,7 +286,7 @@ public class ConnectionActivity extends AppCompatActivity
             }
         });
 
-        // ===== Connect button (⭐ ไม่มี dialog) =====
+        // ===== Connect button =====
         btnConnect.setListener(() -> {
             if (targetProfile == null) {
                 Toast.makeText(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
@@ -421,7 +424,14 @@ public class ConnectionActivity extends AppCompatActivity
     // ============================================================
     // Other methods
     // ============================================================
+
+    /**
+     * ⭐ เปิดหน้า Profile Picker
+     * ตั้ง skipNextResumeReload = true ก่อน → onResume จะข้ามการ reload
+     * (ป้องกัน race condition ระหว่าง onResume กับ launcher callback)
+     */
     private void openProfilePicker() {
+        skipNextResumeReload = true;
         Intent i = new Intent(this, MainActivity.class);
         manageProfilesLauncher.launch(i);
     }
@@ -468,19 +478,22 @@ public class ConnectionActivity extends AppCompatActivity
     protected void onResume() {
         super.onResume();
 
+        // ⭐ ข้าม reload ถ้าเพิ่งเปิด Profile Picker
+        if (skipNextResumeReload) {
+            skipNextResumeReload = false;
+            return;
+        }
+
         if (targetProfile != null) {
-            // โหลดโปรไฟล์เดิมใหม่
             viewModel.getRepo().getById(targetProfile.id, p -> {
                 if (p != null) {
                     bindProfile(p);
                 } else {
-                    // โปรไฟล์ถูกลบ → หาโปรไฟล์อื่นแทน
                     targetProfile = null;
                     reloadProfiles();
                 }
             });
         } else {
-            // ยังไม่มีโปรไฟล์ → เช็คใหม่
             reloadProfiles();
         }
     }
