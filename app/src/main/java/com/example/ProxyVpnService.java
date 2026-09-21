@@ -41,7 +41,9 @@ public class ProxyVpnService extends VpnService {
     private static final String VPN_ADDRESS = "10.0.0.2";
     private static final String VPN_ROUTE   = "0.0.0.0";
     private static final int VPN_PREFIX     = 0;
-    private static final int VPN_MTU        = 1500;
+
+    /** ⭐ ลด MTU เป็น 1280 — ป้องกัน packet แตกใน tunnel */
+    private static final int VPN_MTU = 1280;
 
     private ParcelFileDescriptor tunFd;
     private Thread workerThread;
@@ -110,7 +112,9 @@ public class ProxyVpnService extends VpnService {
                 throw new IOException("พอร์ตไม่ถูกต้อง: " + profile.port);
             }
 
+            // ============================================================
             // ---- 1. TUN ----
+            // ============================================================
             StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังสร้าง TUN...");
             VpnLogger.i(TAG, "Creating TUN interface...");
 
@@ -130,16 +134,26 @@ public class ProxyVpnService extends VpnService {
                 throw new IOException("Failed to establish TUN");
             }
             running = true;
-            VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd());
+            VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd() + " MTU=" + VPN_MTU);
 
-            // ⭐⭐ รอให้ VPN fully establish ก่อน → protect() จะได้ทำงาน
-            // (สำคัญมาก — ไม่งั้น protected=false → SSH socket จะไม่ถูก protect)
+            // ============================================================
+            // ⭐⭐ Force re-evaluate routing — แก้ปัญหา "ต่อติดแต่เน็ตไม่วิ่ง"
+            //    ทำให้แอปที่มี connection ค้างอยู่ ตัดแล้ว connect ใหม่ผ่าน VPN
+            // ============================================================
             try {
-                Thread.sleep(800);
-            } catch (InterruptedException ignored) {}
+                setUnderlyingNetworks(null);
+                VpnLogger.i(TAG, "Forced underlying networks = null");
+            } catch (Throwable t) {
+                VpnLogger.w(TAG, "setUnderlyingNetworks failed: " + t.getMessage());
+            }
+
+            // ⭐ รอ VPN fully establish → protect() จะได้ทำงาน
+            try { Thread.sleep(800); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "VPN fully established — starting SSH...");
 
+            // ============================================================
             // ---- 2. SSH ----
+            // ============================================================
             StatusBus.post(StatusBus.State.CONNECTING_SSH,
                     "กำลังเชื่อมต่อ SSH: " + profile.host + ":" + profile.port);
             updateNotification("กำลังเชื่อมต่อ SSH...");
@@ -163,7 +177,9 @@ public class ProxyVpnService extends VpnService {
             VpnLogger.i(TAG, "SSH connected");
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
 
+            // ============================================================
             // ---- 3. SOCKS5 ----
+            // ============================================================
             VpnLogger.i(TAG, "Starting SOCKS5 server...");
             socks5Server = new Socks5Server(sshTunnel);
             socks5Server.start();
@@ -172,7 +188,13 @@ public class ProxyVpnService extends VpnService {
                     "SOCKS5 พร้อม: 127.0.0.1:" + Socks5Server.LOCAL_PORT);
             VpnLogger.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
 
+            // ⭐ รอ SOCKS5 พร้อมจริงๆ ก่อนเปิด Tun2Socks
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+            VpnLogger.i(TAG, "Waiting 500ms for SOCKS5 to be fully ready...");
+
+            // ============================================================
             // ---- 4. Tun2Socks ----
+            // ============================================================
             StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
             updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
             VpnLogger.i(TAG, "Starting Tun2Socks bridge...");
@@ -202,6 +224,17 @@ public class ProxyVpnService extends VpnService {
 
             tun2socksRunning = true;
             VpnLogger.i(TAG, "Tun2Socks started — VPN is active");
+
+            // ⭐ รอ Tun2Socks พร้อมจริงๆ
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+
+            // ⭐ Force re-evaluate routing อีกครั้ง — บังคับ DNS lookup ใหม่
+            try {
+                setUnderlyingNetworks(null);
+                VpnLogger.i(TAG, "Re-evaluated underlying networks after Tun2Socks");
+            } catch (Throwable t) {
+                VpnLogger.w(TAG, "setUnderlyingNetworks #2 failed: " + t.getMessage());
+            }
 
             StatusBus.post(StatusBus.State.CONNECTED,
                     "เชื่อมต่อแล้ว: " + profile.name);
