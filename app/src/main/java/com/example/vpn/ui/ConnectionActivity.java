@@ -120,16 +120,13 @@ public class ConnectionActivity extends AppCompatActivity
         // ===== ViewPager2 + Fragment =====
         ConnectionPagerAdapter pagerAdapter = new ConnectionPagerAdapter(this);
         viewPager.setAdapter(pagerAdapter);
-        viewPager.setUserInputEnabled(true);   // ⭐ เปิด swipe
+        viewPager.setUserInputEnabled(true);
 
         // ===== TabLayout + ViewPager2 =====
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             if (position == 0) tab.setText("MAIN");
             else tab.setText("LOG");
         }).attach();
-
-        // ===== สร้าง MainFragment เอง เพื่ออ้างอิง =====
-        // หมายเหตุ: FragmentStateAdapter จะสร้างใหม่ — เราใช้ callback จาก Fragment
 
         // ===== Toolbar + Drawer =====
         setSupportActionBar(toolbar);
@@ -243,10 +240,7 @@ public class ConnectionActivity extends AppCompatActivity
             });
         }
         if (actionLog != null) {
-            actionLog.setOnClickListener(v -> {
-                // ⭐ ปัดไปแท็บ LOG
-                viewPager.setCurrentItem(1, true);
-            });
+            actionLog.setOnClickListener(v -> viewPager.setCurrentItem(1, true));
         }
         if (actionDelete != null) {
             actionDelete.setOnClickListener(v -> {
@@ -264,16 +258,6 @@ public class ConnectionActivity extends AppCompatActivity
                 addProfileLauncher.launch(i);
             });
         }
-
-        // ⭐ FragmentStateAdapter — เมื่อ fragment ถูกสร้าง ดึง callback
-        viewPager.registerOnPageChangeCallback(
-                new ViewPager2.OnPageChangeCallback() {
-                    @Override
-                    public void onPageSelected(int position) {
-                        // ถ้าย้ายไป LOG — VpnLogger listener ถูกตั้งใน LogFragment
-                        // ถ้าย้ายกลับ MAIN — listener ยังทำงานอยู่แต่ไม่ update UI
-                    }
-                });
     }
 
     // ⭐ เก็บ fragment reference
@@ -377,6 +361,9 @@ public class ConnectionActivity extends AppCompatActivity
             viewPager.setCurrentItem(1, true);
         } else if (id == R.id.nav_crash) {
             startActivity(new Intent(this, CrashLogActivity.class));
+        } else if (id == R.id.nav_bypass) {
+            // ⭐ เปิดหน้า Bypass Mode
+            startActivity(new Intent(this, BypassActivity.class));
         } else if (id == R.id.nav_import) {
             Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
                     Toast.LENGTH_SHORT).show();

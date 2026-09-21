@@ -19,6 +19,7 @@ import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.tunnel.Socks5Server;
 import com.example.vpn.tunnel.SshTunnel;
+import com.example.vpn.util.BypassPrefs;
 import com.example.vpn.util.ConnectivityChecker;
 import com.example.vpn.util.NetworkBinder;
 import com.example.vpn.util.NetworkMonitor;
@@ -30,6 +31,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Set;
 
 import hev.htproxy.TProxyService;
 
@@ -61,6 +63,7 @@ public class ProxyVpnService extends VpnService
     private NetworkMonitor networkMonitor;
     private ConnectivityChecker connectivityChecker;
     private VpnPrefs prefs;
+    private BypassPrefs bypassPrefs;
 
     private Profile currentProfile;
     private volatile boolean connected = false;
@@ -73,6 +76,7 @@ public class ProxyVpnService extends VpnService
     public void onCreate() {
         super.onCreate();
         prefs = new VpnPrefs(this);
+        bypassPrefs = new BypassPrefs(this);
     }
 
     @Override
@@ -156,6 +160,23 @@ public class ProxyVpnService extends VpnService
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
 
+            // ⭐ เพิ่มแอปที่ bypass — ไม่ต้องผ่าน VPN
+            int bypassCount = 0;
+            Set<String> bypassed = bypassPrefs.getPackages();
+            for (String pkg : bypassed) {
+                try {
+                    builder.addDisallowedApplication(pkg);
+                    bypassCount++;
+                } catch (Exception e) {
+                    VpnLogger.w(TAG, "Bypass: cannot add " + pkg
+                            + " — " + e.getMessage());
+                }
+            }
+            if (bypassCount > 0) {
+                VpnLogger.i(TAG, "Bypass Mode: " + bypassCount
+                        + " apps excluded from VPN");
+            }
+
             addDnsIfValid(builder, profile.dns1);
             addDnsIfValid(builder, profile.dns2);
 
@@ -200,7 +221,6 @@ public class ProxyVpnService extends VpnService
 
     private void connectSshAndSocks(Profile profile) {
         try {
-            // ---- 2. SSH ----
             StatusBus.post(StatusBus.State.CONNECTING_SSH,
                     "กำลังเชื่อมต่อ SSH: " + profile.host + ":" + profile.port);
             updateNotification("กำลังเชื่อมต่อ SSH...");
@@ -224,7 +244,6 @@ public class ProxyVpnService extends VpnService
             VpnLogger.i(TAG, "SSH connected");
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
 
-            // ---- 3. SOCKS5 ----
             VpnLogger.i(TAG, "Starting SOCKS5 server...");
             socks5Server = new Socks5Server(sshTunnel);
             socks5Server.start();
@@ -236,7 +255,6 @@ public class ProxyVpnService extends VpnService
             try { Thread.sleep(500); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "Waiting 500ms for SOCKS5 to be fully ready...");
 
-            // ---- 4. Tun2Socks ----
             StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
             updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
             VpnLogger.i(TAG, "Starting Tun2Socks bridge...");
@@ -270,14 +288,11 @@ public class ProxyVpnService extends VpnService
             VpnLogger.i(TAG, "Tun2Socks started — VPN is active");
 
             // ============================================================
-            // ⭐⭐ FIRST CONNECT FIX — ทำให้เน็ตวิ่งทันที
+            // FIRST CONNECT FIX
             // ============================================================
-
-            // ขั้นที่ 1: รอให้ tunnel stable
             try { Thread.sleep(800); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "[Fix] Waiting 800ms for tunnel to stabilize...");
 
-            // ขั้นที่ 2: Force reroute
             NetworkBinder.forceReroute(this);
             VpnLogger.i(TAG, "[Fix] Forced network reroute");
 
@@ -288,7 +303,6 @@ public class ProxyVpnService extends VpnService
                 VpnLogger.w(TAG, "[Fix] setUnderlyingNetworks failed: " + t.getMessage());
             }
 
-            // ขั้นที่ 3: Warm-up DNS + verify
             StatusBus.post(StatusBus.State.TUN2SOCKS_READY,
                     "กำลังตรวจสอบการเชื่อมต่อ...");
             updateNotification("กำลังตรวจสอบการเชื่อมต่อ...");
@@ -334,10 +348,6 @@ public class ProxyVpnService extends VpnService
             stopVpn(true);
         }
     }
-
-    // ============================================================
-    // Auto-reconnect
-    // ============================================================
 
     private void startNetworkMonitor() {
         if (networkMonitor == null) {
@@ -419,10 +429,6 @@ public class ProxyVpnService extends VpnService
         workerThread = new Thread(() -> connectSshAndSocks(currentProfile), "vpn-reconnect");
         workerThread.start();
     }
-
-    // ============================================================
-    // Stop
-    // ============================================================
 
     private void stopVpn(boolean fullClose) {
         running = false;

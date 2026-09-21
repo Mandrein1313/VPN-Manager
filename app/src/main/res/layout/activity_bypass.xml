@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D1117"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#0D1117"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="#0D1117"
+            app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
+            app:navigationIconTint="#FFFFFF"
+            app:title="Bypass Mode"
+            app:titleTextColor="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/txtCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#0D1117"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="8dp"
+            android:text="Bypass: 0 แอป"
+            android:textColor="#00E676"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="8dp"
+            android:hint="ค้นหาแอป"
+            app:startIconDrawable="@android:drawable/ic_menu_search"
+            app:startIconTint="#888888">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtSearch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:textColor="#FFFFFF" />
+        </com.google.android.material.textfield.TextInputLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerApps"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingVertical="4dp" />
+
+        <!-- Loading -->
+        <LinearLayout
+            android:id="@+id/loadingView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <ProgressBar
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:indeterminateTint="#00E676" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="กำลังโหลดรายชื่อแอป..."
+                android:textColor="#B0BEC5"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Empty -->
+        <LinearLayout
+            android:id="@+id/emptyView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📭"
+                android:textSize="48sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="ไม่พบแอป"
+                android:textColor="#B0BEC5"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Footer info -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#161B22"
+        android:padding="12dp"
+        android:text="💡 แอปที่เลือกจะใช้อินเทอร์เน็ตโดยตรง ไม่ผ่าน VPN"
+        android:textColor="#888888"
+        android:textSize="11sp" />
+</LinearLayout>

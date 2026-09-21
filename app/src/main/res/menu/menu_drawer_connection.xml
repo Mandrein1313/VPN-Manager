@@ -24,6 +24,10 @@
                 android:id="@+id/nav_crash"
                 android:icon="@android:drawable/ic_menu_report_image"
                 android:title="Crash Log" />
+           <item  
+                android:id="@+id/nav_bypass"
+                android:icon="@android:drawable/ic_menu_manage"
+                android:title="Bypass Mode" />
 
             <item
                 android:id="@+id/nav_import"
