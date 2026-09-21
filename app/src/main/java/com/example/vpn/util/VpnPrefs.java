@@ -1,0 +1,59 @@
+package com.example.vpn.util;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+/**
+ * ⭐ เก็บค่าตั้งค่า VPN — Auto-reconnect, Kill Switch
+ */
+public class VpnPrefs {
+
+    private static final String PREF_NAME = "vpn_prefs";
+    private static final String KEY_AUTO_RECONNECT = "auto_reconnect";
+    private static final String KEY_KILL_SWITCH = "kill_switch";
+    private static final String KEY_LAST_PROFILE_ID = "last_profile_id";
+    private static final String KEY_WAS_CONNECTED = "was_connected";
+
+    private final SharedPreferences prefs;
+
+    public VpnPrefs(Context ctx) {
+        prefs = ctx.getApplicationContext()
+                .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+    }
+
+    // ===== Auto-reconnect =====
+    public boolean isAutoReconnect() {
+        return prefs.getBoolean(KEY_AUTO_RECONNECT, true);  // default ON
+    }
+
+    public void setAutoReconnect(boolean value) {
+        prefs.edit().putBoolean(KEY_AUTO_RECONNECT, value).apply();
+    }
+
+    // ===== Kill Switch =====
+    public boolean isKillSwitch() {
+        return prefs.getBoolean(KEY_KILL_SWITCH, false);  // default OFF
+    }
+
+    public void setKillSwitch(boolean value) {
+        prefs.edit().putBoolean(KEY_KILL_SWITCH, value).apply();
+    }
+
+    // ===== Profile ที่ใช้ล่าสุด =====
+    public long getLastProfileId() {
+        return prefs.getLong(KEY_LAST_PROFILE_ID, -1L);
+    }
+
+    public void setLastProfileId(long id) {
+        prefs.edit().putLong(KEY_LAST_PROFILE_ID, id).apply();
+    }
+
+    // ===== สถานะ VPN ล่าสุด (ก่อนแอปตาย) =====
+    public boolean wasConnected() {
+        return prefs.getBoolean(KEY_WAS_CONNECTED, false);
+    }
+
+    public void setWasConnected(boolean value) {
+        prefs.edit().putBoolean(KEY_WAS_CONNECTED, value).apply();
+    }
+}

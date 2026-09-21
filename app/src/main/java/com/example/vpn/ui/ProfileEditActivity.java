@@ -14,13 +14,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.vpn.R;
-import com.example.vpn.MainActivity;              // ⭐ เพิ่มบรรทัดนี้
+import com.example.vpn.MainActivity;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.model.Protocol;
+import com.example.vpn.util.VpnPrefs;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -40,10 +42,18 @@ public class ProfileEditActivity extends AppCompatActivity {
     private LinearLayout groupCredentials, groupSsh;
     private MaterialButton btnSave;
 
+    // ⭐ Options switches
+    private MaterialSwitch switchAutoReconnect;
+    private MaterialSwitch switchKillSwitch;
+
+    private VpnPrefs prefs;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile_edit);
+
+        prefs = new VpnPrefs(this);
 
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
@@ -66,6 +76,21 @@ public class ProfileEditActivity extends AppCompatActivity {
         groupCredentials = findViewById(R.id.groupCredentials);
         groupSsh = findViewById(R.id.groupSsh);
         btnSave = findViewById(R.id.btnSave);
+
+        // ⭐ Bind options
+        switchAutoReconnect = findViewById(R.id.switchAutoReconnect);
+        switchKillSwitch = findViewById(R.id.switchKillSwitch);
+
+        if (switchAutoReconnect != null) {
+            switchAutoReconnect.setChecked(prefs.isAutoReconnect());
+            switchAutoReconnect.setOnCheckedChangeListener((b, checked) ->
+                    prefs.setAutoReconnect(checked));
+        }
+        if (switchKillSwitch != null) {
+            switchKillSwitch.setChecked(prefs.isKillSwitch());
+            switchKillSwitch.setOnCheckedChangeListener((b, checked) ->
+                    prefs.setKillSwitch(checked));
+        }
 
         String[] protoNames = new String[Protocol.values().length];
         for (int i = 0; i < Protocol.values().length; i++) {

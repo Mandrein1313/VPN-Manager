@@ -19,8 +19,10 @@ import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.tunnel.Socks5Server;
 import com.example.vpn.tunnel.SshTunnel;
+import com.example.vpn.util.NetworkMonitor;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.VpnLogger;
+import com.example.vpn.util.VpnPrefs;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -29,11 +31,13 @@ import java.io.InputStream;
 
 import hev.htproxy.TProxyService;
 
-public class ProxyVpnService extends VpnService {
+public class ProxyVpnService extends VpnService
+        implements NetworkMonitor.Listener {
 
     public static final String TAG = "ProxyVpnService";
     public static final String ACTION_START = "START_VPN";
     public static final String ACTION_STOP  = "STOP_VPN";
+    public static final String ACTION_RECONNECT = "RECONNECT_VPN";
     public static final String EXTRA_PROFILE_ID = "profile_id";
 
     private static final String CHANNEL_ID = "vpn_channel";
@@ -41,8 +45,6 @@ public class ProxyVpnService extends VpnService {
     private static final String VPN_ADDRESS = "10.0.0.2";
     private static final String VPN_ROUTE   = "0.0.0.0";
     private static final int VPN_PREFIX     = 0;
-
-    /** ⭐ ลด MTU เป็น 1280 — ป้องกัน packet แตกใน tunnel */
     private static final int VPN_MTU = 1280;
 
     private ParcelFileDescriptor tunFd;
@@ -54,15 +56,47 @@ public class ProxyVpnService extends VpnService {
 
     private SshTunnel sshTunnel;
     private Socks5Server socks5Server;
+    private NetworkMonitor networkMonitor;
+    private VpnPrefs prefs;
+
+    private Profile currentProfile;
+    private volatile boolean connected = false;
+    private volatile boolean reconnecting = false;
+
+    /** ⭐ Handler สำหรับ schedule reconnect */
+    private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
+    private static final long RECONNECT_DELAY_MS = 3000;
+
+    // ============================================================
+    // Lifecycle
+    // ============================================================
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        prefs = new VpnPrefs(this);
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) return START_NOT_STICKY;
 
         String action = intent.getAction();
+
         if (ACTION_STOP.equals(action)) {
-            stopVpn();
+            prefs.setWasConnected(false);
+            prefs.setKillSwitch(false);  // ⭐ ปิด kill switch เมื่อสั่ง stop
+            stopVpn(true);                // ⭐ true = ปิดจริง ปิด TUN ด้วย
             return START_NOT_STICKY;
+        }
+
+        if (ACTION_RECONNECT.equals(action)) {
+            // ⭐ reconnect manual
+            if (currentProfile != null && !reconnecting) {
+                VpnLogger.i(TAG, "Manual reconnect requested");
+                doReconnect();
+            }
+            return START_STICKY;
         }
 
         if (ACTION_START.equals(action)) {
@@ -80,6 +114,7 @@ public class ProxyVpnService extends VpnService {
                 stopSelf();
                 return START_NOT_STICKY;
             }
+            prefs.setLastProfileId(profileId);
             loadProfileAndStart(profileId);
         }
 
@@ -91,9 +126,10 @@ public class ProxyVpnService extends VpnService {
         repo.getById(profileId, profile -> {
             if (profile == null) {
                 VpnLogger.e(TAG, "Profile not found: " + profileId);
-                stopVpn();
+                stopVpn(true);
                 return;
             }
+            currentProfile = profile;
             workerThread = new Thread(() -> startVpn(profile), "vpn-worker");
             workerThread.start();
         });
@@ -102,6 +138,10 @@ public class ProxyVpnService extends VpnService {
     private static String emptyToNull(String s) {
         return (s == null || s.trim().isEmpty()) ? null : s.trim();
     }
+
+    // ============================================================
+    // Start VPN
+    // ============================================================
 
     private void startVpn(Profile profile) {
         try {
@@ -112,9 +152,7 @@ public class ProxyVpnService extends VpnService {
                 throw new IOException("พอร์ตไม่ถูกต้อง: " + profile.port);
             }
 
-            // ============================================================
             // ---- 1. TUN ----
-            // ============================================================
             StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังสร้าง TUN...");
             VpnLogger.i(TAG, "Creating TUN interface...");
 
@@ -136,10 +174,10 @@ public class ProxyVpnService extends VpnService {
             running = true;
             VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd() + " MTU=" + VPN_MTU);
 
-            // ============================================================
-            // ⭐⭐ Force re-evaluate routing — แก้ปัญหา "ต่อติดแต่เน็ตไม่วิ่ง"
-            //    ทำให้แอปที่มี connection ค้างอยู่ ตัดแล้ว connect ใหม่ผ่าน VPN
-            // ============================================================
+            // ⭐ ตั้งค่า VPN state
+            prefs.setWasConnected(true);
+
+            // ⭐ Force re-evaluate routing
             try {
                 setUnderlyingNetworks(null);
                 VpnLogger.i(TAG, "Forced underlying networks = null");
@@ -147,13 +185,37 @@ public class ProxyVpnService extends VpnService {
                 VpnLogger.w(TAG, "setUnderlyingNetworks failed: " + t.getMessage());
             }
 
-            // ⭐ รอ VPN fully establish → protect() จะได้ทำงาน
             try { Thread.sleep(800); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "VPN fully established — starting SSH...");
 
-            // ============================================================
             // ---- 2. SSH ----
-            // ============================================================
+            connectSshAndSocks(profile);
+
+        } catch (Throwable e) {
+            VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
+
+            try {
+                StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
+                updateNotification("ผิดพลาด: " + e.getMessage());
+            } catch (Exception ignored) {}
+
+            // ⭐ ถ้า Kill Switch เปิด → keep TUN ไว้ แต่ block traffic
+            if (prefs.isKillSwitch() && tunFd != null) {
+                VpnLogger.w(TAG, "Kill Switch: keeping TUN active (traffic blocked)");
+                updateNotification("🔒 Kill Switch Active — เชื่อมต่อใหม่");
+                // ❌ ไม่ปิด TUN → traffic ถูก block โดย setBlocking(true)
+                return;
+            }
+
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+            stopVpn(true);
+        }
+    }
+
+    /** ⭐ แยกออกมาเพื่อให้ reconnect เรียกได้ */
+    private void connectSshAndSocks(Profile profile) {
+        try {
+            // ---- 2. SSH ----
             StatusBus.post(StatusBus.State.CONNECTING_SSH,
                     "กำลังเชื่อมต่อ SSH: " + profile.host + ":" + profile.port);
             updateNotification("กำลังเชื่อมต่อ SSH...");
@@ -177,9 +239,7 @@ public class ProxyVpnService extends VpnService {
             VpnLogger.i(TAG, "SSH connected");
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
 
-            // ============================================================
             // ---- 3. SOCKS5 ----
-            // ============================================================
             VpnLogger.i(TAG, "Starting SOCKS5 server...");
             socks5Server = new Socks5Server(sshTunnel);
             socks5Server.start();
@@ -188,13 +248,10 @@ public class ProxyVpnService extends VpnService {
                     "SOCKS5 พร้อม: 127.0.0.1:" + Socks5Server.LOCAL_PORT);
             VpnLogger.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
 
-            // ⭐ รอ SOCKS5 พร้อมจริงๆ ก่อนเปิด Tun2Socks
             try { Thread.sleep(500); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "Waiting 500ms for SOCKS5 to be fully ready...");
 
-            // ============================================================
             // ---- 4. Tun2Socks ----
-            // ============================================================
             StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
             updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
             VpnLogger.i(TAG, "Starting Tun2Socks bridge...");
@@ -219,16 +276,17 @@ public class ProxyVpnService extends VpnService {
                 StatusBus.post(StatusBus.State.CONNECTED,
                         "เชื่อมต่อ (SSH เท่านั้น): " + profile.name);
                 updateNotification("SSH พร้อม — Tun2Socks ไม่ทำงาน");
+                connected = true;
+                startNetworkMonitor();  // ⭐ เริ่มเฝ้า network
                 return;
             }
 
             tun2socksRunning = true;
+            connected = true;
             VpnLogger.i(TAG, "Tun2Socks started — VPN is active");
 
-            // ⭐ รอ Tun2Socks พร้อมจริงๆ
             try { Thread.sleep(500); } catch (InterruptedException ignored) {}
 
-            // ⭐ Force re-evaluate routing อีกครั้ง — บังคับ DNS lookup ใหม่
             try {
                 setUnderlyingNetworks(null);
                 VpnLogger.i(TAG, "Re-evaluated underlying networks after Tun2Socks");
@@ -240,44 +298,134 @@ public class ProxyVpnService extends VpnService {
                     "เชื่อมต่อแล้ว: " + profile.name);
             updateNotification("เชื่อมต่อแล้ว: " + profile.name);
 
+            // ⭐ เริ่ม NetworkMonitor
+            startNetworkMonitor();
+
         } catch (Throwable e) {
-            VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
+            VpnLogger.e(TAG, "connectSshAndSocks error: " + e.getMessage(), e);
 
             try {
                 StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
                 updateNotification("ผิดพลาด: " + e.getMessage());
             } catch (Exception ignored) {}
 
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException ignored) {}
+            // ⭐ Kill Switch logic
+            if (prefs.isKillSwitch() && tunFd != null) {
+                VpnLogger.w(TAG, "Kill Switch: keeping TUN active");
+                updateNotification("🔒 Kill Switch Active");
+                // ลอง reconnect อีกครั้ง
+                scheduleReconnect();
+                return;
+            }
 
-            stopVpn();
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+            stopVpn(true);
         }
     }
 
-    private static void addDnsIfValid(Builder builder, String dns) {
-        if (dns == null || dns.trim().isEmpty()) return;
-        String value = dns.trim();
-        if (!value.matches("[0-9a-fA-F:.]+") || !value.matches(".*[0-9].*")) return;
-        try {
-            builder.addDnsServer(value);
-        } catch (IllegalArgumentException ignored) {}
+    // ============================================================
+    // ⭐ Auto-reconnect
+    // ============================================================
+
+    private void startNetworkMonitor() {
+        if (networkMonitor == null) {
+            networkMonitor = new NetworkMonitor(this, this);
+        }
+        networkMonitor.start();
+        VpnLogger.i(TAG, "NetworkMonitor started");
     }
 
-    private void copyConfigFromAssets() throws IOException {
-        configFile = new File(getFilesDir(), "hev-config.yml");
-        try (InputStream in = getAssets().open("hev-config.yml");
-             FileOutputStream out = new FileOutputStream(configFile)) {
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+    private void stopNetworkMonitor() {
+        if (networkMonitor != null) {
+            networkMonitor.stop();
+            networkMonitor = null;
         }
     }
 
-    private void stopVpn() {
+    /** ⭐ เรียกเมื่อ network กลับมา */
+    @Override
+    public void onNetworkAvailable() {
+        VpnLogger.i(TAG, "Network available — checking VPN state");
+        if (!connected && currentProfile != null && prefs.isAutoReconnect()) {
+            VpnLogger.i(TAG, "Auto-reconnect: network is back");
+            scheduleReconnect();
+        }
+    }
+
+    /** ⭐ เรียกเมื่อ network หายไป */
+    @Override
+    public void onNetworkLost() {
+        VpnLogger.w(TAG, "Network lost");
+        if (connected) {
+            // ⭐ ถ้า Kill Switch เปิด → mark ว่า connected = false
+            // แต่ไม่ปิด TUN → traffic จะถูก block
+            connected = false;
+            if (prefs.isKillSwitch()) {
+                updateNotification("🔒 รอ network กลับมา...");
+            } else {
+                updateNotification("Network lost — กำลังรอ...");
+            }
+            StatusBus.post(StatusBus.State.ERROR, "Network lost");
+        }
+    }
+
+    /** ⭐ Schedule reconnect หลัง delay */
+    private void scheduleReconnect() {
+        if (reconnecting) return;
+        reconnecting = true;
+
+        reconnectHandler.removeCallbacksAndMessages(null);
+        reconnectHandler.postDelayed(() -> {
+            reconnecting = false;
+            if (currentProfile != null) {
+                doReconnect();
+            }
+        }, RECONNECT_DELAY_MS);
+
+        VpnLogger.i(TAG, "Reconnect scheduled in " + RECONNECT_DELAY_MS + "ms");
+    }
+
+    /** ⭐ ล้าง SSH/SOCKS5 แล้วต่อใหม่ โดยไม่ปิด TUN */
+    private void doReconnect() {
+        if (currentProfile == null) return;
+        VpnLogger.i(TAG, "Reconnecting...");
+        updateNotification("กำลังเชื่อมต่อใหม่...");
+        StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลัง reconnect...");
+
+        // ปิด SSH/SOCKS5/Tun2Socks เดิม
+        if (tun2socksRunning) {
+            try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
+            tun2socksRunning = false;
+        }
+        if (socks5Server != null) {
+            try { socks5Server.stop(); } catch (Throwable ignored) {}
+            socks5Server = null;
+        }
+        if (sshTunnel != null) {
+            try { sshTunnel.disconnect(); } catch (Throwable ignored) {}
+            sshTunnel = null;
+        }
+
+        // ⭐ ต่อใหม่
+        workerThread = new Thread(() -> connectSshAndSocks(currentProfile), "vpn-reconnect");
+        workerThread.start();
+    }
+
+    // ============================================================
+    // Stop
+    // ============================================================
+
+    /**
+     * ⭐ stopVpn
+     * @param fullClose true = ปิดทุกอย่างรวมทั้ง TUN
+     *                  false = ปิดเฉพาะ SSH/SOCKS (เก็บ TUN ไว้ — Kill Switch)
+     */
+    private void stopVpn(boolean fullClose) {
         running = false;
-        VpnLogger.i(TAG, "Stopping VPN...");
+        VpnLogger.i(TAG, "Stopping VPN (full=" + fullClose + ")...");
+
+        // ⭐ หยุด network monitor
+        stopNetworkMonitor();
 
         if (workerThread != null) {
             workerThread.interrupt();
@@ -304,39 +452,72 @@ public class ProxyVpnService extends VpnService {
             sshTunnel = null;
         }
 
-        if (tunFd != null) {
-            try { tunFd.close(); } catch (IOException ignored) {}
-            tunFd = null;
-        }
+        if (fullClose) {
+            // ⭐ ปิด TUN จริง
+            if (tunFd != null) {
+                try { tunFd.close(); } catch (IOException ignored) {}
+                tunFd = null;
+            }
+            if (configFile != null && configFile.exists()) {
+                configFile.delete();
+                configFile = null;
+            }
+            connected = false;
+            prefs.setWasConnected(false);
 
-        if (configFile != null && configFile.exists()) {
-            configFile.delete();
-            configFile = null;
-        }
+            try { stopForeground(true); } catch (Exception ignored) {}
+            StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
 
-        try {
-            stopForeground(true);
-        } catch (Exception ignored) {}
-
-        StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
-
-        if (!destroying) {
-            new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
+            if (!destroying) {
+                new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
+            }
+        } else {
+            // ⭐ เก็บ TUN ไว้ — traffic ถูก block
+            connected = false;
+            VpnLogger.w(TAG, "Keeping TUN active (kill switch mode)");
         }
     }
 
     @Override
     public void onDestroy() {
         destroying = true;
-        stopVpn();
+        stopVpn(true);
         super.onDestroy();
     }
 
     @Override
     public void onRevoke() {
-        stopVpn();
+        prefs.setWasConnected(false);
+        stopVpn(true);
         super.onRevoke();
     }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+
+    private static void addDnsIfValid(Builder builder, String dns) {
+        if (dns == null || dns.trim().isEmpty()) return;
+        String value = dns.trim();
+        if (!value.matches("[0-9a-fA-F:.]+") || !value.matches(".*[0-9].*")) return;
+        try {
+            builder.addDnsServer(value);
+        } catch (IllegalArgumentException ignored) {}
+    }
+
+    private void copyConfigFromAssets() throws IOException {
+        configFile = new File(getFilesDir(), "hev-config.yml");
+        try (InputStream in = getAssets().open("hev-config.yml");
+             FileOutputStream out = new FileOutputStream(configFile)) {
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        }
+    }
+
+    // ============================================================
+    // Notification
+    // ============================================================
 
     private Notification buildNotification(String text) {
         createChannelIfNeeded();
@@ -352,11 +533,19 @@ public class ProxyVpnService extends VpnService {
                 this, 0, stopIntent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
+        // ⭐ ปุ่ม Reconnect
+        Intent reconnectIntent = new Intent(this, ProxyVpnService.class);
+        reconnectIntent.setAction(ACTION_RECONNECT);
+        PendingIntent reconnectPi = PendingIntent.getService(
+                this, 1, reconnectIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("VPN Manager")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_vpn)
                 .setContentIntent(pi)
+                .addAction(android.R.drawable.ic_menu_rotate, "Reconnect", reconnectPi)
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "หยุด", stopPi)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)

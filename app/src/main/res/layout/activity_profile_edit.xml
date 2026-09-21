@@ -144,7 +144,6 @@
                     android:textColor="?attr/colorPrimary"
                     android:textStyle="bold" />
 
-                <!-- ⭐ HTTP Proxy (เพิ่มใหม่) -->
                 <com.google.android.material.textfield.TextInputLayout
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
@@ -225,6 +224,52 @@
                     android:inputType="text" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- ⭐ ===== VPN Options ===== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="ตัวเลือก VPN"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchAutoReconnect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="เชื่อมต่อใหม่อัตโนมัติ"
+                android:textColor="#DDDDDD"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="2dp"
+                android:text="เมื่อเน็ตกลับมา ระบบจะ reconnect VPN ให้ทันที"
+                android:textColor="#666666"
+                android:textSize="11sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchKillSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Kill Switch"
+                android:textColor="#DDDDDD"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="2dp"
+                android:text="บล็อกการเชื่อมต่ออินเทอร์เน็ตถ้า VPN หลุด (ป้องกัน IP รั่ว)"
+                android:textColor="#666666"
+                android:textSize="11sp" />
+
+            <!-- ===== Save button ===== -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSave"
                 android:layout_width="match_parent"
