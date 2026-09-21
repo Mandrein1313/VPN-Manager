@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BypassActivity extends AppCompatActivity
         implements AppListAdapter.Listener {
@@ -42,7 +43,10 @@ public class BypassActivity extends AppCompatActivity
     private TextInputEditText edtSearch;
 
     private final List<AppInfo> allApps = new ArrayList<>();
-    private final ExecutorService pool = Executors.newSingleThreadExecutor();
+    private final ExecutorService pool = Executors.newFixedThreadPool(2);
+
+    /** ⭐ flag — ป้องกัน submit งานหลัง onDestroy */
+    private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -65,7 +69,6 @@ public class BypassActivity extends AppCompatActivity
         adapter = new AppListAdapter(this);
         recycler.setAdapter(adapter);
 
-        // Search
         if (edtSearch != null) {
             edtSearch.addTextChangedListener(new android.text.TextWatcher() {
                 @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
@@ -81,78 +84,144 @@ public class BypassActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // Load apps (background thread)
+    // ⭐ ตรวจสอบก่อน submit งาน
+    // ============================================================
+    private boolean canSubmit() {
+        return !destroyed.get()
+                && !isFinishing()
+                && !isDestroyed()
+                && !pool.isShutdown()
+                && !pool.isTerminated();
+    }
+
+    // ============================================================
+    // Load apps
     // ============================================================
     private void loadApps() {
+        if (!canSubmit()) return;
+
         loadingView.setVisibility(View.VISIBLE);
         recycler.setVisibility(View.GONE);
         emptyView.setVisibility(View.GONE);
 
-        pool.execute(() -> {
-            PackageManager pm = getPackageManager();
-            List<ApplicationInfo> apps = pm.getInstalledApplications(
-                    PackageManager.GET_META_DATA);
+        try {
+            pool.execute(() -> {
+                if (destroyed.get()) return;
 
-            Set<String> bypassed = prefs.getPackages();
-            List<AppInfo> result = new ArrayList<>();
+                PackageManager pm = getPackageManager();
+                List<ApplicationInfo> apps = pm.getInstalledApplications(
+                        PackageManager.GET_META_DATA);
 
-            for (ApplicationInfo ai : apps) {
-                // ข้ามแอปตัวเอง
-                if (ai.packageName.equals(getPackageName())) continue;
+                if (destroyed.get()) return;
 
-                try {
-                    String label = ai.loadLabel(pm).toString();
-                    AppInfo info = new AppInfo(
-                            ai.packageName,
-                            label,
-                            null,   // ไม่โหลด icon ที่นี่ (ใช้ memory เยอะ)
-                            (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0,
-                            bypassed.contains(ai.packageName)
-                    );
-                    result.add(info);
-                } catch (Exception ignored) {}
-            }
+                Set<String> bypassed = prefs.getPackages();
+                List<AppInfo> result = new ArrayList<>();
 
-            // เรียงตามชื่อ
-            Collections.sort(result, (a, b) ->
-                    a.appName.compareToIgnoreCase(b.appName));
+                for (ApplicationInfo ai : apps) {
+                    if (destroyed.get()) return;
 
-            runOnUiThread(() -> {
-                allApps.clear();
-                allApps.addAll(result);
-                adapter.submit(result);
-                loadingView.setVisibility(View.GONE);
-                recycler.setVisibility(View.VISIBLE);
-                emptyView.setVisibility(result.isEmpty() ? View.VISIBLE : View.GONE);
-                updateCount();
+                    // ข้ามแอปตัวเอง
+                    if (ai.packageName.equals(getPackageName())) continue;
 
-                // โหลด icon แบบ lazy
-                loadIcons();
+                    try {
+                        String label = ai.loadLabel(pm).toString();
+                        AppInfo info = new AppInfo(
+                                ai.packageName,
+                                label,
+                                null,
+                                (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0,
+                                bypassed.contains(ai.packageName)
+                        );
+                        result.add(info);
+                    } catch (Exception ignored) {}
+                }
+
+                // เรียงตามชื่อ
+                Collections.sort(result, (a, b) ->
+                        a.appName.compareToIgnoreCase(b.appName));
+
+                final List<AppInfo> finalResult = result;
+
+                // ⭐ ตรวจสอบก่อน post เข้า main thread
+                if (destroyed.get()) return;
+                runOnUiThread(() -> {
+                    if (destroyed.get() || isFinishing() || isDestroyed()) return;
+
+                    allApps.clear();
+                    allApps.addAll(finalResult);
+                    adapter.submit(finalResult);
+                    loadingView.setVisibility(View.GONE);
+                    recycler.setVisibility(View.VISIBLE);
+                    emptyView.setVisibility(
+                            finalResult.isEmpty() ? View.VISIBLE : View.GONE);
+                    updateCount();
+
+                    // ⭐ โหลด icon — พร้อมตรวจสอบทุกจุด
+                    loadIcons();
+                });
             });
-        });
+        } catch (Exception e) {
+            // pool ถูกปิดก่อน submit — เพิกเฉย
+            android.util.Log.w("BypassActivity",
+                    "loadApps submit failed: " + e.getMessage());
+        }
     }
 
-    /** ⭐ โหลด icon แบบ lazy ทีละตัว — ประหยัด memory */
+    // ============================================================
+    // Load icons (lazy) — ⭐ ตรวจสอบทุกจุดก่อน submit
+    // ============================================================
     private void loadIcons() {
-        pool.execute(() -> {
-            PackageManager pm = getPackageManager();
-            for (int i = 0; i < allApps.size(); i++) {
-                AppInfo info = allApps.get(i);
-                try {
-                    info.icon = pm.getApplicationIcon(info.packageName);
-                } catch (Exception ignored) {}
+        // ⭐ ตรวจสอบก่อน submit
+        if (!canSubmit()) return;
 
-                final int index = i;
-                if (index % 5 == 0) {
-                    runOnUiThread(() -> {
-                        if (index < adapter.getItemCount()) {
-                            adapter.notifyItemChanged(index);
-                        }
-                    });
+        // snapshot รายการ — ป้องกัน concurrent modification
+        final List<AppInfo> snapshot = new ArrayList<>(allApps);
+        if (snapshot.isEmpty()) return;
+
+        try {
+            pool.execute(() -> {
+                if (destroyed.get()) return;
+
+                PackageManager pm = getPackageManager();
+                for (int i = 0; i < snapshot.size(); i++) {
+                    if (destroyed.get()) return;
+
+                    AppInfo info = snapshot.get(i);
+                    try {
+                        info.icon = pm.getApplicationIcon(info.packageName);
+                    } catch (Exception ignored) {}
+
+                    // ⭐ update UI เป็นช่วงๆ (ทุก 5 ตัว)
+                    final int index = i;
+                    if (index % 5 == 0) {
+                        if (destroyed.get()) return;
+                        runOnUiThread(() -> {
+                            if (destroyed.get()
+                                    || isFinishing() || isDestroyed()) return;
+                            if (index < adapter.getItemCount()) {
+                                try {
+                                    adapter.notifyItemChanged(index);
+                                } catch (Exception ignored) {}
+                            }
+                        });
+                    }
                 }
-            }
-            runOnUiThread(() -> adapter.notifyDataSetChanged());
-        });
+
+                // ⭐ update ครั้งสุดท้าย
+                if (destroyed.get()) return;
+                runOnUiThread(() -> {
+                    if (destroyed.get()
+                            || isFinishing() || isDestroyed()) return;
+                    try {
+                        adapter.notifyDataSetChanged();
+                    } catch (Exception ignored) {}
+                });
+            });
+        } catch (Exception e) {
+            // pool ถูกปิด — เพิกเฉย
+            android.util.Log.w("BypassActivity",
+                    "loadIcons submit failed: " + e.getMessage());
+        }
     }
 
     // ============================================================
@@ -232,9 +301,17 @@ public class BypassActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
 
+    // ============================================================
+    // ⭐ onDestroy — set flag ก่อน + shutdown แบบสุภาพ
+    // ============================================================
     @Override
     protected void onDestroy() {
+        destroyed.set(true);
         super.onDestroy();
-        pool.shutdownNow();
+
+        try {
+            // ⭐ shutdownNow แทน — interrupt งานที่ค้าง
+            pool.shutdownNow();
+        } catch (Exception ignored) {}
     }
 }
