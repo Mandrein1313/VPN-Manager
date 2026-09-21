@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Build;
@@ -51,6 +52,10 @@ public class ProxyVpnService extends VpnService
     private static final int VPN_PREFIX     = 0;
     private static final int VPN_MTU = 1280;
 
+    // ⭐ Service state (persist ข้าม process)
+    private static final String STATE_PREF = "vpn_state";
+    private static final String KEY_RUNNING = "running";
+
     private ParcelFileDescriptor tunFd;
     private Thread workerThread;
     private volatile boolean running = false;
@@ -72,6 +77,34 @@ public class ProxyVpnService extends VpnService
     private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
     private static final long RECONNECT_DELAY_MS = 3000;
 
+    // ============================================================
+    // ⭐ Service state helpers
+    // ============================================================
+
+    private void setServiceRunning(boolean running) {
+        try {
+            getSharedPreferences(STATE_PREF, MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(KEY_RUNNING, running)
+                    .apply();
+            VpnLogger.i(TAG, "Service running = " + running);
+        } catch (Exception ignored) {}
+    }
+
+    /** ⭐ ให้ UI เรียกได้ */
+    public static boolean isServiceRunning(Context ctx) {
+        try {
+            return ctx.getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
+                    .getBoolean(KEY_RUNNING, false);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // ============================================================
+    // Lifecycle
+    // ============================================================
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -86,6 +119,7 @@ public class ProxyVpnService extends VpnService
         String action = intent.getAction();
 
         if (ACTION_STOP.equals(action)) {
+            VpnLogger.i(TAG, "STOP action received");
             prefs.setWasConnected(false);
             prefs.setKillSwitch(false);
             stopVpn(true);
@@ -108,7 +142,10 @@ public class ProxyVpnService extends VpnService
                 return START_NOT_STICKY;
             }
             try {
-                if (running || workerThread != null || tunFd != null) return START_STICKY;
+                if (running || workerThread != null || tunFd != null) {
+                    setServiceRunning(true);
+                    return START_STICKY;
+                }
                 startForeground(NOTIF_ID, buildNotification("กำลังเชื่อมต่อ..."));
             } catch (Throwable e) {
                 VpnLogger.e(TAG, "startForeground failed", e);
@@ -116,6 +153,7 @@ public class ProxyVpnService extends VpnService
                 return START_NOT_STICKY;
             }
             prefs.setLastProfileId(profileId);
+            setServiceRunning(true);
             loadProfileAndStart(profileId);
         }
 
@@ -160,7 +198,6 @@ public class ProxyVpnService extends VpnService
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
 
-            // ⭐ เพิ่มแอปที่ bypass — ไม่ต้องผ่าน VPN
             int bypassCount = 0;
             Set<String> bypassed = bypassPrefs.getPackages();
             for (String pkg : bypassed) {
@@ -168,13 +205,11 @@ public class ProxyVpnService extends VpnService
                     builder.addDisallowedApplication(pkg);
                     bypassCount++;
                 } catch (Exception e) {
-                    VpnLogger.w(TAG, "Bypass: cannot add " + pkg
-                            + " — " + e.getMessage());
+                    VpnLogger.w(TAG, "Bypass: cannot add " + pkg);
                 }
             }
             if (bypassCount > 0) {
-                VpnLogger.i(TAG, "Bypass Mode: " + bypassCount
-                        + " apps excluded from VPN");
+                VpnLogger.i(TAG, "Bypass Mode: " + bypassCount + " apps excluded");
             }
 
             addDnsIfValid(builder, profile.dns1);
@@ -287,9 +322,7 @@ public class ProxyVpnService extends VpnService
             tun2socksRunning = true;
             VpnLogger.i(TAG, "Tun2Socks started — VPN is active");
 
-            // ============================================================
             // FIRST CONNECT FIX
-            // ============================================================
             try { Thread.sleep(800); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "[Fix] Waiting 800ms for tunnel to stabilize...");
 
@@ -430,8 +463,12 @@ public class ProxyVpnService extends VpnService
         workerThread.start();
     }
 
+    // ============================================================
+    // ⭐ Stop — เพิ่ม setServiceRunning(false) + สั่ง statusBus ทันที
+    // ============================================================
     private void stopVpn(boolean fullClose) {
         running = false;
+        connected = false;
         VpnLogger.i(TAG, "Stopping VPN (full=" + fullClose + ")...");
 
         if (connectivityChecker != null) {
@@ -475,17 +512,21 @@ public class ProxyVpnService extends VpnService
                 configFile.delete();
                 configFile = null;
             }
-            connected = false;
             prefs.setWasConnected(false);
 
-            try { stopForeground(true); } catch (Exception ignored) {}
+            // ⭐ set flag + post status ทันที
+            setServiceRunning(false);
             StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
 
+            try { stopForeground(true); } catch (Exception ignored) {}
+
+            // ⭐ เลื่อน stopSelf 100ms
             if (!destroying) {
                 new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
+            } else {
+                stopSelf();
             }
         } else {
-            connected = false;
             VpnLogger.w(TAG, "Keeping TUN active (kill switch mode)");
         }
     }
@@ -494,6 +535,7 @@ public class ProxyVpnService extends VpnService
     public void onDestroy() {
         destroying = true;
         stopVpn(true);
+        setServiceRunning(false);   // ⭐ mark stopped
         super.onDestroy();
     }
 

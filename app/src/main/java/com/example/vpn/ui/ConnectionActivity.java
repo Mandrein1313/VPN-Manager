@@ -117,18 +117,15 @@ public class ConnectionActivity extends AppCompatActivity
         tabLayout = findViewById(R.id.tabLayout);
         viewPager = findViewById(R.id.viewPager);
 
-        // ===== ViewPager2 + Fragment =====
         ConnectionPagerAdapter pagerAdapter = new ConnectionPagerAdapter(this);
         viewPager.setAdapter(pagerAdapter);
         viewPager.setUserInputEnabled(true);
 
-        // ===== TabLayout + ViewPager2 =====
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             if (position == 0) tab.setText("MAIN");
             else tab.setText("LOG");
         }).attach();
 
-        // ===== Toolbar + Drawer =====
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
@@ -143,12 +140,10 @@ public class ConnectionActivity extends AppCompatActivity
 
         navView.setNavigationItemSelectedListener(this);
 
-        // ===== ViewModel =====
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
 
-        // ===== Profile จาก intent =====
         long profileId = getIntent().getLongExtra(EXTRA_PROFILE_ID, -1L);
         if (profileId > 0) {
             viewModel.getRepo().getById(profileId, p -> {
@@ -175,7 +170,7 @@ public class ConnectionActivity extends AppCompatActivity
             });
         }
 
-        // ===== Observe Status =====
+        // ⭐ Observe Status
         StatusBus.get().observe(this, status -> {
             if (status == null) return;
 
@@ -223,7 +218,6 @@ public class ConnectionActivity extends AppCompatActivity
             }
         });
 
-        // ===== Bottom actions =====
         View actionEdit = findViewById(R.id.actionEdit);
         View actionLog = findViewById(R.id.actionLog);
         View actionDelete = findViewById(R.id.actionDelete);
@@ -260,7 +254,6 @@ public class ConnectionActivity extends AppCompatActivity
         }
     }
 
-    // ⭐ เก็บ fragment reference
     @Override
     public void onAttachFragment(@NonNull androidx.fragment.app.Fragment fragment) {
         super.onAttachFragment(fragment);
@@ -273,7 +266,7 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // MainFragment.Listener
+    // ⭐ MainFragment.Listener — ใช้ isServiceRunning
     // ============================================================
     @Override
     public void onMainConnectClick() {
@@ -282,19 +275,26 @@ public class ConnectionActivity extends AppCompatActivity
                     Toast.LENGTH_SHORT).show();
             return;
         }
-        if (mainFragment == null || mainFragment.getConnectButton() == null) return;
 
-        switch (mainFragment.getConnectButton().getState()) {
-            case CONNECTED:
-            case CONNECTING:
-                stopVpnService();
-                break;
-            case IDLE:
-            case ERROR:
-            default:
-                requestConnect();
-                break;
+        // ⭐ เช็ค service state จริงก่อน
+        boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
+
+        if (serviceRunning) {
+            VpnLogger.i("ConnectionActivity", "Service is running — stopping");
+            stopVpnService();
+            return;
         }
+
+        // Service ไม่ทำงาน — เช็ค button state
+        if (mainFragment != null && mainFragment.getConnectButton() != null) {
+            ConnectButtonView.State state = mainFragment.getConnectButton().getState();
+            if (state == ConnectButtonView.State.CONNECTING) {
+                stopVpnService();
+                return;
+            }
+        }
+
+        requestConnect();
     }
 
     @Override
@@ -328,8 +328,25 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // Reload Profiles
+    // ⭐ Sync button state กับ service state จริง
     // ============================================================
+    private void syncButtonState() {
+        if (mainFragment == null || mainFragment.getConnectButton() == null) return;
+
+        boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
+        ConnectButtonView.State currentState = mainFragment.getConnectButton().getState();
+
+        if (!serviceRunning && currentState == ConnectButtonView.State.CONNECTED) {
+            mainFragment.getConnectButton().setState(ConnectButtonView.State.IDLE);
+            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+            VpnLogger.i("ConnectionActivity", "Synced to IDLE");
+        } else if (serviceRunning && currentState == ConnectButtonView.State.IDLE) {
+            mainFragment.getConnectButton().setState(ConnectButtonView.State.CONNECTED);
+            updateStatusText("[ CONNECTED ]", 0xFF00E676);
+            VpnLogger.i("ConnectionActivity", "Synced to CONNECTED");
+        }
+    }
+
     private void reloadProfiles() {
         viewModel.getProfiles().observe(this, list -> {
             if (targetProfile != null) return;
@@ -346,9 +363,6 @@ public class ConnectionActivity extends AppCompatActivity
         });
     }
 
-    // ============================================================
-    // Navigation Drawer
-    // ============================================================
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
@@ -362,7 +376,6 @@ public class ConnectionActivity extends AppCompatActivity
         } else if (id == R.id.nav_crash) {
             startActivity(new Intent(this, CrashLogActivity.class));
         } else if (id == R.id.nav_bypass) {
-            // ⭐ เปิดหน้า Bypass Mode
             startActivity(new Intent(this, BypassActivity.class));
         } else if (id == R.id.nav_import) {
             Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
@@ -408,9 +421,6 @@ public class ConnectionActivity extends AppCompatActivity
         }
     }
 
-    // ============================================================
-    // Other methods
-    // ============================================================
     private void openProfilePicker() {
         skipNextResumeReload = true;
         Intent i = new Intent(this, MainActivity.class);
@@ -444,6 +454,10 @@ public class ConnectionActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+
+        // ⭐ Sync button state ทุกครั้งที่กลับมา
+        syncButtonState();
+
         if (skipNextResumeReload) {
             skipNextResumeReload = false;
             return;
@@ -507,7 +521,11 @@ public class ConnectionActivity extends AppCompatActivity
     private void stopVpnService() {
         Intent svc = new Intent(this, ProxyVpnService.class);
         svc.setAction(ProxyVpnService.ACTION_STOP);
-        startService(svc);
+        try {
+            startService(svc);
+        } catch (Exception e) {
+            VpnLogger.w("ConnectionActivity", "stopVpnService error: " + e.getMessage());
+        }
     }
 
     private ConnectButtonView.State mapStatus(StatusBus.State s) {
@@ -528,9 +546,6 @@ public class ConnectionActivity extends AppCompatActivity
         }
     }
 
-    // ============================================================
-    // Stats
-    // ============================================================
     private void startStatsUpdates() {
         statsHandler.removeCallbacks(statsRunnable);
         statsHandler.post(statsRunnable);
