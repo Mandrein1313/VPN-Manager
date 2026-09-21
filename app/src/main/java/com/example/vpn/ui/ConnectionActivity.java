@@ -1,8 +1,5 @@
 package com.example.vpn.ui;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
 import android.content.Intent;
 import android.net.TrafficStats;
 import android.net.VpnService;
@@ -12,11 +9,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -29,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.vpn.MainActivity;
 import com.example.vpn.ProxyVpnService;
@@ -36,57 +29,31 @@ import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
-import com.example.vpn.util.LogColors;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.VpnLogger;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 
 import java.util.List;
 import java.util.Locale;
 
 public class ConnectionActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+        implements NavigationView.OnNavigationItemSelectedListener,
+                   MainFragment.Listener {
 
     public static final String EXTRA_PROFILE_ID = "profile_id";
 
-    // ===== Drawer =====
     private DrawerLayout drawerLayout;
     private NavigationView navView;
     private MaterialToolbar toolbar;
-
-    // ===== Views =====
     private TabLayout tabLayout;
-    private View contentMain;
-    private View contentLog;
-    private ConnectButtonView btnConnect;
-    private TextView txtStatus;
+    private ViewPager2 viewPager;
 
-    private View adFreeCard;
-    private TextView txtAdFreeTime;
+    private MainFragment mainFragment;
+    private LogFragment logFragment;
 
-    private LinearLayout configCard;
-    private ImageView imgConfigIcon;
-    private TextView txtConfigName;
-    private TextView txtConfigLeft;
-    private TextView txtConfigRight;
-    private ImageView btnConfigArrow;
-
-    private TextView txtDownload;
-    private TextView txtUpload;
-    private TextView txtSession;
-    private TextView txtLogContent;
-
-    // ⭐ Log toolbar
-    private ScrollView scrollLogView;
-    private ImageButton btnLogCopy;
-    private ImageButton btnLogClear;
-    private ImageButton btnLogScrollBottom;
-
-    private LinearLayout actionEdit, actionLog, actionDelete, actionAdd;
-
-    // ===== State =====
     private ProfileViewModel viewModel;
     private Profile targetProfile;
     private long sessionStartTime = 0L;
@@ -95,26 +62,12 @@ public class ConnectionActivity extends AppCompatActivity
 
     private boolean skipNextResumeReload = false;
 
-    private final VpnLogger.Listener logListener = line -> {
-        if (contentLog == null || txtLogContent == null) return;
-        if (contentLog.getVisibility() != View.VISIBLE) return;
-        runOnUiThread(() -> {
-            android.text.SpannableStringBuilder ssb =
-                    new android.text.SpannableStringBuilder();
-            ssb.append(LogColors.coloredLine(line));
-            ssb.append("\n");
-            txtLogContent.append(ssb);
-            scrollLogToBottom();
-        });
-    };
-
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
 
     // ============================================================
     // Launchers
     // ============================================================
-
     private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
@@ -153,52 +106,30 @@ public class ConnectionActivity extends AppCompatActivity
     // ============================================================
     // Lifecycle
     // ============================================================
-
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connection);
 
-        // ===== Bind views =====
         drawerLayout = findViewById(R.id.drawerLayout);
         navView = findViewById(R.id.navView);
         toolbar = findViewById(R.id.toolbar);
         tabLayout = findViewById(R.id.tabLayout);
-        contentMain = findViewById(R.id.contentMain);
-        contentLog = findViewById(R.id.contentLog);
-        btnConnect = findViewById(R.id.btnConnect);
-        txtStatus = findViewById(R.id.txtStatus);
+        viewPager = findViewById(R.id.viewPager);
 
-        adFreeCard = findViewById(R.id.adFreeCard);
-        txtAdFreeTime = findViewById(R.id.txtAdFreeTime);
+        // ===== ViewPager2 + Fragment =====
+        ConnectionPagerAdapter pagerAdapter = new ConnectionPagerAdapter(this);
+        viewPager.setAdapter(pagerAdapter);
+        viewPager.setUserInputEnabled(true);   // ⭐ เปิด swipe
 
-        configCard = findViewById(R.id.configCard);
-        imgConfigIcon = findViewById(R.id.imgConfigIcon);
-        txtConfigName = findViewById(R.id.txtConfigName);
-        txtConfigLeft = findViewById(R.id.txtConfigLeft);
-        txtConfigRight = findViewById(R.id.txtConfigRight);
-        btnConfigArrow = findViewById(R.id.btnConfigArrow);
+        // ===== TabLayout + ViewPager2 =====
+        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
+            if (position == 0) tab.setText("MAIN");
+            else tab.setText("LOG");
+        }).attach();
 
-        txtDownload = findViewById(R.id.txtDownload);
-        txtUpload = findViewById(R.id.txtUpload);
-        txtSession = findViewById(R.id.txtSession);
-        txtLogContent = findViewById(R.id.txtLogContent);
-
-        // ⭐ Log toolbar
-        scrollLogView = findViewById(R.id.scrollLogView);
-        btnLogCopy = findViewById(R.id.btnLogCopy);
-        btnLogClear = findViewById(R.id.btnLogClear);
-        btnLogScrollBottom = findViewById(R.id.btnLogScrollBottom);
-
-        actionEdit = findViewById(R.id.actionEdit);
-        actionLog = findViewById(R.id.actionLog);
-        actionDelete = findViewById(R.id.actionDelete);
-        actionAdd = findViewById(R.id.actionAdd);
-
-        // ⭐ ปุ่มใน log toolbar
-        btnLogCopy.setOnClickListener(v -> copyLogToClipboard());
-        btnLogClear.setOnClickListener(v -> confirmClearLog());
-        btnLogScrollBottom.setOnClickListener(v -> scrollLogToBottom());
+        // ===== สร้าง MainFragment เอง เพื่ออ้างอิง =====
+        // หมายเหตุ: FragmentStateAdapter จะสร้างใหม่ — เราใช้ callback จาก Fragment
 
         // ===== Toolbar + Drawer =====
         setSupportActionBar(toolbar);
@@ -214,27 +145,6 @@ public class ConnectionActivity extends AppCompatActivity
         toggle.syncState();
 
         navView.setNavigationItemSelectedListener(this);
-
-        // ===== Tabs =====
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                if (tab.getPosition() == 0) {
-                    contentMain.setVisibility(View.VISIBLE);
-                    contentLog.setVisibility(View.GONE);
-                    VpnLogger.setListener(null);
-                } else {
-                    contentMain.setVisibility(View.GONE);
-                    contentLog.setVisibility(View.VISIBLE);
-                    refreshLogView();
-                    VpnLogger.setListener(logListener);
-                }
-            }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {
-                if (tab.getPosition() == 1) refreshLogView();
-            }
-        });
 
         // ===== ViewModel =====
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
@@ -256,10 +166,8 @@ public class ConnectionActivity extends AppCompatActivity
             viewModel.getProfiles().observe(this, list -> {
                 if (targetProfile != null) return;
                 if (list == null || list.isEmpty()) {
-                    txtStatus.setText("[ NO PROFILE ]");
-                    txtConfigName.setText("Not Set");
-                    txtConfigLeft.setText("---");
-                    txtConfigRight.setText("---");
+                    updateStatusText("[ NO PROFILE ]", 0xFF00E676);
+                    updateConfigCard("Not Set", "---", "---");
                     toolbar.setTitle("VPN Manager");
                     return;
                 }
@@ -276,29 +184,27 @@ public class ConnectionActivity extends AppCompatActivity
 
             switch (status.state) {
                 case CONNECTED:
-                    txtStatus.setText("[ CONNECTED ]");
-                    txtStatus.setTextColor(0xFF00E676);
+                    updateStatusText("[ CONNECTED ]", 0xFF00E676);
                     break;
                 case ERROR:
-                    txtStatus.setText("[ ERROR ]");
-                    txtStatus.setTextColor(0xFFEF5350);
+                    updateStatusText("[ ERROR ]", 0xFFEF5350);
                     break;
                 case CONNECTING_SSH:
                 case SSH_CONNECTED:
                 case SOCKS_READY:
                 case TUN2SOCKS_READY:
-                    txtStatus.setText("[ CONNECTING... ]");
-                    txtStatus.setTextColor(0xFFFFA726);
+                    updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
                     break;
                 case STOPPED:
                 case IDLE:
                 default:
-                    txtStatus.setText("[ NOT CONNECTED ]");
-                    txtStatus.setTextColor(0xFF00E676);
+                    updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
                     break;
             }
 
-            btnConnect.setState(mapStatus(status.state));
+            if (mainFragment != null && mainFragment.getConnectButton() != null) {
+                mainFragment.getConnectButton().setState(mapStatus(status.state));
+            }
 
             if (status.state == StatusBus.State.CONNECTED) {
                 if (sessionStartTime == 0L) {
@@ -309,103 +215,132 @@ public class ConnectionActivity extends AppCompatActivity
                     || status.state == StatusBus.State.ERROR) {
                 stopStatsUpdates();
                 sessionStartTime = 0L;
-                txtSession.setText("00:00:00");
-                txtUpload.setText("0 B");
-                txtDownload.setText("0 B");
+                if (mainFragment != null) {
+                    if (mainFragment.getTxtSession() != null)
+                        mainFragment.getTxtSession().setText("00:00:00");
+                    if (mainFragment.getTxtUpload() != null)
+                        mainFragment.getTxtUpload().setText("0 B");
+                    if (mainFragment.getTxtDownload() != null)
+                        mainFragment.getTxtDownload().setText("0 B");
+                }
             }
         });
 
-        // ===== Connect button =====
-        btnConnect.setListener(() -> {
-            if (targetProfile == null) {
-                Toast.makeText(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            switch (btnConnect.getState()) {
-                case CONNECTED:
-                case CONNECTING:
-                    stopVpnService();
-                    break;
-                case IDLE:
-                case ERROR:
-                default:
-                    requestConnect();
-                    break;
-            }
-        });
+        // ===== Bottom actions =====
+        View actionEdit = findViewById(R.id.actionEdit);
+        View actionLog = findViewById(R.id.actionLog);
+        View actionDelete = findViewById(R.id.actionDelete);
+        View actionAdd = findViewById(R.id.actionAdd);
 
-        configCard.setOnClickListener(v -> openProfilePicker());
-        btnConfigArrow.setOnClickListener(v -> openProfilePicker());
+        if (actionEdit != null) {
+            actionEdit.setOnClickListener(v -> {
+                if (targetProfile == null) {
+                    Toast.makeText(this, "ยังไม่มีโปรไฟล์",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                openEditForCurrent();
+            });
+        }
+        if (actionLog != null) {
+            actionLog.setOnClickListener(v -> {
+                // ⭐ ปัดไปแท็บ LOG
+                viewPager.setCurrentItem(1, true);
+            });
+        }
+        if (actionDelete != null) {
+            actionDelete.setOnClickListener(v -> {
+                if (targetProfile == null) {
+                    Toast.makeText(this, "ไม่มีโปรไฟล์ให้ลบ",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                confirmDeleteCurrent();
+            });
+        }
+        if (actionAdd != null) {
+            actionAdd.setOnClickListener(v -> {
+                Intent i = new Intent(this, ProfileEditActivity.class);
+                addProfileLauncher.launch(i);
+            });
+        }
 
-        adFreeCard.setOnClickListener(v ->
-                Toast.makeText(this, "Ad-free time — เร็วๆ นี้",
-                        Toast.LENGTH_SHORT).show());
+        // ⭐ FragmentStateAdapter — เมื่อ fragment ถูกสร้าง ดึง callback
+        viewPager.registerOnPageChangeCallback(
+                new ViewPager2.OnPageChangeCallback() {
+                    @Override
+                    public void onPageSelected(int position) {
+                        // ถ้าย้ายไป LOG — VpnLogger listener ถูกตั้งใน LogFragment
+                        // ถ้าย้ายกลับ MAIN — listener ยังทำงานอยู่แต่ไม่ update UI
+                    }
+                });
+    }
 
-        actionEdit.setOnClickListener(v -> {
-            if (targetProfile == null) {
-                Toast.makeText(this, "ยังไม่มีโปรไฟล์",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            openEditForCurrent();
-        });
-
-        actionLog.setOnClickListener(v ->
-                tabLayout.selectTab(tabLayout.getTabAt(1)));
-
-        actionDelete.setOnClickListener(v -> {
-            if (targetProfile == null) {
-                Toast.makeText(this, "ไม่มีโปรไฟล์ให้ลบ",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            confirmDeleteCurrent();
-        });
-
-        actionAdd.setOnClickListener(v -> {
-            Intent i = new Intent(this, ProfileEditActivity.class);
-            addProfileLauncher.launch(i);
-        });
+    // ⭐ เก็บ fragment reference
+    @Override
+    public void onAttachFragment(@NonNull androidx.fragment.app.Fragment fragment) {
+        super.onAttachFragment(fragment);
+        if (fragment instanceof MainFragment) {
+            mainFragment = (MainFragment) fragment;
+            mainFragment.setListener(this);
+        } else if (fragment instanceof LogFragment) {
+            logFragment = (LogFragment) fragment;
+        }
     }
 
     // ============================================================
-    // ⭐ Log toolbar actions
+    // MainFragment.Listener
     // ============================================================
-
-    private void copyLogToClipboard() {
-        String log = VpnLogger.dump();
-        if (log == null || log.isEmpty()) {
-            Toast.makeText(this, "ไม่มี log", Toast.LENGTH_SHORT).show();
+    @Override
+    public void onMainConnectClick() {
+        if (targetProfile == null) {
+            Toast.makeText(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
+                    Toast.LENGTH_SHORT).show();
             return;
         }
-        ClipboardManager cm = (ClipboardManager)
-                getSystemService(Context.CLIPBOARD_SERVICE);
-        if (cm != null) {
-            cm.setPrimaryClip(ClipData.newPlainText("VPN Log", log));
-            Toast.makeText(this, "คัดลอก log แล้ว",
-                    Toast.LENGTH_SHORT).show();
+        if (mainFragment == null || mainFragment.getConnectButton() == null) return;
+
+        switch (mainFragment.getConnectButton().getState()) {
+            case CONNECTED:
+            case CONNECTING:
+                stopVpnService();
+                break;
+            case IDLE:
+            case ERROR:
+            default:
+                requestConnect();
+                break;
         }
     }
 
-    private void confirmClearLog() {
-        new AlertDialog.Builder(this)
-                .setTitle("ล้าง Log?")
-                .setMessage("ลบ log ทั้งหมดใช่หรือไม่?")
-                .setPositiveButton("ล้าง", (d, w) -> {
-                    VpnLogger.clear();
-                    if (txtLogContent != null) txtLogContent.setText("");
-                    Toast.makeText(this, "ล้าง log แล้ว",
-                            Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("ยกเลิก", null)
-                .show();
+    @Override
+    public void onConfigCardClick() {
+        openProfilePicker();
     }
 
-    private void scrollLogToBottom() {
-        if (scrollLogView != null) {
-            scrollLogView.post(() -> scrollLogView.fullScroll(View.FOCUS_DOWN));
-        }
+    @Override
+    public void onAdFreeClick() {
+        Toast.makeText(this, "Ad-free time — เร็วๆ นี้",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    // ============================================================
+    // Update UI helpers
+    // ============================================================
+    private void updateStatusText(String text, int color) {
+        if (mainFragment == null || mainFragment.getTxtStatus() == null) return;
+        mainFragment.getTxtStatus().setText(text);
+        mainFragment.getTxtStatus().setTextColor(color);
+    }
+
+    private void updateConfigCard(String name, String left, String right) {
+        if (mainFragment == null) return;
+        if (mainFragment.getTxtConfigName() != null)
+            mainFragment.getTxtConfigName().setText(name);
+        if (mainFragment.getTxtConfigLeft() != null)
+            mainFragment.getTxtConfigLeft().setText(left);
+        if (mainFragment.getTxtConfigRight() != null)
+            mainFragment.getTxtConfigRight().setText(right);
     }
 
     // ============================================================
@@ -415,10 +350,8 @@ public class ConnectionActivity extends AppCompatActivity
         viewModel.getProfiles().observe(this, list -> {
             if (targetProfile != null) return;
             if (list == null || list.isEmpty()) {
-                txtStatus.setText("[ NO PROFILE ]");
-                txtConfigName.setText("Not Set");
-                txtConfigLeft.setText("---");
-                txtConfigRight.setText("---");
+                updateStatusText("[ NO PROFILE ]", 0xFF00E676);
+                updateConfigCard("Not Set", "---", "---");
                 toolbar.setTitle("VPN Manager");
                 return;
             }
@@ -437,11 +370,11 @@ public class ConnectionActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_home) {
-            // อยู่หน้าเดิม
+            viewPager.setCurrentItem(0, true);
         } else if (id == R.id.nav_profiles) {
             openProfilePicker();
         } else if (id == R.id.nav_log) {
-            tabLayout.selectTab(tabLayout.getTabAt(1));
+            viewPager.setCurrentItem(1, true);
         } else if (id == R.id.nav_crash) {
             startActivity(new Intent(this, CrashLogActivity.class));
         } else if (id == R.id.nav_import) {
@@ -481,6 +414,8 @@ public class ConnectionActivity extends AppCompatActivity
     public void onBackPressed() {
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
             drawerLayout.closeDrawer(GravityCompat.START);
+        } else if (viewPager.getCurrentItem() != 0) {
+            viewPager.setCurrentItem(0, true);
         } else {
             super.onBackPressed();
         }
@@ -489,7 +424,6 @@ public class ConnectionActivity extends AppCompatActivity
     // ============================================================
     // Other methods
     // ============================================================
-
     private void openProfilePicker() {
         skipNextResumeReload = true;
         Intent i = new Intent(this, MainActivity.class);
@@ -504,21 +438,7 @@ public class ConnectionActivity extends AppCompatActivity
                 .setPositiveButton("ลบ", (d, w) -> {
                     viewModel.delete(targetProfile);
                     targetProfile = null;
-
-                    viewModel.getProfiles().observe(this, list -> {
-                        if (list == null || list.isEmpty()) {
-                            txtStatus.setText("[ NO PROFILE ]");
-                            txtConfigName.setText("Not Set");
-                            txtConfigLeft.setText("---");
-                            txtConfigRight.setText("---");
-                            toolbar.setTitle("VPN Manager");
-                            return;
-                        }
-                        Profile next = null;
-                        for (Profile x : list) if (x.isFavorite) { next = x; break; }
-                        if (next == null) next = list.get(0);
-                        bindProfile(next);
-                    });
+                    reloadProfiles();
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
@@ -537,12 +457,10 @@ public class ConnectionActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-
         if (skipNextResumeReload) {
             skipNextResumeReload = false;
             return;
         }
-
         if (targetProfile != null) {
             viewModel.getRepo().getById(targetProfile.id, p -> {
                 if (p != null) {
@@ -561,14 +479,16 @@ public class ConnectionActivity extends AppCompatActivity
         targetProfile = p;
         toolbar.setTitle(p.name);
 
-        txtConfigName.setText(p.name);
-        txtConfigLeft.setText(p.host);
-        txtConfigRight.setText(String.valueOf(p.port));
+        updateConfigCard(p.name, p.host, String.valueOf(p.port));
 
-        if (p.protocol == com.example.vpn.model.Protocol.SSH) {
-            imgConfigIcon.setImageResource(android.R.drawable.ic_lock_lock);
-        } else {
-            imgConfigIcon.setImageResource(android.R.drawable.ic_menu_upload);
+        if (mainFragment != null && mainFragment.getImgConfigIcon() != null) {
+            if (p.protocol == com.example.vpn.model.Protocol.SSH) {
+                mainFragment.getImgConfigIcon().setImageResource(
+                        android.R.drawable.ic_lock_lock);
+            } else {
+                mainFragment.getImgConfigIcon().setImageResource(
+                        android.R.drawable.ic_menu_upload);
+            }
         }
     }
 
@@ -640,15 +560,27 @@ public class ConnectionActivity extends AppCompatActivity
         long h = elapsed / 3_600_000L;
         long m = (elapsed % 3_600_000L) / 60_000L;
         long s = (elapsed % 60_000L) / 1000L;
-        txtSession.setText(String.format(Locale.US, "%02d:%02d:%02d", h, m, s));
+
+        if (mainFragment != null) {
+            if (mainFragment.getTxtSession() != null) {
+                mainFragment.getTxtSession().setText(
+                        String.format(Locale.US, "%02d:%02d:%02d", h, m, s));
+            }
+        }
 
         long rx = TrafficStats.getUidRxBytes(android.os.Process.myUid());
         long tx = TrafficStats.getUidTxBytes(android.os.Process.myUid());
         if (rx < 0) rx = 0;
         if (tx < 0) tx = 0;
 
-        txtDownload.setText(formatBytes(rx - lastDownloadBytes));
-        txtUpload.setText(formatBytes(tx - lastUploadBytes));
+        if (mainFragment != null) {
+            if (mainFragment.getTxtDownload() != null)
+                mainFragment.getTxtDownload().setText(
+                        formatBytes(rx - lastDownloadBytes));
+            if (mainFragment.getTxtUpload() != null)
+                mainFragment.getTxtUpload().setText(
+                        formatBytes(tx - lastUploadBytes));
+        }
 
         statsHandler.postDelayed(statsRunnable, 1000);
     }
@@ -661,15 +593,6 @@ public class ConnectionActivity extends AppCompatActivity
             return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024));
         return String.format(Locale.US, "%.2f GB",
                 bytes / (1024.0 * 1024 * 1024));
-    }
-
-    // ============================================================
-    // Log
-    // ============================================================
-    private void refreshLogView() {
-        List<String> lines = VpnLogger.snapshot();
-        txtLogContent.setText(LogColors.build(lines));
-        scrollLogToBottom();
     }
 
     @Override
