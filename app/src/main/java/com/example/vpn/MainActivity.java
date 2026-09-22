@@ -73,6 +73,17 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         CrashHandler.install(this);
         super.onCreate(savedInstanceState);
+
+        // ⭐ ถ้าเปิดจาก Quick Settings Tile → เปิด ConnectionActivity ทันที
+        if (getIntent() != null && getIntent().getBooleanExtra("from_tile", false)) {
+            Intent connIntent = new Intent(this, ConnectionActivity.class);
+            connIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(connIntent);
+            finish();
+            return;
+        }
+
         setContentView(R.layout.activity_profile_list);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -146,9 +157,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     // ⭐ Adapter callbacks
     // ============================================================
 
-    /**
-     * ⭐ กดที่การ์ดโปรไฟล์ → ส่ง profileId กลับ ConnectionActivity ทันที
-     */
     @Override
     public void onConnect(Profile p) {
         viewModel.markUsed(p);

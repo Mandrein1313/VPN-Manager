@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.VpnService;
@@ -11,6 +12,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
+import android.service.quicksettings.TileService;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -88,6 +90,10 @@ public class ProxyVpnService extends VpnService
                     .putBoolean(KEY_RUNNING, running)
                     .apply();
             VpnLogger.i(TAG, "Service running = " + running);
+
+            // ⭐ Sync Tile
+            notifyTileStateChanged();
+
         } catch (Exception ignored) {}
     }
 
@@ -98,6 +104,22 @@ public class ProxyVpnService extends VpnService
                     .getBoolean(KEY_RUNNING, false);
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    // ============================================================
+    // ⭐ Sync Tile state
+    // ============================================================
+    private void notifyTileStateChanged() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                TileService.requestListeningState(
+                        this,
+                        new ComponentName(this, VpnTileService.class));
+                VpnLogger.i(TAG, "Requested tile state refresh");
+            }
+        } catch (Exception e) {
+            VpnLogger.w(TAG, "notifyTileStateChanged failed: " + e.getMessage());
         }
     }
 
