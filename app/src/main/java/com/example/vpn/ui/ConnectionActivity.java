@@ -16,7 +16,6 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBarDrawerToggle;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -33,11 +32,11 @@ import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.ThemePrefs;
 import com.example.vpn.util.VpnLogger;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
-import java.util.List;
 import java.util.Locale;
 
 public class ConnectionActivity extends AppCompatActivity
@@ -271,7 +270,7 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // ⭐ MainFragment.Listener — ใช้ isServiceRunning
+    // MainFragment.Listener
     // ============================================================
     @Override
     public void onMainConnectClick() {
@@ -281,7 +280,6 @@ public class ConnectionActivity extends AppCompatActivity
             return;
         }
 
-        // ⭐ เช็ค service state จริงก่อน
         boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
 
         if (serviceRunning) {
@@ -290,7 +288,6 @@ public class ConnectionActivity extends AppCompatActivity
             return;
         }
 
-        // Service ไม่ทำงาน — เช็ค button state
         if (mainFragment != null && mainFragment.getConnectButton() != null) {
             ConnectButtonView.State state = mainFragment.getConnectButton().getState();
             if (state == ConnectButtonView.State.CONNECTING) {
@@ -332,9 +329,6 @@ public class ConnectionActivity extends AppCompatActivity
             mainFragment.getTxtConfigRight().setText(right);
     }
 
-    // ============================================================
-    // ⭐ Sync button state กับ service state จริง
-    // ============================================================
     private void syncButtonState() {
         if (mainFragment == null || mainFragment.getConnectButton() == null) return;
 
@@ -368,6 +362,9 @@ public class ConnectionActivity extends AppCompatActivity
         });
     }
 
+    // ============================================================
+    // Navigation Drawer
+    // ============================================================
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
@@ -391,7 +388,7 @@ public class ConnectionActivity extends AppCompatActivity
         } else if (id == R.id.nav_about) {
             showAboutDialog();
         } else if (id == R.id.nav_exit) {
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle("ออกจากแอป?")
                     .setMessage("คุณต้องการปิดแอปทั้งหมดหรือไม่?")
                     .setPositiveButton("ออก", (d, w) -> {
@@ -404,6 +401,17 @@ public class ConnectionActivity extends AppCompatActivity
 
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    private void showAboutDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("เกี่ยวกับ VPN Manager")
+                .setMessage("VPN Manager v1.0\n\n" +
+                        "แอป VPN ที่รองรับ SSH Tunnel\n" +
+                        "และหลาย protocol\n\n" +
+                        "สร้างด้วย ❤️ ในประเทศไทย")
+                .setPositiveButton("ตกลง", null)
+                .show();
     }
 
     // ============================================================
@@ -430,7 +438,7 @@ public class ConnectionActivity extends AppCompatActivity
             }
         }
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("เลือกธีม")
                 .setSingleChoiceItems(names, checkedItem, (d, which) -> {
                     themePrefs.setMode(modes[which]);
@@ -440,17 +448,6 @@ public class ConnectionActivity extends AppCompatActivity
                             Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("ยกเลิก", null)
-                .show();
-    }
-
-    private void showAboutDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("เกี่ยวกับ VPN Manager")
-                .setMessage("VPN Manager v1.0\n\n" +
-                        "แอป VPN ที่รองรับ SSH Tunnel\n" +
-                        "และหลาย protocol\n\n" +
-                        "สร้างด้วย ❤️ ในประเทศไทย")
-                .setPositiveButton("ตกลง", null)
                 .show();
     }
 
@@ -473,7 +470,7 @@ public class ConnectionActivity extends AppCompatActivity
 
     private void confirmDeleteCurrent() {
         if (targetProfile == null) return;
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("ลบโปรไฟล์?")
                 .setMessage("คุณต้องการลบ \"" + targetProfile.name + "\" ใช่หรือไม่?")
                 .setPositiveButton("ลบ", (d, w) -> {
@@ -499,7 +496,6 @@ public class ConnectionActivity extends AppCompatActivity
     protected void onResume() {
         super.onResume();
 
-        // ⭐ Sync button state ทุกครั้งที่กลับมา
         syncButtonState();
 
         if (skipNextResumeReload) {
@@ -590,6 +586,9 @@ public class ConnectionActivity extends AppCompatActivity
         }
     }
 
+    // ============================================================
+    // Stats
+    // ============================================================
     private void startStatsUpdates() {
         statsHandler.removeCallbacks(statsRunnable);
         statsHandler.post(statsRunnable);

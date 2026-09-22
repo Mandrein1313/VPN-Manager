@@ -12,7 +12,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,6 +20,7 @@ import com.example.vpn.R;
 import com.example.vpn.model.AppInfo;
 import com.example.vpn.util.BypassPrefs;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
@@ -45,7 +45,7 @@ public class BypassActivity extends AppCompatActivity
     private final List<AppInfo> allApps = new ArrayList<>();
     private final ExecutorService pool = Executors.newFixedThreadPool(2);
 
-    /** ⭐ flag — ป้องกัน submit งานหลัง onDestroy */
+    // ⭐ flag — ป้องกัน submit งานหลัง onDestroy
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     @Override
@@ -83,9 +83,7 @@ public class BypassActivity extends AppCompatActivity
         loadApps();
     }
 
-    // ============================================================
     // ⭐ ตรวจสอบก่อน submit งาน
-    // ============================================================
     private boolean canSubmit() {
         return !destroyed.get()
                 && !isFinishing()
@@ -103,6 +101,19 @@ public class BypassActivity extends AppCompatActivity
         loadingView.setVisibility(View.VISIBLE);
         recycler.setVisibility(View.GONE);
         emptyView.setVisibility(View.GONE);
+
+        // ⭐ Timeout — ถ้าโหลดเกิน 10 วินาที → แสดง error
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .postDelayed(() -> {
+                    if (destroyed.get()) return;
+                    if (loadingView.getVisibility() == View.VISIBLE) {
+                        loadingView.setVisibility(View.GONE);
+                        emptyView.setVisibility(View.VISIBLE);
+                        Toast.makeText(this,
+                                "โหลดช้าเกินไป — ลองเปิดอีกครั้ง",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }, 10_000);
 
         try {
             pool.execute(() -> {
@@ -136,13 +147,11 @@ public class BypassActivity extends AppCompatActivity
                     } catch (Exception ignored) {}
                 }
 
-                // เรียงตามชื่อ
                 Collections.sort(result, (a, b) ->
                         a.appName.compareToIgnoreCase(b.appName));
 
                 final List<AppInfo> finalResult = result;
 
-                // ⭐ ตรวจสอบก่อน post เข้า main thread
                 if (destroyed.get()) return;
                 runOnUiThread(() -> {
                     if (destroyed.get() || isFinishing() || isDestroyed()) return;
@@ -156,25 +165,19 @@ public class BypassActivity extends AppCompatActivity
                             finalResult.isEmpty() ? View.VISIBLE : View.GONE);
                     updateCount();
 
-                    // ⭐ โหลด icon — พร้อมตรวจสอบทุกจุด
                     loadIcons();
                 });
             });
         } catch (Exception e) {
-            // pool ถูกปิดก่อน submit — เพิกเฉย
             android.util.Log.w("BypassActivity",
                     "loadApps submit failed: " + e.getMessage());
         }
     }
 
-    // ============================================================
-    // Load icons (lazy) — ⭐ ตรวจสอบทุกจุดก่อน submit
-    // ============================================================
+    // ⭐ Load icons (lazy)
     private void loadIcons() {
-        // ⭐ ตรวจสอบก่อน submit
         if (!canSubmit()) return;
 
-        // snapshot รายการ — ป้องกัน concurrent modification
         final List<AppInfo> snapshot = new ArrayList<>(allApps);
         if (snapshot.isEmpty()) return;
 
@@ -191,7 +194,6 @@ public class BypassActivity extends AppCompatActivity
                         info.icon = pm.getApplicationIcon(info.packageName);
                     } catch (Exception ignored) {}
 
-                    // ⭐ update UI เป็นช่วงๆ (ทุก 5 ตัว)
                     final int index = i;
                     if (index % 5 == 0) {
                         if (destroyed.get()) return;
@@ -207,7 +209,6 @@ public class BypassActivity extends AppCompatActivity
                     }
                 }
 
-                // ⭐ update ครั้งสุดท้าย
                 if (destroyed.get()) return;
                 runOnUiThread(() -> {
                     if (destroyed.get()
@@ -218,7 +219,6 @@ public class BypassActivity extends AppCompatActivity
                 });
             });
         } catch (Exception e) {
-            // pool ถูกปิด — เพิกเฉย
             android.util.Log.w("BypassActivity",
                     "loadIcons submit failed: " + e.getMessage());
         }
@@ -274,7 +274,7 @@ public class BypassActivity extends AppCompatActivity
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_clear) {
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle("ล้าง Bypass ทั้งหมด?")
                     .setMessage("ยกเลิกการ bypass ทุกแอป")
                     .setPositiveButton("ล้าง", (d, w) -> {
@@ -302,15 +302,13 @@ public class BypassActivity extends AppCompatActivity
     }
 
     // ============================================================
-    // ⭐ onDestroy — set flag ก่อน + shutdown แบบสุภาพ
+    // onDestroy
     // ============================================================
     @Override
     protected void onDestroy() {
-        destroyed.set(true);
+        destroyed.set(true);   // ⭐ ตั้งก่อน
         super.onDestroy();
-
         try {
-            // ⭐ shutdownNow แทน — interrupt งานที่ค้าง
             pool.shutdownNow();
         } catch (Exception ignored) {}
     }

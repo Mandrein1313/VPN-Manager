@@ -16,7 +16,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -38,6 +37,7 @@ import com.example.vpn.util.ProfileExporter;
 import com.example.vpn.util.ProfileImporter;
 import com.example.vpn.util.ThemePrefs;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         CrashHandler.install(this);
         super.onCreate(savedInstanceState);
 
-        // ⭐ เปิดจาก Quick Settings Tile → เปิด ConnectionActivity
+        // ⭐ ถ้าเปิดจาก Quick Settings Tile → เปิด ConnectionActivity ทันที
         if (getIntent() != null && getIntent().getBooleanExtra("from_tile", false)) {
             Intent connIntent = new Intent(this, ConnectionActivity.class);
             connIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             return;
         }
 
-        // ⭐ เปิดจาก Notification "Stats" → เปิด ConnectionActivity
+        // ⭐ เปิดจาก Notification "Stats"
         if (getIntent() != null && getIntent().getBooleanExtra("show_stats", false)) {
             Intent connIntent = new Intent(this, ConnectionActivity.class);
             connIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
@@ -187,7 +187,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
     @Override
     public void onDelete(Profile p) {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("ลบโปรไฟล์?")
                 .setMessage("คุณต้องการลบ \"" + p.name + "\" ใช่หรือไม่?")
                 .setPositiveButton("ลบ", (d, w) -> viewModel.delete(p))
@@ -230,18 +230,18 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         String[] options = {
                 "📤 ส่งออกทั้งหมด",
                 "📥 นำเข้าจาก Clipboard",
-                "🎨 เปลี่ยนธีม",        // ⭐ ใหม่
+                "🎨 เปลี่ยนธีม",
                 "🐛 Crash Log",
                 "ℹ️ เกี่ยวกับ"
         };
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("เมนูเพิ่มเติม")
                 .setItems(options, (d, which) -> {
                     switch (which) {
                         case 0: exportAllProfiles(); break;
                         case 1: importFromClipboardDialog(); break;
-                        case 2: showThemeDialog(); break;   // ⭐ ใหม่
+                        case 2: showThemeDialog(); break;
                         case 3: startActivity(new Intent(this, CrashLogActivity.class)); break;
                         case 4: showAboutDialog(); break;
                     }
@@ -250,7 +250,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     }
 
     private void showAboutDialog() {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("เกี่ยวกับ VPN Manager")
                 .setMessage("VPN Manager v1.0\n\n" +
                         "แอป VPN ที่รองรับ SSH Tunnel\n" +
@@ -285,7 +285,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             }
         }
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("เลือกธีม")
                 .setSingleChoiceItems(names, checkedItem, (d, which) -> {
                     themePrefs.setMode(modes[which]);
@@ -310,7 +310,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         String json = ProfileExporter.export(all);
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("ส่งออกโปรไฟล์")
                 .setMessage("พบ " + all.size() + " โปรไฟล์\n\nคัดลอก JSON หรือแชร์?")
                 .setPositiveButton("คัดลอก", (d, w) -> {
@@ -351,7 +351,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         ProfileImporter.Result result = ProfileImporter.importFromJson(text.toString());
 
         if (!result.isSuccess()) {
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle("นำเข้าไม่สำเร็จ")
                     .setMessage(result.error + "\n\nข้อมูล:\n"
                             + text.subSequence(0, Math.min(200, text.length())))
@@ -370,7 +370,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         }
         if (count > 5) preview.append("... และอีก ").append(count - 5);
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("ยืนยันการนำเข้า")
                 .setMessage(preview.toString())
                 .setPositiveButton("นำเข้าทั้งหมด", (d, w) -> {
@@ -410,7 +410,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         ConfigParser.Result result = ConfigParser.parse(text.toString());
 
         if (!result.isSuccess()) {
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle("Import ไม่สำเร็จ")
                     .setMessage(result.error + "\n\nข้อมูล:\n" + text)
                     .setPositiveButton("ตกลง", null)
@@ -426,7 +426,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 + "Pass: " + (profile.pass.isEmpty() ? "(ว่าง)" : "••••••") + "\n\n"
                 + "ต้องการบันทึกเป็นโปรไฟล์ใหม่หรือไม่?";
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("ยืนยันการ Import")
                 .setMessage(msg)
                 .setPositiveButton("บันทึก", (d, w) ->
