@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
+    <!-- ⭐ Auto-connect on Boot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -64,7 +67,20 @@
             android:label="Bypass Mode"
             android:parentActivityName=".ui.ConnectionActivity" />
 
-        <!-- ⭐ Quick Settings Tile (เพิ่มใหม่) -->
+        <!-- ⭐ Auto-connect on Boot Receiver -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ⭐ Quick Settings Tile -->
         <service
             android:name=".VpnTileService"
             android:exported="true"

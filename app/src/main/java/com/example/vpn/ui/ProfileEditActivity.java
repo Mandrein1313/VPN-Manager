@@ -45,6 +45,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     // ⭐ Options switches
     private MaterialSwitch switchAutoReconnect;
     private MaterialSwitch switchKillSwitch;
+    private MaterialSwitch switchAutoConnectBoot;   // ⭐ ใหม่
 
     private VpnPrefs prefs;
 
@@ -80,6 +81,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         // ⭐ Bind options
         switchAutoReconnect = findViewById(R.id.switchAutoReconnect);
         switchKillSwitch = findViewById(R.id.switchKillSwitch);
+        switchAutoConnectBoot = findViewById(R.id.switchAutoConnectBoot);  // ⭐ ใหม่
 
         if (switchAutoReconnect != null) {
             switchAutoReconnect.setChecked(prefs.isAutoReconnect());
@@ -90,6 +92,13 @@ public class ProfileEditActivity extends AppCompatActivity {
             switchKillSwitch.setChecked(prefs.isKillSwitch());
             switchKillSwitch.setOnCheckedChangeListener((b, checked) ->
                     prefs.setKillSwitch(checked));
+        }
+
+        // ⭐ Auto-connect on Boot toggle
+        if (switchAutoConnectBoot != null) {
+            switchAutoConnectBoot.setChecked(prefs.isAutoConnectBoot());
+            switchAutoConnectBoot.setOnCheckedChangeListener((b, checked) ->
+                    prefs.setAutoConnectBoot(checked));
         }
 
         String[] protoNames = new String[Protocol.values().length];
