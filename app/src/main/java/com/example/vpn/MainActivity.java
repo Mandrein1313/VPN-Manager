@@ -36,6 +36,7 @@ import com.example.vpn.util.ConfigParser;
 import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.ProfileExporter;
 import com.example.vpn.util.ProfileImporter;
+import com.example.vpn.util.ThemePrefs;
 import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.ArrayList;
@@ -229,6 +230,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         String[] options = {
                 "📤 ส่งออกทั้งหมด",
                 "📥 นำเข้าจาก Clipboard",
+                "🎨 เปลี่ยนธีม",        // ⭐ ใหม่
                 "🐛 Crash Log",
                 "ℹ️ เกี่ยวกับ"
         };
@@ -239,8 +241,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                     switch (which) {
                         case 0: exportAllProfiles(); break;
                         case 1: importFromClipboardDialog(); break;
-                        case 2: startActivity(new Intent(this, CrashLogActivity.class)); break;
-                        case 3: showAboutDialog(); break;
+                        case 2: showThemeDialog(); break;   // ⭐ ใหม่
+                        case 3: startActivity(new Intent(this, CrashLogActivity.class)); break;
+                        case 4: showAboutDialog(); break;
                     }
                 })
                 .show();
@@ -253,6 +256,45 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                         "แอป VPN ที่รองรับ SSH Tunnel\n" +
                         "สร้างด้วย ❤️ ในประเทศไทย")
                 .setPositiveButton("ตกลง", null)
+                .show();
+    }
+
+    // ============================================================
+    // ⭐ Theme Picker
+    // ============================================================
+    private void showThemeDialog() {
+        ThemePrefs themePrefs = new ThemePrefs(this);
+
+        final int[] modes = {
+                ThemePrefs.MODE_SYSTEM,
+                ThemePrefs.MODE_LIGHT,
+                ThemePrefs.MODE_DARK
+        };
+        final String[] names = {
+                "🌗  ตามระบบ (System)",
+                "☀️  สว่าง (Light)",
+                "🌙  มืด (Dark)"
+        };
+
+        int current = themePrefs.getMode();
+        int checkedItem = 0;
+        for (int i = 0; i < modes.length; i++) {
+            if (modes[i] == current) {
+                checkedItem = i;
+                break;
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("เลือกธีม")
+                .setSingleChoiceItems(names, checkedItem, (d, which) -> {
+                    themePrefs.setMode(modes[which]);
+                    d.dismiss();
+                    Toast.makeText(this,
+                            "ธีม: " + ThemePrefs.getModeName(modes[which]),
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("ยกเลิก", null)
                 .show();
     }
 

@@ -30,6 +30,7 @@ import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.util.StatusBus;
+import com.example.vpn.util.ThemePrefs;
 import com.example.vpn.util.VpnLogger;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.navigation.NavigationView;
@@ -61,6 +62,8 @@ public class ConnectionActivity extends AppCompatActivity
     private long lastDownloadBytes = 0L;
 
     private boolean skipNextResumeReload = false;
+
+    private ThemePrefs themePrefs;
 
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
@@ -110,6 +113,8 @@ public class ConnectionActivity extends AppCompatActivity
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connection);
+
+        themePrefs = new ThemePrefs(this);
 
         drawerLayout = findViewById(R.id.drawerLayout);
         navView = findViewById(R.id.navView);
@@ -377,6 +382,8 @@ public class ConnectionActivity extends AppCompatActivity
             startActivity(new Intent(this, CrashLogActivity.class));
         } else if (id == R.id.nav_bypass) {
             startActivity(new Intent(this, BypassActivity.class));
+        } else if (id == R.id.nav_theme) {
+            showThemeDialog();
         } else if (id == R.id.nav_import) {
             Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
                     Toast.LENGTH_SHORT).show();
@@ -397,6 +404,43 @@ public class ConnectionActivity extends AppCompatActivity
 
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    // ============================================================
+    // ⭐ Theme Picker Dialog
+    // ============================================================
+    private void showThemeDialog() {
+        final int[] modes = {
+                ThemePrefs.MODE_SYSTEM,
+                ThemePrefs.MODE_LIGHT,
+                ThemePrefs.MODE_DARK
+        };
+        final String[] names = {
+                "🌗  ตามระบบ (System)",
+                "☀️  สว่าง (Light)",
+                "🌙  มืด (Dark)"
+        };
+
+        int current = themePrefs.getMode();
+        int checkedItem = 0;
+        for (int i = 0; i < modes.length; i++) {
+            if (modes[i] == current) {
+                checkedItem = i;
+                break;
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("เลือกธีม")
+                .setSingleChoiceItems(names, checkedItem, (d, which) -> {
+                    themePrefs.setMode(modes[which]);
+                    d.dismiss();
+                    Toast.makeText(this,
+                            "ธีม: " + ThemePrefs.getModeName(modes[which]),
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
     }
 
     private void showAboutDialog() {
