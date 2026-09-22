@@ -3,9 +3,6 @@ package com.example.vpn.util;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-/**
- * ⭐ เก็บค่าตั้งค่า VPN
- */
 public class VpnPrefs {
 
     private static final String PREF_NAME = "vpn_prefs";
@@ -13,7 +10,8 @@ public class VpnPrefs {
     private static final String KEY_KILL_SWITCH = "kill_switch";
     private static final String KEY_LAST_PROFILE_ID = "last_profile_id";
     private static final String KEY_WAS_CONNECTED = "was_connected";
-    private static final String KEY_AUTO_CONNECT_BOOT = "auto_connect_boot";   // ⭐ ใหม่
+    private static final String KEY_AUTO_CONNECT_BOOT = "auto_connect_boot";
+    private static final String KEY_BYPASS_DISABLED = "bypass_disabled";   // ⭐ ใหม่
 
     private final SharedPreferences prefs;
 
@@ -22,7 +20,6 @@ public class VpnPrefs {
                 .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
-    // ===== Auto-reconnect =====
     public boolean isAutoReconnect() {
         return prefs.getBoolean(KEY_AUTO_RECONNECT, true);
     }
@@ -31,7 +28,6 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_AUTO_RECONNECT, value).apply();
     }
 
-    // ===== Kill Switch =====
     public boolean isKillSwitch() {
         return prefs.getBoolean(KEY_KILL_SWITCH, false);
     }
@@ -40,7 +36,6 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_KILL_SWITCH, value).apply();
     }
 
-    // ⭐ ===== Auto-connect on Boot =====
     public boolean isAutoConnectBoot() {
         return prefs.getBoolean(KEY_AUTO_CONNECT_BOOT, false);
     }
@@ -49,7 +44,15 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_AUTO_CONNECT_BOOT, value).apply();
     }
 
-    // ===== Profile ที่ใช้ล่าสุด =====
+    // ⭐ Bypass toggle
+    public boolean isBypassDisabled() {
+        return prefs.getBoolean(KEY_BYPASS_DISABLED, false);
+    }
+
+    public void setBypassDisabled(boolean value) {
+        prefs.edit().putBoolean(KEY_BYPASS_DISABLED, value).apply();
+    }
+
     public long getLastProfileId() {
         return prefs.getLong(KEY_LAST_PROFILE_ID, -1L);
     }
@@ -58,7 +61,6 @@ public class VpnPrefs {
         prefs.edit().putLong(KEY_LAST_PROFILE_ID, id).apply();
     }
 
-    // ===== สถานะ VPN ล่าสุด =====
     public boolean wasConnected() {
         return prefs.getBoolean(KEY_WAS_CONNECTED, false);
     }

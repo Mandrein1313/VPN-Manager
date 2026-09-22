@@ -45,6 +45,10 @@ public class ProxyVpnService extends VpnService
     public static final String ACTION_START = "START_VPN";
     public static final String ACTION_STOP  = "STOP_VPN";
     public static final String ACTION_RECONNECT = "RECONNECT_VPN";
+    // ⭐ Notification actions
+    public static final String ACTION_TOGGLE_BYPASS = "TOGGLE_BYPASS";
+    public static final String ACTION_SHOW_STATS = "SHOW_STATS";
+    public static final String ACTION_RESTART_VPN = "RESTART_VPN";
     public static final String EXTRA_PROFILE_ID = "profile_id";
 
     private static final String CHANNEL_ID = "vpn_channel";
@@ -54,7 +58,6 @@ public class ProxyVpnService extends VpnService
     private static final int VPN_PREFIX     = 0;
     private static final int VPN_MTU = 1280;
 
-    // ⭐ Service state (persist ข้าม process)
     private static final String STATE_PREF = "vpn_state";
     private static final String KEY_RUNNING = "running";
 
@@ -80,7 +83,7 @@ public class ProxyVpnService extends VpnService
     private static final long RECONNECT_DELAY_MS = 3000;
 
     // ============================================================
-    // ⭐ Service state helpers
+    // ⭐ Service state
     // ============================================================
 
     private void setServiceRunning(boolean running) {
@@ -90,14 +93,10 @@ public class ProxyVpnService extends VpnService
                     .putBoolean(KEY_RUNNING, running)
                     .apply();
             VpnLogger.i(TAG, "Service running = " + running);
-
-            // ⭐ Sync Tile
             notifyTileStateChanged();
-
         } catch (Exception ignored) {}
     }
 
-    /** ⭐ ให้ UI เรียกได้ */
     public static boolean isServiceRunning(Context ctx) {
         try {
             return ctx.getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
@@ -107,9 +106,6 @@ public class ProxyVpnService extends VpnService
         }
     }
 
-    // ============================================================
-    // ⭐ Sync Tile state
-    // ============================================================
     private void notifyTileStateChanged() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -140,6 +136,7 @@ public class ProxyVpnService extends VpnService
 
         String action = intent.getAction();
 
+        // ===== STOP =====
         if (ACTION_STOP.equals(action)) {
             VpnLogger.i(TAG, "STOP action received");
             prefs.setWasConnected(false);
@@ -148,6 +145,7 @@ public class ProxyVpnService extends VpnService
             return START_NOT_STICKY;
         }
 
+        // ===== RECONNECT =====
         if (ACTION_RECONNECT.equals(action)) {
             if (currentProfile != null && !reconnecting) {
                 VpnLogger.i(TAG, "Manual reconnect requested");
@@ -156,6 +154,28 @@ public class ProxyVpnService extends VpnService
             return START_STICKY;
         }
 
+        // ===== RESTART VPN =====
+        if (ACTION_RESTART_VPN.equals(action)) {
+            VpnLogger.i(TAG, "Restart VPN requested");
+            handleRestartVpn();
+            return START_STICKY;
+        }
+
+        // ===== TOGGLE BYPASS =====
+        if (ACTION_TOGGLE_BYPASS.equals(action)) {
+            VpnLogger.i(TAG, "Toggle bypass requested");
+            handleToggleBypass();
+            return START_STICKY;
+        }
+
+        // ===== SHOW STATS =====
+        if (ACTION_SHOW_STATS.equals(action)) {
+            VpnLogger.i(TAG, "Show stats requested");
+            handleShowStats();
+            return START_STICKY;
+        }
+
+        // ===== START =====
         if (ACTION_START.equals(action)) {
             long profileId = intent.getLongExtra(EXTRA_PROFILE_ID, -1L);
             if (profileId <= 0) {
@@ -181,6 +201,98 @@ public class ProxyVpnService extends VpnService
 
         return START_STICKY;
     }
+
+    // ============================================================
+    // ⭐ Notification Action Handlers
+    // ============================================================
+
+    /**
+     * ⭐ Toggle Bypass — เปิด/ปิดการใช้งาน bypass list ชั่วคราว
+     */
+    private void handleToggleBypass() {
+        try {
+            boolean currentDisabled = prefs.isBypassDisabled();
+            boolean newDisabled = !currentDisabled;
+            prefs.setBypassDisabled(newDisabled);
+
+            VpnLogger.i(TAG, "Bypass disabled = " + newDisabled);
+
+            // แจ้งสถานะ
+            if (newDisabled) {
+                updateNotification("Bypass ปิด — กำลัง restart...");
+            } else {
+                updateNotification("Bypass เปิด — กำลัง restart...");
+            }
+
+            // Restart VPN เพื่อ apply การเปลี่ยนแปลง
+            if (connected && currentProfile != null) {
+                reconnectHandler.postDelayed(this::doReconnect, 500);
+            } else {
+                // แค่อัปเดต notification
+                updateNotification(connected
+                        ? "เชื่อมต่อแล้ว: " + currentProfile.name
+                        : "VPN ปิด");
+            }
+        } catch (Exception e) {
+            VpnLogger.e(TAG, "handleToggleBypass error: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * ⭐ Show Stats — เปิดแอปไปที่หน้า Connection
+     */
+    private void handleShowStats() {
+        try {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            intent.putExtra("show_stats", true);
+            startActivity(intent);
+        } catch (Exception e) {
+            VpnLogger.e(TAG, "handleShowStats error: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * ⭐ Restart VPN — หยุดชั่วคราว + เริ่มใหม่
+     */
+    private void handleRestartVpn() {
+        if (currentProfile == null) return;
+        VpnLogger.i(TAG, "Restarting VPN...");
+        reconnecting = true;
+
+        // หยุด components แต่ไม่ปิด TUN
+        if (connectivityChecker != null) {
+            connectivityChecker.cancel();
+            connectivityChecker = null;
+        }
+        if (tun2socksRunning) {
+            try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
+            tun2socksRunning = false;
+        }
+        if (socks5Server != null) {
+            try { socks5Server.stop(); } catch (Throwable ignored) {}
+            socks5Server = null;
+        }
+        if (sshTunnel != null) {
+            try { sshTunnel.disconnect(); } catch (Throwable ignored) {}
+            sshTunnel = null;
+        }
+
+        // เริ่มใหม่หลัง 500ms
+        reconnectHandler.postDelayed(() -> {
+            reconnecting = false;
+            if (currentProfile != null) {
+                workerThread = new Thread(
+                        () -> connectSshAndSocks(currentProfile), "vpn-restart");
+                workerThread.start();
+            }
+        }, 500);
+    }
+
+    // ============================================================
+    // Load & Start
+    // ============================================================
 
     private void loadProfileAndStart(long profileId) {
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
@@ -220,18 +332,23 @@ public class ProxyVpnService extends VpnService
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
 
+            // ⭐ Apply bypass list — ถ้าไม่ถูก disable
             int bypassCount = 0;
-            Set<String> bypassed = bypassPrefs.getPackages();
-            for (String pkg : bypassed) {
-                try {
-                    builder.addDisallowedApplication(pkg);
-                    bypassCount++;
-                } catch (Exception e) {
-                    VpnLogger.w(TAG, "Bypass: cannot add " + pkg);
+            if (!prefs.isBypassDisabled()) {
+                Set<String> bypassed = bypassPrefs.getPackages();
+                for (String pkg : bypassed) {
+                    try {
+                        builder.addDisallowedApplication(pkg);
+                        bypassCount++;
+                    } catch (Exception e) {
+                        VpnLogger.w(TAG, "Bypass: cannot add " + pkg);
+                    }
                 }
-            }
-            if (bypassCount > 0) {
-                VpnLogger.i(TAG, "Bypass Mode: " + bypassCount + " apps excluded");
+                if (bypassCount > 0) {
+                    VpnLogger.i(TAG, "Bypass Mode: " + bypassCount + " apps excluded");
+                }
+            } else {
+                VpnLogger.i(TAG, "Bypass Mode: DISABLED (user toggled)");
             }
 
             addDnsIfValid(builder, profile.dns1);
@@ -485,9 +602,6 @@ public class ProxyVpnService extends VpnService
         workerThread.start();
     }
 
-    // ============================================================
-    // ⭐ Stop — เพิ่ม setServiceRunning(false) + สั่ง statusBus ทันที
-    // ============================================================
     private void stopVpn(boolean fullClose) {
         running = false;
         connected = false;
@@ -536,13 +650,11 @@ public class ProxyVpnService extends VpnService
             }
             prefs.setWasConnected(false);
 
-            // ⭐ set flag + post status ทันที
             setServiceRunning(false);
             StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
 
             try { stopForeground(true); } catch (Exception ignored) {}
 
-            // ⭐ เลื่อน stopSelf 100ms
             if (!destroying) {
                 new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
             } else {
@@ -557,7 +669,7 @@ public class ProxyVpnService extends VpnService
     public void onDestroy() {
         destroying = true;
         stopVpn(true);
-        setServiceRunning(false);   // ⭐ mark stopped
+        setServiceRunning(false);
         super.onDestroy();
     }
 
@@ -587,33 +699,68 @@ public class ProxyVpnService extends VpnService
         }
     }
 
+    // ============================================================
+    // ⭐ Notification — 4 ปุ่ม
+    // ============================================================
     private Notification buildNotification(String text) {
         createChannelIfNeeded();
 
+        // ===== Open App =====
         Intent openIntent = new Intent(this, MainActivity.class);
+        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pi = PendingIntent.getActivity(
                 this, 0, openIntent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
+        // ===== Stop =====
         Intent stopIntent = new Intent(this, ProxyVpnService.class);
         stopIntent.setAction(ACTION_STOP);
         PendingIntent stopPi = PendingIntent.getService(
-                this, 0, stopIntent,
+                this, 1, stopIntent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
+        // ===== Reconnect =====
         Intent reconnectIntent = new Intent(this, ProxyVpnService.class);
         reconnectIntent.setAction(ACTION_RECONNECT);
         PendingIntent reconnectPi = PendingIntent.getService(
-                this, 1, reconnectIntent,
+                this, 2, reconnectIntent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        // ⭐ Toggle Bypass
+        Intent bypassIntent = new Intent(this, ProxyVpnService.class);
+        bypassIntent.setAction(ACTION_TOGGLE_BYPASS);
+        PendingIntent bypassPi = PendingIntent.getService(
+                this, 3, bypassIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        // ⭐ Show Stats
+        Intent statsIntent = new Intent(this, ProxyVpnService.class);
+        statsIntent.setAction(ACTION_SHOW_STATS);
+        PendingIntent statsPi = PendingIntent.getService(
+                this, 4, statsIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        // ⭐ ตรวจสอบสถานะ Bypass
+        boolean bypassDisabled = prefs.isBypassDisabled();
+        String bypassLabel = bypassDisabled ? "Bypass: ปิด" : "Bypass: เปิด";
+        int bypassIcon = bypassDisabled
+                ? android.R.drawable.checkbox_off_background
+                : android.R.drawable.checkbox_on_background;
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("VPN Manager")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_vpn)
                 .setContentIntent(pi)
-                .addAction(android.R.drawable.ic_menu_rotate, "Reconnect", reconnectPi)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "หยุด", stopPi)
+                // ⭐ 4 ปุ่ม
+                .addAction(bypassIcon, bypassLabel, bypassPi)
+                .addAction(android.R.drawable.ic_menu_info_details,
+                        "Stats", statsPi)
+                .addAction(android.R.drawable.ic_menu_rotate,
+                        "Reconnect", reconnectPi)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel,
+                        "หยุด", stopPi)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build();

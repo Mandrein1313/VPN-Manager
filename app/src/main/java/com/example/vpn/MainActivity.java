@@ -74,8 +74,18 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         CrashHandler.install(this);
         super.onCreate(savedInstanceState);
 
-        // ⭐ ถ้าเปิดจาก Quick Settings Tile → เปิด ConnectionActivity ทันที
+        // ⭐ เปิดจาก Quick Settings Tile → เปิด ConnectionActivity
         if (getIntent() != null && getIntent().getBooleanExtra("from_tile", false)) {
+            Intent connIntent = new Intent(this, ConnectionActivity.class);
+            connIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(connIntent);
+            finish();
+            return;
+        }
+
+        // ⭐ เปิดจาก Notification "Stats" → เปิด ConnectionActivity
+        if (getIntent() != null && getIntent().getBooleanExtra("show_stats", false)) {
             Intent connIntent = new Intent(this, ConnectionActivity.class);
             connIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                     | Intent.FLAG_ACTIVITY_CLEAR_TOP);
