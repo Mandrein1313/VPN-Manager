@@ -31,6 +31,8 @@ import com.example.vpn.ui.ProfileAdapter;
 import com.example.vpn.ui.ProfileEditActivity;
 import com.example.vpn.ui.ProfileViewModel;
 import com.example.vpn.ui.ProfileViewModelFactory;
+import com.example.vpn.ui.QrScanActivity;
+import com.example.vpn.ui.QrShareActivity;
 import com.example.vpn.util.ConfigParser;
 import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.ProfileExporter;
@@ -69,6 +71,17 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> { /* list observe เอง */ });
+
+    // ⭐ Launcher สำหรับรับผลการสแกน QR
+    private final ActivityResultLauncher<Intent> qrScanLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (result.getResultCode() == RESULT_OK) {
+                            Toast.makeText(this, "นำเข้าจาก QR สำเร็จ",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -200,6 +213,28 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         viewModel.toggleFavorite(p);
     }
 
+    // ⭐ แชร์/สแกน QR เมื่อกดค้างที่รายการโปรไฟล์
+    @Override
+    public void onShareQr(Profile p) {
+        String[] options = {
+                "📱  แสดง QR",
+                "📷  สแกน QR"
+        };
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(p.name)
+                .setItems(options, (d, which) -> {
+                    if (which == 0) {
+                        Intent i = new Intent(this, QrShareActivity.class);
+                        i.putExtra(QrShareActivity.EXTRA_PROFILE_ID, p.id);
+                        startActivity(i);
+                    } else {
+                        startQrScan();
+                    }
+                })
+                .show();
+    }
+
     // ============================================================
     // Toolbar Menu
     // ============================================================
@@ -230,6 +265,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         String[] options = {
                 "📤 ส่งออกทั้งหมด",
                 "📥 นำเข้าจาก Clipboard",
+                "📷 สแกน QR Code",     // ⭐ เพิ่มตัวเลือกสแกน QR
                 "🎨 เปลี่ยนธีม",
                 "🐛 Crash Log",
                 "ℹ️ เกี่ยวกับ"
@@ -241,12 +277,18 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                     switch (which) {
                         case 0: exportAllProfiles(); break;
                         case 1: importFromClipboardDialog(); break;
-                        case 2: showThemeDialog(); break;
-                        case 3: startActivity(new Intent(this, CrashLogActivity.class)); break;
-                        case 4: showAboutDialog(); break;
+                        case 2: startQrScan(); break;    // ⭐ เรียกใช้สแกน QR
+                        case 3: showThemeDialog(); break;
+                        case 4: startActivity(new Intent(this, CrashLogActivity.class)); break;
+                        case 5: showAboutDialog(); break;
                     }
                 })
                 .show();
+    }
+
+    private void startQrScan() {
+        Intent i = new Intent(this, QrScanActivity.class);
+        qrScanLauncher.launch(i);
     }
 
     private void showAboutDialog() {

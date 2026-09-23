@@ -23,6 +23,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         void onEdit(Profile p);
         void onDelete(Profile p);
         void onToggleFavorite(Profile p);
+        void onShareQr(Profile p);   // ⭐ เพิ่ม method สำหรับแชร์ QR
     }
 
     private final List<Profile> items = new ArrayList<>();
@@ -82,6 +83,12 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
             // ⭐ กดการ์ดทั้งใบ → เชื่อมต่อทันที
             itemView.setOnClickListener(v -> l.onConnect(p));
+
+            // ⭐ Long-press ที่การ์ด → แชร์/สแกน QR
+            itemView.setOnLongClickListener(v -> {
+                l.onShareQr(p);
+                return true;
+            });
 
             btnFav.setOnClickListener(v -> l.onToggleFavorite(p));
             btnEdit.setOnClickListener(v -> l.onEdit(p));

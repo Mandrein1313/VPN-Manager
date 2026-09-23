@@ -10,6 +10,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+    
+    <!-- ⭐ กล้องสำหรับ QR -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- ⭐ Auto-connect on Boot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -24,6 +28,17 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.MyApp"
         tools:targetApi="34">
+
+        <!-- ⭐ FileProvider สำหรับแชร์ QR -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- ⭐ ConnectionActivity = LAUNCHER (หน้าแรก) -->
         <activity
@@ -67,12 +82,28 @@
             android:exported="false"
             android:label="Bypass Mode"
             android:parentActivityName=".ui.ConnectionActivity" />
-            <!-- ⭐ Backup/Restore -->
-<activity
-    android:name=".ui.BackupActivity"
-    android:exported="false"
-    android:label="สำรอง/กู้คืนข้อมูล"
-    android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- ⭐ Backup/Restore -->
+        <activity
+            android:name=".ui.BackupActivity"
+            android:exported="false"
+            android:label="สำรอง/กู้คืนข้อมูล"
+            android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- ⭐ QR Share -->
+        <activity
+            android:name=".ui.QrShareActivity"
+            android:exported="false"
+            android:label="แชร์ QR"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- ⭐ QR Scan -->
+        <activity
+            android:name=".ui.QrScanActivity"
+            android:exported="false"
+            android:label="สแกน QR"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainActivity" />
 
         <!-- ⭐ Auto-connect on Boot Receiver -->
         <receiver
