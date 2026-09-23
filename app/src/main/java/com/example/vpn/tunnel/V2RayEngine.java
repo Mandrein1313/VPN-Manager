@@ -32,7 +32,6 @@ public class V2RayEngine {
 
     private CoreController coreController;
     private volatile boolean running = false;
-    private Thread engineThread;
 
     public interface SocketProtector {
         boolean protect(int fd);
@@ -68,9 +67,11 @@ public class V2RayEngine {
         // ✅ สร้าง CoreController ด้วย callback handler ใหม่
         coreController = Libv2ray.newCoreController(buildCallbackHandler());
 
-        // ✅ ส่ง config JSON เป็น String โดยตรง (ไม่ต้องใช้ path)
-        long ret = coreController.StartLoop(configJson);
-        VpnLogger.i(TAG, "StartLoop returned: " + ret);
+        // ✅ FIX #1: เปลี่ยน StartLoop(String) → startLoop(String, int)
+        //    พารามิเตอร์ที่ 2 คือ file descriptor ของ VPN interface
+        //    ถ้าใช้ SOCKS proxy mode (ไม่ใช่ full VPN) ให้ส่ง 0
+        coreController.startLoop(configJson, 0);
+        VpnLogger.i(TAG, "startLoop called");
 
         // รอ SOCKS พร้อม
         for (int i = 0; i < 30; i++) {
@@ -90,7 +91,8 @@ public class V2RayEngine {
         running = false;
         try {
             if (coreController != null) {
-                coreController.StopLoop();
+                // ✅ FIX #2: เปลี่ยน StopLoop() → stopLoop()
+                coreController.stopLoop();
                 coreController = null;
             }
         } catch (Exception e) {
@@ -296,21 +298,24 @@ public class V2RayEngine {
     private CoreCallbackHandler buildCallbackHandler() {
         return new CoreCallbackHandler() {
 
+            // ✅ FIX #3: เปลี่ยน Startup() → startup() (ตัว s พิมพ์เล็ก)
             @Override
-            public long Startup() {
-                VpnLogger.i(TAG, "V2Ray callback: Startup");
+            public long startup() {
+                VpnLogger.i(TAG, "V2Ray callback: startup");
                 return 0;
             }
 
             @Override
-            public long Shutdown() {
-                VpnLogger.i(TAG, "V2Ray callback: Shutdown");
+            public long shutdown() {
+                VpnLogger.i(TAG, "V2Ray callback: shutdown");
                 running = false;
                 return 0;
             }
 
+            // หมายเหตุ: OnEmitStatus อาจสะกดต่างออกไป
+            // ถ้ายัง error ให้ลบบรรทัด @Override ออกแล้วลองคอมไพล์
             @Override
-            public long OnEmitStatus(long code, String message) {
+            public long onEmitStatus(long code, String message) {
                 VpnLogger.d(TAG, "V2Ray status: " + code + " — " + message);
                 return 0;
             }
