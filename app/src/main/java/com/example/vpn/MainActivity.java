@@ -265,7 +265,8 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         String[] options = {
                 "📤 ส่งออกทั้งหมด",
                 "📥 นำเข้าจาก Clipboard",
-                "📷 สแกน QR Code",     // ⭐ เพิ่มตัวเลือกสแกน QR
+                "📷 สแกน QR Code",     // ⭐ ตัวเลือกสแกน QR
+                "🧹 ลบโปรไฟล์ชื่อซ้ำ",  // ⭐ ตัวเลือกลบโปรไฟล์ชื่อซ้ำ
                 "🎨 เปลี่ยนธีม",
                 "🐛 Crash Log",
                 "ℹ️ เกี่ยวกับ"
@@ -277,12 +278,50 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                     switch (which) {
                         case 0: exportAllProfiles(); break;
                         case 1: importFromClipboardDialog(); break;
-                        case 2: startQrScan(); break;    // ⭐ เรียกใช้สแกน QR
-                        case 3: showThemeDialog(); break;
-                        case 4: startActivity(new Intent(this, CrashLogActivity.class)); break;
-                        case 5: showAboutDialog(); break;
+                        case 2: startQrScan(); break;
+                        case 3: removeDuplicateNames(); break; // ⭐ เรียกใช้งานฟังก์ชันลบชื่อซ้ำ
+                        case 4: showThemeDialog(); break;
+                        case 5: startActivity(new Intent(this, CrashLogActivity.class)); break;
+                        case 6: showAboutDialog(); break;
                     }
                 })
+                .show();
+    }
+
+    private void removeDuplicateNames() {
+        if (cachedProfiles == null || cachedProfiles.isEmpty()) {
+            Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        java.util.List<Profile> toDelete = new java.util.ArrayList<>();
+
+        for (Profile p : cachedProfiles) {
+            String key = p.name == null ? "" : p.name.trim().toLowerCase();
+            if (seen.contains(key)) {
+                toDelete.add(p);
+            } else {
+                seen.add(key);
+            }
+        }
+
+        if (toDelete.isEmpty()) {
+            Toast.makeText(this, "ไม่พบชื่อซ้ำ", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("ลบโปรไฟล์ชื่อซ้ำ")
+                .setMessage("พบ " + toDelete.size() + " รายการชื่อซ้ำ\nจะเก็บรายการแรกของแต่ละชื่อไว้\nลบที่เหลือหรือไม่?")
+                .setPositiveButton("ลบ", (d, w) -> {
+                    for (Profile p : toDelete) {
+                        viewModel.delete(p);
+                    }
+                    Toast.makeText(this, "ลบแล้ว " + toDelete.size() + " รายการ",
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("ยกเลิก", null)
                 .show();
     }
 
@@ -471,10 +510,34 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         new MaterialAlertDialogBuilder(this)
                 .setTitle("ยืนยันการ Import")
                 .setMessage(msg)
-                .setPositiveButton("บันทึก", (d, w) ->
-                        viewModel.save(profile, id -> Toast.makeText(this,
-                                "Import สำเร็จ: " + profile.name,
-                                Toast.LENGTH_SHORT).show()))
+                .setPositiveButton("บันทึก", (d, w) -> {
+                    viewModel.getRepo().findByName(profile.name, 0L, dup -> {
+                        if (dup != null) {
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle("ชื่อซ้ำ")
+                                    .setMessage("มีโปรไฟล์ชื่อ \"" + profile.name + "\" อยู่แล้ว\nต้องการอัปเดตของเดิมไหม?")
+                                    .setPositiveButton("อัปเดตของเดิม", (d2, w2) -> {
+                                        profile.id = dup.id;
+                                        viewModel.save(profile, id ->
+                                                Toast.makeText(this, "อัปเดตแล้ว: " + profile.name,
+                                                        Toast.LENGTH_SHORT).show());
+                                    })
+                                    .setNegativeButton("สร้างชื่อใหม่", (d2, w2) -> {
+                                        profile.id = 0;
+                                        profile.name = profile.name + " (" + (System.currentTimeMillis() % 10000) + ")";
+                                        viewModel.save(profile, id ->
+                                                Toast.makeText(this, "Import สำเร็จ: " + profile.name,
+                                                        Toast.LENGTH_SHORT).show());
+                                    })
+                                    .setNeutralButton("ยกเลิก", null)
+                                    .show();
+                        } else {
+                            viewModel.save(profile, id ->
+                                    Toast.makeText(this, "Import สำเร็จ: " + profile.name,
+                                            Toast.LENGTH_SHORT).show());
+                        }
+                    });
+                })
                 .setNegativeButton("แก้ไขก่อน", (d, w) -> {
                     Intent i = new Intent(this, ProfileEditActivity.class);
                     i.putExtra(ProfileEditActivity.EXTRA_PREFILL_HOST, profile.host);

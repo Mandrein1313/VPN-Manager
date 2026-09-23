@@ -239,13 +239,43 @@ public class QrScanActivity extends AppCompatActivity {
                 .setTitle("✅ พบโปรไฟล์")
                 .setMessage(msg)
                 .setPositiveButton("นำเข้า", (d, w) -> {
-                    p.id = 0;
-                    viewModel.save(p, id -> {
-                        Toast.makeText(QrScanActivity.this,
-                                "นำเข้าสำเร็จ: " + p.name,
-                                Toast.LENGTH_LONG).show();
-                        setResult(RESULT_OK);
-                        finish();
+                    // ⭐ ตรวจชื่อซ้ำก่อนบันทึก
+                    viewModel.getRepo().findByName(p.name, 0L, dup -> {
+                        if (dup != null) {
+                            new MaterialAlertDialogBuilder(QrScanActivity.this)
+                                    .setTitle("ชื่อซ้ำ")
+                                    .setMessage("มีโปรไฟล์ชื่อ \"" + p.name + "\" อยู่แล้ว\n\n"
+                                            + "ต้องการอัปเดตของเดิม หรือสร้างชื่อใหม่?")
+                                    .setPositiveButton("อัปเดตของเดิม", (d2, w2) -> {
+                                        p.id = dup.id;
+                                        viewModel.save(p, id -> {
+                                            Toast.makeText(QrScanActivity.this,
+                                                    "อัปเดตแล้ว: " + p.name, Toast.LENGTH_LONG).show();
+                                            setResult(RESULT_OK);
+                                            finish();
+                                        });
+                                    })
+                                    .setNegativeButton("สร้างชื่อใหม่", (d2, w2) -> {
+                                        p.id = 0;
+                                        p.name = p.name + " (" + System.currentTimeMillis() % 10000 + ")";
+                                        viewModel.save(p, id -> {
+                                            Toast.makeText(QrScanActivity.this,
+                                                    "นำเข้าสำเร็จ: " + p.name, Toast.LENGTH_LONG).show();
+                                            setResult(RESULT_OK);
+                                            finish();
+                                        });
+                                    })
+                                    .setNeutralButton("ยกเลิก", null)
+                                    .show();
+                        } else {
+                            p.id = 0;
+                            viewModel.save(p, id -> {
+                                Toast.makeText(QrScanActivity.this,
+                                        "นำเข้าสำเร็จ: " + p.name, Toast.LENGTH_LONG).show();
+                                setResult(RESULT_OK);
+                                finish();
+                            });
+                        }
                     });
                 })
                 .setNegativeButton("สแกนใหม่", (d, w) -> {

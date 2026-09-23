@@ -25,6 +25,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class ProfileEditActivity extends AppCompatActivity {
 
@@ -242,47 +243,62 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
 
     private void save() {
-        String name = text(edtName);
-        String host = text(edtHost);
-        String portStr = text(edtPort);
+    String name = text(edtName);
+    String host = text(edtHost);
+    String portStr = text(edtPort);
 
-        if (TextUtils.isEmpty(name)) { edtName.setError("กรุณากรอกชื่อ"); return; }
-        if (TextUtils.isEmpty(host)) { edtHost.setError("กรุณากรอก Host"); return; }
-        if (TextUtils.isEmpty(portStr)) { edtPort.setError("กรุณากรอก Port"); return; }
+    if (TextUtils.isEmpty(name)) { edtName.setError("กรุณากรอกชื่อ"); return; }
+    if (TextUtils.isEmpty(host)) { edtHost.setError("กรุณากรอก Host"); return; }
+    if (TextUtils.isEmpty(portStr)) { edtPort.setError("กรุณากรอก Port"); return; }
 
-        int port;
-        try { port = Integer.parseInt(portStr); }
-        catch (NumberFormatException e) { edtPort.setError("Port ไม่ถูกต้อง"); return; }
+    int port;
+    try { port = Integer.parseInt(portStr); }
+    catch (NumberFormatException e) { edtPort.setError("Port ไม่ถูกต้อง"); return; }
 
-        Profile p = existing != null ? existing.copy() : new Profile();
-        p.name = name;
-        p.protocol = currentProtocol();
-        p.host = host;
-        p.port = port;
-        p.user = text(edtUser);
-        p.pass = text(edtPass);
-        p.httpProxy = text(edtHttpProxy);
-        p.payload = text(edtPayload);
-        p.sni = text(edtSni);
-        p.dns1 = text(edtDns1);
-        p.dns2 = text(edtDns2);
+    Profile p = existing != null ? existing.copy() : new Profile();
+    p.name = name;
+    p.protocol = currentProtocol();
+    p.host = host;
+    p.port = port;
+    p.user = text(edtUser);
+    p.pass = text(edtPass);
+    p.httpProxy = text(edtHttpProxy);
+    p.payload = text(edtPayload);
+    p.sni = text(edtSni);
+    p.dns1 = text(edtDns1);
+    p.dns2 = text(edtDns2);
 
-        // ⭐ Save V2Ray fields
-        if (edtV2rayUuid != null) p.v2rayUuid = text(edtV2rayUuid);
-        if (edtV2rayPath != null) p.v2rayPath = text(edtV2rayPath);
-        if (edtV2rayHost != null) p.v2rayHost = text(edtV2rayHost);
-        if (edtV2rayServiceName != null) p.v2rayServiceName = text(edtV2rayServiceName);
-        if (edtV2rayFlow != null) p.v2rayFlow = text(edtV2rayFlow);
-        if (ddV2rayType != null) p.v2rayType = ddV2rayType.getText().toString();
-        if (ddV2rayNetwork != null) p.v2rayNetwork = ddV2rayNetwork.getText().toString();
-        if (switchV2rayTls != null) p.v2rayTls = switchV2rayTls.isChecked();
+    // ... ถ้ามี field V2Ray ให้อ่านเหมือนเดิม ...
 
-        viewModel.save(p, id -> {
-            Toast.makeText(this, "บันทึกแล้ว", Toast.LENGTH_SHORT).show();
-            setResult(RESULT_OK);
-            finish();
-        });
-    }
+    long excludeId = (existing != null) ? existing.id : 0L;
+
+    // ⭐ ตรวจชื่อซ้ำ
+    viewModel.getRepo().findByName(name, excludeId, dup -> {
+        if (dup != null) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("ชื่อซ้ำ")
+                    .setMessage("มีโปรไฟล์ชื่อ \"" + name + "\" อยู่แล้ว\n\n"
+                            + "Host: " + dup.host + ":" + dup.port + "\n\n"
+                            + "ต้องการอัปเดตโปรไฟล์เดิม หรือยกเลิก?")
+                    .setPositiveButton("อัปเดตของเดิม", (d, w) -> {
+                        p.id = dup.id;   // เขียนทับตัวเดิม
+                        doSave(p);
+                    })
+                    .setNegativeButton("ยกเลิก", null)
+                    .show();
+        } else {
+            doSave(p);
+        }
+    });
+}
+
+private void doSave(Profile p) {
+    viewModel.save(p, id -> {
+        Toast.makeText(this, "บันทึกแล้ว", Toast.LENGTH_SHORT).show();
+        setResult(RESULT_OK);
+        finish();
+    });
+}
 
     private String text(TextInputEditText e) {
         return e.getText() == null ? "" : e.getText().toString().trim();

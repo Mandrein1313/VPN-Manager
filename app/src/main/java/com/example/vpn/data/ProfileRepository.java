@@ -76,6 +76,28 @@ public class ProfileRepository {
         });
     }
 
+    /**
+     * ⭐ หาโปรไฟล์ที่ชื่อซ้ำ (ยกเว้นตัวเอง)
+     */
+    public void findByName(String name, long excludeId, Callback<Profile> cb) {
+        io.execute(() -> {
+            List<ProfileEntity> all = dao.getAllSync();
+            Profile found = null;
+            if (all != null && name != null) {
+                String target = name.trim();
+                for (ProfileEntity e : all) {
+                    if (e.id == excludeId) continue;
+                    if (e.name != null && e.name.trim().equalsIgnoreCase(target)) {
+                        found = e.toDomain();
+                        break;
+                    }
+                }
+            }
+            final Profile result = found;
+            main.post(() -> cb.onResult(result));
+        });
+    }
+
     /** บันทึกโปรไฟล์ (insert หรือ update) แล้ว callback ด้วย id */
     public void save(Profile p, Callback<Long> cb) {
         io.execute(() -> {
