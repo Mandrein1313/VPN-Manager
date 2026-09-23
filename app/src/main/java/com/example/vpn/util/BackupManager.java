@@ -12,19 +12,17 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
 /**
  * ⭐ Backup / Restore Manager
- * - Export ข้อมูลทั้งหมดเป็น JSON
- * - Import จากไฟล์ที่ backup
  */
 public class BackupManager {
 
@@ -45,20 +43,19 @@ public class BackupManager {
         try {
             JSONObject root = new JSONObject();
 
-            // Metadata
             root.put("app", "VPN Manager");
             root.put("version", FORMAT_VERSION);
             root.put("exported_at", new SimpleDateFormat(
                     "yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(new Date()));
 
-            // ⭐ Profiles
+            // Profiles
             JSONArray profilesArr = new JSONArray();
             for (Profile p : profiles) {
                 profilesArr.put(profileToJson(p));
             }
             root.put("profiles", profilesArr);
 
-            // ⭐ Bypass list
+            // Bypass list
             BypassPrefs bypassPrefs = new BypassPrefs(appContext);
             Set<String> bypassed = bypassPrefs.getPackages();
             JSONArray bypassArr = new JSONArray();
@@ -67,7 +64,7 @@ public class BackupManager {
             }
             root.put("bypass", bypassArr);
 
-            // ⭐ Settings
+            // Settings
             VpnPrefs prefs = new VpnPrefs(appContext);
             JSONObject settings = new JSONObject();
             settings.put("auto_reconnect", prefs.isAutoReconnect());
@@ -76,7 +73,7 @@ public class BackupManager {
             settings.put("bypass_disabled", prefs.isBypassDisabled());
             root.put("settings", settings);
 
-            // ⭐ Theme
+            // Theme
             ThemePrefs themePrefs = new ThemePrefs(appContext);
             JSONObject theme = new JSONObject();
             theme.put("mode", themePrefs.getMode());
@@ -91,7 +88,7 @@ public class BackupManager {
     }
 
     // ============================================================
-    // ⭐ Restore — Import จากไฟล์
+    // ⭐ Restore
     // ============================================================
     public RestoreResult importAll(Uri uri) {
         RestoreResult result = new RestoreResult();
@@ -129,7 +126,6 @@ public class BackupManager {
         try {
             JSONObject root = new JSONObject(json);
 
-            // ตรวจสอบ version
             int version = root.optInt("version", 0);
             if (version == 0) {
                 result.error = "ไฟล์ไม่ถูกต้อง (ไม่พบ version)";
@@ -141,7 +137,7 @@ public class BackupManager {
                 return result;
             }
 
-            // ⭐ Profiles
+            // Profiles
             JSONArray profilesArr = root.optJSONArray("profiles");
             if (profilesArr != null) {
                 for (int i = 0; i < profilesArr.length(); i++) {
@@ -150,7 +146,7 @@ public class BackupManager {
                 }
             }
 
-            // ⭐ Bypass list
+            // Bypass list
             JSONArray bypassArr = root.optJSONArray("bypass");
             if (bypassArr != null) {
                 for (int i = 0; i < bypassArr.length(); i++) {
@@ -158,7 +154,7 @@ public class BackupManager {
                 }
             }
 
-            // ⭐ Settings
+            // Settings
             JSONObject settings = root.optJSONObject("settings");
             if (settings != null) {
                 result.autoReconnect = settings.optBoolean("auto_reconnect", true);
@@ -168,7 +164,7 @@ public class BackupManager {
                 result.hasSettings = true;
             }
 
-            // ⭐ Theme
+            // Theme
             JSONObject theme = root.optJSONObject("theme");
             if (theme != null) {
                 result.themeMode = theme.optInt("mode", ThemePrefs.MODE_SYSTEM);
@@ -190,10 +186,11 @@ public class BackupManager {
     // ============================================================
     public void applySettings(RestoreResult result) {
         try {
-            // Bypass
+            // ⭐ Bypass — แปลง List → Set
             if (!result.bypassPackages.isEmpty()) {
                 BypassPrefs bypassPrefs = new BypassPrefs(appContext);
-                bypassPrefs.setPackages(result.bypassPackages);
+                Set<String> bypassSet = new HashSet<>(result.bypassPackages);
+                bypassPrefs.setPackages(bypassSet);
             }
 
             // Settings
