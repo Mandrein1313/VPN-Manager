@@ -114,8 +114,8 @@ dependencies {
 
     // ⭐ Xray Core (V2Ray)
     // ⚠️ ลอง version ที่มีจริงบน JitPack
-    implementation 'com.github.2dust:AndroidLibXrayLite:1.250608'
-
+    // ⭐ Xray Core (V2Ray) — ใช้ AAR (ดาวน์โหลดใน workflow)
+implementation files('libs/AndroidLibXrayLite.aar')
     // ===== Testing =====
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
