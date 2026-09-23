@@ -74,8 +74,7 @@
                 android:layout_marginTop="20dp"
                 android:gravity="center"
                 android:lineSpacingExtra="4dp"
-                android:text="ให้เพื่อนสแกน QR นี้เพื่อนำเข้าโปรไฟล์\n\n"
-                        + "💡 กดค้างที่ QR เพื่อดูตัวเลือกเพิ่มเติม"
+                android:text="ให้เพื่อนสแกน QR นี้เพื่อนำเข้าโปรไฟล์&#10;&#10;💡 กดค้างที่ QR เพื่อดูตัวเลือกเพิ่มเติม"
                 android:textColor="#B0BEC5"
                 android:textSize="14sp" />
 
@@ -135,4 +134,4 @@
                 android:textSize="11sp" />
         </LinearLayout>
     </ScrollView>
-</LinearLayout> 
+</LinearLayout>
