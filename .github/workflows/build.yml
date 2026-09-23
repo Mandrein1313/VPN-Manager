@@ -40,13 +40,6 @@ jobs:
         
         cd hev-socks5-tunnel
         
-        echo "===== Repository structure ====="
-        ls -la
-        echo "--- jni/ ---"
-        ls -la jni/ 2>/dev/null || echo "no jni folder"
-        echo "--- src/ ---"
-        ls -la src/ 2>/dev/null || echo "no src folder"
-        
         echo "===== Creating Android.mk ====="
         mkdir -p jni
         cat > jni/Android.mk << 'EOF'
@@ -69,9 +62,6 @@ jobs:
           "APP_CFLAGS=-O3 -DPKGNAME=hev/htproxy -DCLSNAME=TProxyService" \
           V=1 2>&1 | tail -50
         
-        echo "===== Built .so files ====="
-        find . -name "*.so" -exec ls -lh {} \;
-        
         mkdir -p ../app/src/main/jniLibs/arm64-v8a
         mkdir -p ../app/src/main/jniLibs/armeabi-v7a
         mkdir -p ../app/src/main/jniLibs/x86
@@ -84,55 +74,47 @@ jobs:
           fi
         done
         
-        echo "===== Files in jniLibs/ ====="
         find ../app/src/main/jniLibs -name "*.so" -exec ls -lh {} \;
 
-    # ⭐ ดาวน์โหลด AndroidLibXrayLite AAR
+    # ⭐ ดาวน์โหลด AndroidLibXrayLite AAR (libv2ray.aar)
     - name: Download AndroidLibXrayLite AAR
       run: |
         set -e
         
         mkdir -p app/libs
         
-        # ลอง version ตามลำดับ
-        VERSIONS=("1.250608" "1.250504" "1.250401" "1.240910" "1.240609")
-        DOWNLOADED=0
+        # ⭐ ดึง version ล่าสุดจาก GitHub API
+        echo "===== Getting latest release ====="
+        LATEST_JSON=$(curl -sL "https://api.github.com/repos/2dust/AndroidLibXrayLite/releases/latest")
         
-        for VERSION in "${VERSIONS[@]}"; do
-          echo "===== Trying version $VERSION ====="
-          
-          URLS=(
-            "https://github.com/2dust/AndroidLibXrayLite/releases/download/$VERSION/AndroidLibXrayLite-$VERSION.aar"
-            "https://github.com/2dust/AndroidLibXrayLite/releases/download/$VERSION/libv2ray-$VERSION.aar"
-            "https://github.com/2dust/AndroidLibXrayLite/releases/download/$VERSION/AndroidLibXrayLite.aar"
-            "https://github.com/2dust/AndroidLibXrayLite/releases/download/$VERSION/libv2ray.aar"
-          )
-          
-          for URL in "${URLS[@]}"; do
-            echo "Trying: $URL"
-            if curl -fSL -o app/libs/AndroidLibXrayLite.aar "$URL" 2>/dev/null; then
-              SIZE=$(stat -c%s app/libs/AndroidLibXrayLite.aar 2>/dev/null || echo 0)
-              if [ "$SIZE" -gt 100000 ]; then
-                echo "✅ Downloaded version $VERSION ($SIZE bytes)"
-                DOWNLOADED=1
-                break 2
-              fi
-            fi
-          done
-        done
+        TAG_NAME=$(echo "$LATEST_JSON" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+        echo "Latest tag: $TAG_NAME"
         
-        if [ $DOWNLOADED -eq 0 ]; then
-          echo "❌ Could not download AAR from any version"
-          echo "=== Latest release info ==="
-          curl -sL "https://api.github.com/repos/2dust/AndroidLibXrayLite/releases/latest" | grep -E '"tag_name"|"browser_download_url"' | head -20
+        # ⭐ ดึง URL ของไฟล์ .aar
+        AAR_URL=$(echo "$LATEST_JSON" \
+          | grep -o '"browser_download_url": *"[^"]*libv2ray.aar"' \
+          | head -1 \
+          | sed 's/.*"\(http[^"]*\)".*/\1/')
+        
+        echo "AAR URL: $AAR_URL"
+        
+        if [ -z "$AAR_URL" ]; then
+          echo "❌ Cannot find libv2ray.aar URL"
+          echo "$LATEST_JSON" | grep "browser_download_url" | head -10
           exit 1
         fi
+        
+        echo "===== Downloading ====="
+        curl -fSL -o app/libs/libv2ray.aar "$AAR_URL"
+        
+        SIZE=$(stat -c%s app/libs/libv2ray.aar)
+        echo "✅ Downloaded libv2ray.aar ($SIZE bytes)"
         
         echo "===== Files in app/libs/ ====="
         ls -lh app/libs/
         
-        echo "===== AAR structure ====="
-        unzip -l app/libs/AndroidLibXrayLite.aar 2>/dev/null | head -30 || echo "Not a valid AAR"
+        echo "===== AAR structure (first 30) ====="
+        unzip -l app/libs/libv2ray.aar | head -30
 
     - name: Setup Gradle 8.13
       uses: gradle/actions/setup-gradle@v4
