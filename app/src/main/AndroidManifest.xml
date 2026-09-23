@@ -67,6 +67,12 @@
             android:exported="false"
             android:label="Bypass Mode"
             android:parentActivityName=".ui.ConnectionActivity" />
+            <!-- ⭐ Backup/Restore -->
+<activity
+    android:name=".ui.BackupActivity"
+    android:exported="false"
+    android:label="สำรอง/กู้คืนข้อมูล"
+    android:parentActivityName=".ui.ConnectionActivity" />
 
         <!-- ⭐ Auto-connect on Boot Receiver -->
         <receiver
