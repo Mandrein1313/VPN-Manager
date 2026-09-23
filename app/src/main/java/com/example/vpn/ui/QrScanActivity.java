@@ -1,12 +1,16 @@
 package com.example.vpn.ui;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.vpn.R;
@@ -29,6 +33,21 @@ public class QrScanActivity extends AppCompatActivity {
     private boolean handled = false;
     private boolean flashOn = false;
 
+    // ⭐ ขอสิทธิ์กล้อง
+    private final ActivityResultLauncher<String> cameraPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) {
+                    startScanning();
+                } else {
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle("ต้องการสิทธิ์กล้อง")
+                            .setMessage("แอปต้องใช้กล้องเพื่อสแกน QR Code\nกรุณาอนุญาตสิทธิ์กล้องในการตั้งค่า")
+                            .setPositiveButton("ปิด", (d, w) -> finish())
+                            .setCancelable(false)
+                            .show();
+                }
+            });
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -42,17 +61,28 @@ public class QrScanActivity extends AppCompatActivity {
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
 
-        // ⭐ ปุ่มปิด
         if (btnClose != null) {
             btnClose.setOnClickListener(v -> finish());
         }
 
-        // ⭐ ปุ่ม Flash toggle
         if (btnFlash != null) {
             btnFlash.setOnClickListener(v -> toggleFlash());
         }
 
-        // ⭐ ตั้งค่า scanner
+        // ⭐ ตรวจสอบสิทธิ์กล้องก่อน
+        checkCameraPermission();
+    }
+
+    private void checkCameraPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            startScanning();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    private void startScanning() {
         barcodeView.setStatusText("วาง QR ให้อยู่ในกรอบ");
         barcodeView.decodeContinuous(new BarcodeCallback() {
             @Override
@@ -95,9 +125,6 @@ public class QrScanActivity extends AppCompatActivity {
         });
     }
 
-    // ============================================================
-    // ⭐ Toggle Flash
-    // ============================================================
     private void toggleFlash() {
         try {
             if (flashOn) {
@@ -110,14 +137,10 @@ public class QrScanActivity extends AppCompatActivity {
                 Toast.makeText(this, "เปิดแฟลช", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Toast.makeText(this, "อุปกรณ์ไม่รองรับแฟลช",
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "อุปกรณ์ไม่รองรับแฟลช", Toast.LENGTH_SHORT).show();
         }
     }
 
-    // ============================================================
-    // ⭐ แสดง Dialog ยืนยัน
-    // ============================================================
     private void showConfirmDialog(Profile p) {
         String msg = "ชื่อ: " + p.name + "\n"
                 + "Host: " + p.host + "\n"
@@ -148,20 +171,20 @@ public class QrScanActivity extends AppCompatActivity {
                 .show();
     }
 
-    // ============================================================
-    // Lifecycle
-    // ============================================================
     @Override
     protected void onResume() {
         super.onResume();
-        barcodeView.resume();
+        // เริ่มสแกนเฉพาะเมื่อมีสิทธิ์แล้ว
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            barcodeView.resume();
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         barcodeView.pause();
-        // ⭐ ปิด flash ก่อน pause
         if (flashOn) {
             try {
                 barcodeView.setTorchOff();
