@@ -38,6 +38,11 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         notifyDataSetChanged();
     }
 
+    public Profile getItem(int position) {
+        if (position < 0 || position >= items.size()) return null;
+        return items.get(position);
+    }
+
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -53,8 +58,13 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     }
 
     @Override
-    public int getItemCount() { return items.size(); }
+    public int getItemCount() {
+        return items.size();
+    }
 
+    // ============================================================
+    // ViewHolder
+    // ============================================================
     static class VH extends RecyclerView.ViewHolder {
         TextView name, host, protocol, ping;
         ImageButton btnQr, btnFav, btnEdit, btnDelete;
@@ -65,37 +75,51 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             host = v.findViewById(R.id.txtHost);
             protocol = v.findViewById(R.id.txtProtocol);
             ping = v.findViewById(R.id.txtPing);
-            btnQr = v.findViewById(R.id.btnQr);       // ⭐ ใหม่
+            btnQr = v.findViewById(R.id.btnQr);
             btnFav = v.findViewById(R.id.btnFavorite);
             btnEdit = v.findViewById(R.id.btnEdit);
             btnDelete = v.findViewById(R.id.btnDelete);
         }
 
         void bind(Profile p, Listener l) {
-            name.setText(p.name);
-            host.setText(p.host + ":" + p.port);
-            protocol.setText(p.protocol.id.toLowerCase());
-            ping.setText("Ping —");
+            if (name != null) name.setText(p.name);
+            if (host != null) host.setText(p.host + ":" + p.port);
+            if (protocol != null) {
+                protocol.setText(p.protocol.id.toLowerCase());
+            }
+            if (ping != null) ping.setText("Ping —");
 
-            btnFav.setImageResource(p.isFavorite
-                    ? android.R.drawable.btn_star_big_on
-                    : android.R.drawable.btn_star_big_off);
+            // ⭐ Favorite star
+            if (btnFav != null) {
+                btnFav.setImageResource(p.isFavorite
+                        ? android.R.drawable.btn_star_big_on
+                        : android.R.drawable.btn_star_big_off);
+                btnFav.setOnClickListener(v -> l.onToggleFavorite(p));
+            }
 
-            // กดการ์ด → เชื่อมต่อ
+            // ⭐ กดการ์ด → เชื่อมต่อ
             itemView.setOnClickListener(v -> l.onConnect(p));
 
-            // กดค้าง → เมนู QR (สำรอง)
+            // ⭐ กดค้าง → เมนู QR
             itemView.setOnLongClickListener(v -> {
                 l.onShareQr(p);
                 return true;
             });
 
-            // ⭐ ปุ่ม QR บนการ์ด
-            btnQr.setOnClickListener(v -> l.onShareQr(p));
+            // ⭐ ปุ่ม QR
+            if (btnQr != null) {
+                btnQr.setOnClickListener(v -> l.onShareQr(p));
+            }
 
-            btnFav.setOnClickListener(v -> l.onToggleFavorite(p));
-            btnEdit.setOnClickListener(v -> l.onEdit(p));
-            btnDelete.setOnClickListener(v -> l.onDelete(p));
+            // ⭐ ปุ่ม Edit
+            if (btnEdit != null) {
+                btnEdit.setOnClickListener(v -> l.onEdit(p));
+            }
+
+            // ⭐ ปุ่ม Delete
+            if (btnDelete != null) {
+                btnDelete.setOnClickListener(v -> l.onDelete(p));
+            }
         }
     }
 }
