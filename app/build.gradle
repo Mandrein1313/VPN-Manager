@@ -48,10 +48,18 @@ android {
                 'META-INF/LGPL2.1'
             ]
         }
+        // ⭐ แก้ปัญหา .so ซ้ำ
+        jniLibs {
+            pickFirsts += [
+                'lib/arm64-v8a/libhev-socks5-tunnel.so',
+                'lib/armeabi-v7a/libhev-socks5-tunnel.so',
+                'lib/x86/libhev-socks5-tunnel.so',
+                'lib/x86_64/libhev-socks5-tunnel.so'
+            ]
+        }
     }
 }
 
-// ⭐ force androidx.core ให้เป็นเวอร์ชันเก่า
 configurations.all {
     resolutionStrategy {
         force 'androidx.core:core:1.15.0'
@@ -72,7 +80,7 @@ dependencies {
     implementation 'androidx.navigation:navigation-fragment:2.8.0'
     implementation 'androidx.navigation:navigation-ui:2.8.0'
 
-    // ===== Lifecycle (ViewModel + LiveData) =====
+    // ===== Lifecycle =====
     implementation 'androidx.lifecycle:lifecycle-viewmodel:2.8.4'
     implementation 'androidx.lifecycle:lifecycle-livedata:2.8.4'
     implementation 'androidx.lifecycle:lifecycle-runtime:2.8.4'
@@ -95,14 +103,14 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 
-    // ===== Tun2Socks (hevtunnel) =====
-    implementation 'com.zaneschepke:hevtunnel:1.0.1'
+    // ❌ ลบ hevtunnel — เพราะ workflow คอมไพล์ .so เอง
+    // implementation 'com.zaneschepke:hevtunnel:1.0.1'
 
     // ===== ViewPager2 + Fragment =====
     implementation 'androidx.viewpager2:viewpager2:1.1.0'
     implementation 'androidx.fragment:fragment:1.6.2'
 
-    // ===== MPAndroidChart — กราฟแสดง Traffic =====
+    // ===== MPAndroidChart =====
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 
     // ===== ZXing — QR Code =====
@@ -112,11 +120,9 @@ dependencies {
     // ===== Kotlin runtime (จำเป็นสำหรับ Xray) =====
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.20'
 
-    // ⭐ Xray Core (V2Ray)
-    // ⚠️ ลอง version ที่มีจริงบน JitPack
-    // ⭐ Xray Core (V2Ray) — ใช้ AAR (ดาวน์โหลดใน workflow)
-// ⭐ Xray Core (V2Ray) — ใช้ AAR (ดาวน์โหลดใน workflow)
+    // ⭐ Xray Core (V2Ray) — ใช้ AAR ที่ workflow ดาวน์โหลด
     implementation files('libs/libv2ray.aar')
+
     // ===== Testing =====
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
