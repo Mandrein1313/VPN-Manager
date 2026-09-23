@@ -105,6 +105,10 @@ dependencies {
        // ⭐ ZXing — QR Code
     implementation 'com.google.zxing:core:3.5.3'
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+      // ⭐ Xray Core (V2Ray) — Kotlin-based
+    implementation 'com.github.2dust:AndroidLibXrayLite:25.6.8'
+     // Kotlin runtime (จำเป็นสำหรับ Xray library)
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.20'
 
     // ===== Testing =====
     testImplementation 'junit:junit:4.13.2'

@@ -20,8 +20,10 @@ import androidx.core.app.NotificationCompat;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.model.V2RayConfig;
 import com.example.vpn.tunnel.Socks5Server;
 import com.example.vpn.tunnel.SshTunnel;
+import com.example.vpn.tunnel.V2RayEngine;
 import com.example.vpn.util.BypassPrefs;
 import com.example.vpn.util.ConnectivityChecker;
 import com.example.vpn.util.NetworkBinder;
@@ -70,6 +72,7 @@ public class ProxyVpnService extends VpnService
 
     private SshTunnel sshTunnel;
     private Socks5Server socks5Server;
+    private V2RayEngine v2rayEngine;
     private NetworkMonitor networkMonitor;
     private ConnectivityChecker connectivityChecker;
     private VpnPrefs prefs;
@@ -270,6 +273,10 @@ public class ProxyVpnService extends VpnService
             try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
             tun2socksRunning = false;
         }
+        if (v2rayEngine != null) {
+            try { v2rayEngine.stop(); } catch (Throwable ignored) {}
+            v2rayEngine = null;
+        }
         if (socks5Server != null) {
             try { socks5Server.stop(); } catch (Throwable ignored) {}
             socks5Server = null;
@@ -371,7 +378,7 @@ public class ProxyVpnService extends VpnService
             }
 
             try { Thread.sleep(800); } catch (InterruptedException ignored) {}
-            VpnLogger.i(TAG, "VPN fully established — starting SSH...");
+            VpnLogger.i(TAG, "VPN fully established — starting connection...");
 
             connectSshAndSocks(profile);
 
@@ -395,6 +402,17 @@ public class ProxyVpnService extends VpnService
 
     private void connectSshAndSocks(Profile profile) {
         try {
+            // ⭐ แยกตาม protocol
+            boolean isV2Ray = profile.protocol == com.example.vpn.model.Protocol.V2RAY
+                    || profile.protocol == com.example.vpn.model.Protocol.TROJAN
+                    || profile.protocol == com.example.vpn.model.Protocol.SHADOWSOCKS;
+
+            if (isV2Ray) {
+                connectV2Ray(profile);
+                return;
+            }
+
+            // ---- SSH Tunnel ----
             StatusBus.post(StatusBus.State.CONNECTING_SSH,
                     "กำลังเชื่อมต่อ SSH: " + profile.host + ":" + profile.port);
             updateNotification("กำลังเชื่อมต่อ SSH...");
@@ -521,6 +539,100 @@ public class ProxyVpnService extends VpnService
         }
     }
 
+    // ============================================================
+    // ⭐ V2Ray Connection
+    // ============================================================
+    private void connectV2Ray(Profile profile) throws Exception {
+        VpnLogger.i(TAG, "Connecting V2Ray: " + profile.v2rayType);
+        StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังเชื่อมต่อ V2Ray...");
+        updateNotification("กำลังเชื่อมต่อ V2Ray...");
+
+        // สร้าง config
+        V2RayConfig cfg = new V2RayConfig();
+        cfg.type = profile.v2rayType;
+        cfg.address = profile.host;
+        cfg.port = profile.port;
+        cfg.uuid = profile.v2rayUuid;
+        cfg.password = profile.pass;
+        cfg.method = profile.v2rayMethod;
+        cfg.network = profile.v2rayNetwork;
+        cfg.path = profile.v2rayPath;
+        cfg.host = profile.v2rayHost;
+        cfg.serviceName = profile.v2rayServiceName;
+        cfg.tls = profile.v2rayTls;
+        cfg.sni = profile.sni;
+        cfg.flow = profile.v2rayFlow;
+        cfg.fingerprint = "chrome";
+        cfg.allowInsecure = true;
+
+        // ⭐ สร้าง engine
+        v2rayEngine = new V2RayEngine(this, cfg, fd -> protect(fd));
+        v2rayEngine.start();
+
+        StatusBus.post(StatusBus.State.SOCKS_READY,
+                "V2Ray พร้อม: 127.0.0.1:" + V2RayEngine.SOCKS_PORT);
+        VpnLogger.i(TAG, "V2Ray started on port " + V2RayEngine.SOCKS_PORT);
+
+        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+
+        // ---- Tun2Socks (ชี้ไปที่ V2Ray SOCKS port) ----
+        StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
+        updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
+
+        copyConfigFromAssets();
+        // ⭐ แก้ config ให้ชี้ port 1081
+        rewriteConfigPort(V2RayEngine.SOCKS_PORT);
+
+        boolean started = false;
+        try {
+            started = TProxyService.TProxyStartService(
+                    configFile.getAbsolutePath(),
+                    tunFd.getFd()
+            );
+        } catch (Throwable t) {
+            VpnLogger.e(TAG, "TProxyStartService threw: " + t.getMessage());
+        }
+
+        if (!started) {
+            throw new IOException("Tun2Socks failed");
+        }
+
+        tun2socksRunning = true;
+        connected = true;
+        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready");
+
+        try { Thread.sleep(800); } catch (InterruptedException ignored) {}
+
+        StatusBus.post(StatusBus.State.CONNECTED,
+                "เชื่อมต่อแล้ว: " + profile.name);
+        updateNotification("เชื่อมต่อแล้ว: " + profile.name);
+        startNetworkMonitor();
+    }
+
+    /** ⭐ แก้ port ใน config yml */
+    private void rewriteConfigPort(int port) {
+        try {
+            java.io.BufferedReader br = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(
+                            new java.io.FileInputStream(configFile)));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.trim().startsWith("port:")) {
+                    sb.append("  port: ").append(port).append("\n");
+                } else {
+                    sb.append(line).append("\n");
+                }
+            }
+            br.close();
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile);
+            fos.write(sb.toString().getBytes("UTF-8"));
+            fos.close();
+        } catch (Exception e) {
+            VpnLogger.w(TAG, "rewriteConfigPort error: " + e.getMessage());
+        }
+    }
+
     private void startNetworkMonitor() {
         if (networkMonitor == null) {
             networkMonitor = new NetworkMonitor(this, this);
@@ -589,6 +701,13 @@ public class ProxyVpnService extends VpnService
             try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
             tun2socksRunning = false;
         }
+
+        // ⭐ ปิด V2Ray
+        if (v2rayEngine != null) {
+            try { v2rayEngine.stop(); } catch (Throwable ignored) {}
+            v2rayEngine = null;
+        }
+
         if (socks5Server != null) {
             try { socks5Server.stop(); } catch (Throwable ignored) {}
             socks5Server = null;
@@ -627,6 +746,12 @@ public class ProxyVpnService extends VpnService
                 VpnLogger.w(TAG, "TProxyStopService error: " + t.getMessage());
             }
             tun2socksRunning = false;
+        }
+
+        // ⭐ ปิด V2Ray
+        if (v2rayEngine != null) {
+            try { v2rayEngine.stop(); } catch (Throwable ignored) {}
+            v2rayEngine = null;
         }
 
         if (socks5Server != null) {

@@ -31,6 +31,17 @@ public class ProfileEntity {
     public String dns1;
     public String dns2;
 
+    // ⭐ V2Ray Fields
+    public String v2rayType;
+    public String v2rayUuid;
+    public String v2rayNetwork;
+    public String v2rayPath;
+    public String v2rayHost;
+    public String v2rayServiceName;
+    public boolean v2rayTls;
+    public String v2rayFlow;
+    public String v2rayMethod;
+
     @ColumnInfo(name = "extras_json")
     public String extrasJson;
 
@@ -51,6 +62,18 @@ public class ProfileEntity {
         e.sni = p.sni;
         e.dns1 = p.dns1;
         e.dns2 = p.dns2;
+
+        // ⭐ V2Ray
+        e.v2rayType = p.v2rayType;
+        e.v2rayUuid = p.v2rayUuid;
+        e.v2rayNetwork = p.v2rayNetwork;
+        e.v2rayPath = p.v2rayPath;
+        e.v2rayHost = p.v2rayHost;
+        e.v2rayServiceName = p.v2rayServiceName;
+        e.v2rayTls = p.v2rayTls;
+        e.v2rayFlow = p.v2rayFlow;
+        e.v2rayMethod = p.v2rayMethod;
+
         e.extrasJson = mapToJson(p.extras);
         e.isFavorite = p.isFavorite;
         e.lastUsedAt = p.lastUsedAt;
@@ -71,6 +94,18 @@ public class ProfileEntity {
         p.sni = sni;
         p.dns1 = dns1;
         p.dns2 = dns2;
+
+        // ⭐ V2Ray
+        p.v2rayType = v2rayType != null ? v2rayType : "vless";
+        p.v2rayUuid = v2rayUuid != null ? v2rayUuid : "";
+        p.v2rayNetwork = v2rayNetwork != null ? v2rayNetwork : "tcp";
+        p.v2rayPath = v2rayPath != null ? v2rayPath : "/";
+        p.v2rayHost = v2rayHost != null ? v2rayHost : "";
+        p.v2rayServiceName = v2rayServiceName != null ? v2rayServiceName : "";
+        p.v2rayTls = v2rayTls;
+        p.v2rayFlow = v2rayFlow != null ? v2rayFlow : "";
+        p.v2rayMethod = v2rayMethod != null ? v2rayMethod : "aes-256-gcm";
+
         p.extras = jsonToMap(extrasJson);
         p.isFavorite = isFavorite;
         p.lastUsedAt = lastUsedAt;

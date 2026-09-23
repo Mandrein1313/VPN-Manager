@@ -38,8 +38,11 @@ public class ProfileEditActivity extends AppCompatActivity {
 
     private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
             edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2;
-    private MaterialAutoCompleteTextView ddProtocol;
-    private LinearLayout groupCredentials, groupSsh;
+    private TextInputEditText edtV2rayUuid, edtV2rayPath, edtV2rayHost,
+            edtV2rayServiceName, edtV2rayFlow;
+    private MaterialAutoCompleteTextView ddProtocol, ddV2rayType, ddV2rayNetwork;
+    private LinearLayout groupCredentials, groupSsh, groupV2Ray;
+    private MaterialSwitch switchV2rayTls;
     private MaterialButton btnSave;
 
     // ⭐ Options switches
@@ -77,6 +80,29 @@ public class ProfileEditActivity extends AppCompatActivity {
         groupCredentials = findViewById(R.id.groupCredentials);
         groupSsh = findViewById(R.id.groupSsh);
         btnSave = findViewById(R.id.btnSave);
+
+        // ⭐ V2Ray UI binding
+        edtV2rayUuid = findViewById(R.id.edtV2rayUuid);
+        edtV2rayPath = findViewById(R.id.edtV2rayPath);
+        edtV2rayHost = findViewById(R.id.edtV2rayHost);
+        edtV2rayServiceName = findViewById(R.id.edtV2rayServiceName);
+        edtV2rayFlow = findViewById(R.id.edtV2rayFlow);
+        ddV2rayType = findViewById(R.id.ddV2rayType);
+        ddV2rayNetwork = findViewById(R.id.ddV2rayNetwork);
+        groupV2Ray = findViewById(R.id.groupV2Ray);
+        switchV2rayTls = findViewById(R.id.switchV2rayTls);
+
+        if (ddV2rayType != null) {
+            String[] v2Types = {"vless", "vmess", "trojan", "ss"};
+            ddV2rayType.setAdapter(new ArrayAdapter<>(this,
+                    android.R.layout.simple_list_item_1, v2Types));
+        }
+
+        if (ddV2rayNetwork != null) {
+            String[] v2Networks = {"tcp", "ws", "grpc", "http", "h2"};
+            ddV2rayNetwork.setAdapter(new ArrayAdapter<>(this,
+                    android.R.layout.simple_list_item_1, v2Networks));
+        }
 
         // ⭐ Bind options
         switchAutoReconnect = findViewById(R.id.switchAutoReconnect);
@@ -174,6 +200,17 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtSni.setText(p.sni);
         edtDns1.setText(p.dns1);
         edtDns2.setText(p.dns2);
+
+        // ⭐ Bind V2Ray
+        if (edtV2rayUuid != null) edtV2rayUuid.setText(p.v2rayUuid);
+        if (edtV2rayPath != null) edtV2rayPath.setText(p.v2rayPath);
+        if (edtV2rayHost != null) edtV2rayHost.setText(p.v2rayHost);
+        if (edtV2rayServiceName != null) edtV2rayServiceName.setText(p.v2rayServiceName);
+        if (edtV2rayFlow != null) edtV2rayFlow.setText(p.v2rayFlow);
+        if (ddV2rayType != null) ddV2rayType.setText(p.v2rayType, false);
+        if (ddV2rayNetwork != null) ddV2rayNetwork.setText(p.v2rayNetwork, false);
+        if (switchV2rayTls != null) switchV2rayTls.setChecked(p.v2rayTls);
+
         onProtocolChanged(p.protocol);
     }
 
@@ -187,6 +224,13 @@ public class ProfileEditActivity extends AppCompatActivity {
         boolean showCredentials = (proto == Protocol.SSH || proto == Protocol.TROJAN);
         groupCredentials.setVisibility(showCredentials ? View.VISIBLE : View.GONE);
         groupSsh.setVisibility(proto == Protocol.SSH ? View.VISIBLE : View.GONE);
+
+        // ⭐ V2Ray group
+        boolean showV2Ray = (proto == Protocol.V2RAY
+                || proto == Protocol.SHADOWSOCKS);
+        if (groupV2Ray != null) {
+            groupV2Ray.setVisibility(showV2Ray ? View.VISIBLE : View.GONE);
+        }
     }
 
     private Protocol currentProtocol() {
@@ -222,6 +266,16 @@ public class ProfileEditActivity extends AppCompatActivity {
         p.sni = text(edtSni);
         p.dns1 = text(edtDns1);
         p.dns2 = text(edtDns2);
+
+        // ⭐ Save V2Ray fields
+        if (edtV2rayUuid != null) p.v2rayUuid = text(edtV2rayUuid);
+        if (edtV2rayPath != null) p.v2rayPath = text(edtV2rayPath);
+        if (edtV2rayHost != null) p.v2rayHost = text(edtV2rayHost);
+        if (edtV2rayServiceName != null) p.v2rayServiceName = text(edtV2rayServiceName);
+        if (edtV2rayFlow != null) p.v2rayFlow = text(edtV2rayFlow);
+        if (ddV2rayType != null) p.v2rayType = ddV2rayType.getText().toString();
+        if (ddV2rayNetwork != null) p.v2rayNetwork = ddV2rayNetwork.getText().toString();
+        if (switchV2rayTls != null) p.v2rayTls = switchV2rayTls.isChecked();
 
         viewModel.save(p, id -> {
             Toast.makeText(this, "บันทึกแล้ว", Toast.LENGTH_SHORT).show();
