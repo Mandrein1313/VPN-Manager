@@ -97,21 +97,27 @@ dependencies {
 
     // ===== Tun2Socks (hevtunnel) =====
     implementation 'com.zaneschepke:hevtunnel:1.0.1'
+
+    // ===== ViewPager2 + Fragment =====
     implementation 'androidx.viewpager2:viewpager2:1.1.0'
     implementation 'androidx.fragment:fragment:1.6.2'
 
-    // ⭐ MPAndroidChart — กราฟแสดง Traffic
+    // ===== MPAndroidChart — กราฟแสดง Traffic =====
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
-       // ⭐ ZXing — QR Code
+
+    // ===== ZXing — QR Code =====
     implementation 'com.google.zxing:core:3.5.3'
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
-      // ⭐ Xray Core (V2Ray) — Kotlin-based
-    implementation 'com.github.2dust:AndroidLibXrayLite:25.6.8'
-     // Kotlin runtime (จำเป็นสำหรับ Xray library)
+
+    // ===== Kotlin runtime (จำเป็นสำหรับ Xray) =====
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.20'
+
+    // ⭐ Xray Core (V2Ray)
+    // ⚠️ ลอง version ที่มีจริงบน JitPack
+    implementation 'com.github.2dust:AndroidLibXrayLite:1.250608'
 
     // ===== Testing =====
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-} 
+}
