@@ -1,112 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="#0D1117"
+    android:orientation="vertical">
 
-    <!-- ปุ่มปิด -->
-    <ImageButton
-        android:id="@+id/btnClose"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_gravity="top|start"
-        android:layout_margin="12dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="ปิด"
-        android:padding="12dp"
-        android:src="@android:drawable/ic_menu_close_clear_cancel"
-        app:tint="#FFFFFF" />
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#0D1117"
+        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
+        app:navigationIconTint="#FFFFFF"
+        app:title="แชร์ QR Code"
+        app:titleTextColor="#FFFFFF" />
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:fillViewport="true">
 
-        <!-- ชื่อโปรไฟล์ -->
-        <TextView
-            android:id="@+id/txtProfileName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:maxLines="2"
-            android:ellipsize="end" />
-
-        <!-- ข้อมูล host:port -->
-        <TextView
-            android:id="@+id/txtProfileInfo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:textColor="#888888"
-            android:textSize="13sp" />
-
-        <!-- QR Card สีขาว -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            app:cardBackgroundColor="#FFFFFF"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="0dp">
-
-            <ImageView
-                android:id="@+id/imgQr"
-                android:layout_width="280dp"
-                android:layout_height="280dp"
-                android:contentDescription="QR Code"
-                android:padding="20dp"
-                android:scaleType="fitCenter" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- คำแนะนำ -->
-        <TextView
-            android:id="@+id/txtHint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:gravity="center"
-            android:text="Scan this from another device to import the profile"
-            android:textColor="#AAAAAA"
-            android:textSize="14sp" />
-
-        <!-- ปุ่มแชร์ / คัดลอก -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:orientation="horizontal">
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="24dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnShare"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:text="📤  แชร์"
-                android:textColor="#000000"
-                app:backgroundTint="#FFFFFF"
-                app:cornerRadius="12dp" />
-
-            <Space
-                android:layout_width="12dp"
-                android:layout_height="1dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCopy"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:text="📋  คัดลอก"
+            <TextView
+                android:id="@+id/txtProfileName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Profile Name"
                 android:textColor="#FFFFFF"
-                app:cornerRadius="12dp"
-                app:strokeColor="#FFFFFF"
-                app:strokeWidth="1dp" />
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/txtProfileInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="host:port · SSH"
+                android:textColor="#888888"
+                android:textSize="13sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="8dp">
+
+                <ImageView
+                    android:id="@+id/imgQr"
+                    android:layout_width="320dp"
+                    android:layout_height="320dp"
+                    android:contentDescription="QR Code"
+                    android:padding="16dp"
+                    android:scaleType="fitCenter" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:text="ให้เพื่อนสแกน QR นี้เพื่อนำเข้าโปรไฟล์"
+                android:textColor="#B0BEC5"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnShare"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📤  แชร์"
+                    app:backgroundTint="#00E676"
+                    app:cornerRadius="12dp" />
+
+                <Space
+                    android:layout_width="12dp"
+                    android:layout_height="1dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCopy"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📋  คัดลอก"
+                    android:textColor="#00BCD4"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="#00BCD4" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:text="💡 เพื่อนเปิดแอป VPN Manager → สแกน QR → ได้โปรไฟล์ทันที"
+                android:textColor="#666666"
+                android:textSize="11sp" />
         </LinearLayout>
-    </LinearLayout>
-</FrameLayout>
+    </ScrollView>
+</LinearLayout>

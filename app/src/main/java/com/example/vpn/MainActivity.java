@@ -288,7 +288,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 .show();
     }
 
-    private void removeDuplicateNames() {
+     private void removeDuplicateNames() {
         if (cachedProfiles == null || cachedProfiles.isEmpty()) {
             Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
             return;

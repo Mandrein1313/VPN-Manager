@@ -1,12 +1,11 @@
 package com.example.vpn.ui;
 
-import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
@@ -14,58 +13,48 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
-import com.example.vpn.util.QrGenerator;
+import com.example.vpn.util.QrPayload;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.RGBLuminanceSource;
-import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 import com.journeyapps.barcodescanner.BarcodeCallback;
 import com.journeyapps.barcodescanner.BarcodeResult;
 import com.journeyapps.barcodescanner.DecoratedBarcodeView;
 
 import java.io.InputStream;
+import java.util.List;
 
 public class QrScanActivity extends AppCompatActivity {
 
     private DecoratedBarcodeView barcodeView;
     private ImageButton btnClose;
     private ImageButton btnFlash;
-    private ImageButton btnGallery;   // ⭐ ปุ่มเลือกจากแกลเลอรี
+    private MaterialButton btnGallery;
 
     private ProfileViewModel viewModel;
     private boolean handled = false;
     private boolean flashOn = false;
 
-    // ⭐ ขอสิทธิ์กล้อง
-    private final ActivityResultLauncher<String> cameraPermissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
-                if (granted) {
-                    startScanning();
-                } else {
-                    new MaterialAlertDialogBuilder(this)
-                            .setTitle("ต้องการสิทธิ์กล้อง")
-                            .setMessage("แอปต้องใช้กล้องเพื่อสแกน QR Code\nหรือใช้ปุ่มเลือกจากแกลเลอรีแทนได้")
-                            .setPositiveButton("ตกลง", null)
-                            .show();
-                }
-            });
-
-    // ⭐ เลือกภาพจากแกลเลอรี
+    // ⭐ Launcher: เลือกรูป
     private final ActivityResultLauncher<String> pickImageLauncher =
-            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-                if (uri != null) {
-                    decodeQrFromImage(uri);
-                }
-            });
+            registerForActivityResult(
+                    new ActivityResultContracts.GetContent(),
+                    uri -> {
+                        if (uri != null) {
+                            decodeFromImage(uri);
+                        } else {
+                            barcodeView.resume();
+                        }
+                    });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -75,38 +64,31 @@ public class QrScanActivity extends AppCompatActivity {
         barcodeView = findViewById(R.id.barcodeView);
         btnClose = findViewById(R.id.btnClose);
         btnFlash = findViewById(R.id.btnFlash);
-        btnGallery = findViewById(R.id.btnGallery);   // ⭐ ต้องมีใน layout
+        btnGallery = findViewById(R.id.btnGallery);
 
         ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
 
+        // ⭐ ปุ่มปิด
         if (btnClose != null) {
             btnClose.setOnClickListener(v -> finish());
         }
 
+        // ⭐ ปุ่มแฟลช
         if (btnFlash != null) {
             btnFlash.setOnClickListener(v -> toggleFlash());
         }
 
-        // ⭐ ปุ่มเลือกจากแกลเลอรี
+        // ⭐ ปุ่มเลือกรูป
         if (btnGallery != null) {
-            btnGallery.setOnClickListener(v -> pickImageLauncher.launch("image/*"));
+            btnGallery.setOnClickListener(v -> {
+                barcodeView.pause();
+                pickImageLauncher.launch("image/*");
+            });
         }
 
-        checkCameraPermission();
-    }
-
-    private void checkCameraPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED) {
-            startScanning();
-        } else {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
-        }
-    }
-
-    private void startScanning() {
+        // ⭐ Scanner
         barcodeView.setStatusText("วาง QR ให้อยู่ในกรอบ");
         barcodeView.decodeContinuous(new BarcodeCallback() {
             @Override
@@ -120,97 +102,15 @@ public class QrScanActivity extends AppCompatActivity {
             }
 
             @Override
-            public void possibleResultPoints(
-                    java.util.List<com.google.zxing.ResultPoint> resultPoints) {
+            public void possibleResultPoints(List<com.google.zxing.ResultPoint> resultPoints) {
+                // ไม่ใช้
             }
         });
     }
 
     // ============================================================
-    // ⭐ สแกนจากรูปภาพ
+    // ⭐ Toggle Flash
     // ============================================================
-    private void decodeQrFromImage(Uri uri) {
-        try {
-            InputStream is = getContentResolver().openInputStream(uri);
-            if (is == null) {
-                Toast.makeText(this, "เปิดรูปไม่ได้", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            Bitmap bitmap = BitmapFactory.decodeStream(is);
-            is.close();
-
-            if (bitmap == null) {
-                Toast.makeText(this, "โหลดรูปไม่ได้", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // ลดขนาดถ้ารูปใหญ่เกินไป (ช่วยให้ decode เร็วขึ้น)
-            int maxSize = 1024;
-            if (bitmap.getWidth() > maxSize || bitmap.getHeight() > maxSize) {
-                float scale = Math.min(
-                        (float) maxSize / bitmap.getWidth(),
-                        (float) maxSize / bitmap.getHeight());
-                int w = Math.round(bitmap.getWidth() * scale);
-                int h = Math.round(bitmap.getHeight() * scale);
-                bitmap = Bitmap.createScaledBitmap(bitmap, w, h, true);
-            }
-
-            int width = bitmap.getWidth();
-            int height = bitmap.getHeight();
-            int[] pixels = new int[width * height];
-            bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
-
-            RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
-            BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(source));
-
-            Result result = new MultiFormatReader().decode(binaryBitmap);
-            String content = result.getText();
-
-            if (content != null && !content.isEmpty()) {
-                handleScannedContent(content);
-            } else {
-                Toast.makeText(this, "ไม่พบ QR Code ในรูป", Toast.LENGTH_SHORT).show();
-            }
-
-        } catch (com.google.zxing.NotFoundException e) {
-            Toast.makeText(this, "ไม่พบ QR Code ในรูปภาพ", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "อ่าน QR จากรูปไม่สำเร็จ: " + e.getMessage(),
-                    Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    // ============================================================
-    // ⭐ จัดการผลลัพธ์ที่สแกนได้ (ทั้งจากกล้องและจากรูป)
-    // ============================================================
-    private void handleScannedContent(String content) {
-        Profile p = QrGenerator.parsePayload(content);
-
-        if (p == null) {
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle("❌ QR ไม่ถูกต้อง")
-                    .setMessage("QR นี้ไม่ใช่โปรไฟล์ VPN Manager\n\n"
-                            + "ข้อมูลที่พบ:\n"
-                            + (content.length() > 100
-                                ? content.substring(0, 100) + "..."
-                                : content))
-                    .setPositiveButton("ลองใหม่", (d, w) -> {
-                        handled = false;
-                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                                == PackageManager.PERMISSION_GRANTED) {
-                            barcodeView.resume();
-                        }
-                    })
-                    .setNegativeButton("ปิด", (d, w) -> finish())
-                    .setCancelable(false)
-                    .show();
-            return;
-        }
-
-        showConfirmDialog(p);
-    }
-
     private void toggleFlash() {
         try {
             if (flashOn) {
@@ -223,10 +123,103 @@ public class QrScanActivity extends AppCompatActivity {
                 Toast.makeText(this, "เปิดแฟลช", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Toast.makeText(this, "อุปกรณ์ไม่รองรับแฟลช", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "อุปกรณ์ไม่รองรับแฟลช",
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
+    // ============================================================
+    // ⭐ Decode จากรูป
+    // ============================================================
+    private void decodeFromImage(Uri uri) {
+        try {
+            InputStream is = getContentResolver().openInputStream(uri);
+            if (is == null) {
+                Toast.makeText(this, "ไม่สามารถเปิดรูปได้",
+                        Toast.LENGTH_SHORT).show();
+                barcodeView.resume();
+                return;
+            }
+
+            Bitmap bitmap = BitmapFactory.decodeStream(is);
+            is.close();
+
+            if (bitmap == null) {
+                Toast.makeText(this, "อ่านรูปไม่ได้", Toast.LENGTH_SHORT).show();
+                barcodeView.resume();
+                return;
+            }
+
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+            int[] pixels = new int[width * height];
+            bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+
+            RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
+            BinaryBitmap binary = new BinaryBitmap(new HybridBinarizer(source));
+
+            try {
+                com.google.zxing.Result result = new MultiFormatReader().decode(binary);
+                if (result != null && result.getText() != null) {
+                    handleScannedContent(result.getText());
+                    return;
+                }
+            } catch (Exception ignored) {}
+
+            // ⭐ Decode ไม่ได้
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("❌ ไม่พบ QR Code")
+                    .setMessage("ไม่พบ QR Code ในรูปภาพ\n\n"
+                            + "ลองใหม่อีกครั้ง หรือใช้รูปที่คมชัดกว่านี้")
+                    .setPositiveButton("ลองใหม่", (d, w) -> {
+                        barcodeView.resume();
+                    })
+                    .setNegativeButton("ปิด", (d, w) -> finish())
+                    .show();
+
+        } catch (Exception e) {
+            Toast.makeText(this, "ผิดพลาด: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+            barcodeView.resume();
+        }
+    }
+
+    // ============================================================
+    // ⭐ Handle content ที่สแกนได้
+    // ============================================================
+    private void handleScannedContent(String content) {
+        QrPayload.DecodeResult result = QrPayload.decode(content);
+
+        if (!result.success) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("❌ QR ไม่ถูกต้อง")
+                    .setMessage((result.error != null ? result.error : "รูปแบบไม่ถูกต้อง")
+                            + "\n\nข้อมูล:\n"
+                            + (content.length() > 100
+                                ? content.substring(0, 100) + "..."
+                                : content))
+                    .setPositiveButton("ลองใหม่", (d, w) -> {
+                        handled = false;
+                        barcodeView.resume();
+                    })
+                    .setNegativeButton("ปิด", (d, w) -> finish())
+                    .setCancelable(false)
+                    .show();
+            return;
+        }
+
+        if (result.profiles.size() == 1) {
+            // ⭐ โปรไฟล์เดียว → ยืนยัน
+            showConfirmDialog(result.profiles.get(0));
+        } else {
+            // ⭐ หลายโปรไฟล์ → ให้เลือก
+            showMultiDialog(result.profiles);
+        }
+    }
+
+    // ============================================================
+    // ⭐ Dialog: ยืนยันโปรไฟล์เดียว
+    // ============================================================
     private void showConfirmDialog(Profile p) {
         String msg = "ชื่อ: " + p.name + "\n"
                 + "Host: " + p.host + "\n"
@@ -239,64 +232,62 @@ public class QrScanActivity extends AppCompatActivity {
                 .setTitle("✅ พบโปรไฟล์")
                 .setMessage(msg)
                 .setPositiveButton("นำเข้า", (d, w) -> {
-                    // ⭐ ตรวจชื่อซ้ำก่อนบันทึก
-                    viewModel.getRepo().findByName(p.name, 0L, dup -> {
-                        if (dup != null) {
-                            new MaterialAlertDialogBuilder(QrScanActivity.this)
-                                    .setTitle("ชื่อซ้ำ")
-                                    .setMessage("มีโปรไฟล์ชื่อ \"" + p.name + "\" อยู่แล้ว\n\n"
-                                            + "ต้องการอัปเดตของเดิม หรือสร้างชื่อใหม่?")
-                                    .setPositiveButton("อัปเดตของเดิม", (d2, w2) -> {
-                                        p.id = dup.id;
-                                        viewModel.save(p, id -> {
-                                            Toast.makeText(QrScanActivity.this,
-                                                    "อัปเดตแล้ว: " + p.name, Toast.LENGTH_LONG).show();
-                                            setResult(RESULT_OK);
-                                            finish();
-                                        });
-                                    })
-                                    .setNegativeButton("สร้างชื่อใหม่", (d2, w2) -> {
-                                        p.id = 0;
-                                        p.name = p.name + " (" + System.currentTimeMillis() % 10000 + ")";
-                                        viewModel.save(p, id -> {
-                                            Toast.makeText(QrScanActivity.this,
-                                                    "นำเข้าสำเร็จ: " + p.name, Toast.LENGTH_LONG).show();
-                                            setResult(RESULT_OK);
-                                            finish();
-                                        });
-                                    })
-                                    .setNeutralButton("ยกเลิก", null)
-                                    .show();
-                        } else {
-                            p.id = 0;
-                            viewModel.save(p, id -> {
-                                Toast.makeText(QrScanActivity.this,
-                                        "นำเข้าสำเร็จ: " + p.name, Toast.LENGTH_LONG).show();
-                                setResult(RESULT_OK);
-                                finish();
-                            });
-                        }
+                    p.id = 0;
+                    viewModel.save(p, id -> {
+                        Toast.makeText(QrScanActivity.this,
+                                "นำเข้าสำเร็จ: " + p.name,
+                                Toast.LENGTH_LONG).show();
+                        setResult(RESULT_OK);
+                        finish();
                     });
                 })
                 .setNegativeButton("สแกนใหม่", (d, w) -> {
                     handled = false;
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                            == PackageManager.PERMISSION_GRANTED) {
-                        barcodeView.resume();
-                    }
+                    barcodeView.resume();
                 })
                 .setNeutralButton("ยกเลิก", (d, w) -> finish())
                 .setCancelable(false)
                 .show();
     }
 
+    // ============================================================
+    // ⭐ Dialog: หลายโปรไฟล์
+    // ============================================================
+    private void showMultiDialog(List<Profile> profiles) {
+        String[] items = new String[profiles.size()];
+        for (int i = 0; i < profiles.size(); i++) {
+            Profile p = profiles.get(i);
+            items[i] = p.name + " — " + p.host + ":" + p.port;
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("✅ พบ " + profiles.size() + " โปรไฟล์")
+                .setItems(items, (d, which) -> {
+                    Profile p = profiles.get(which);
+                    p.id = 0;
+                    viewModel.save(p, id -> {
+                        Toast.makeText(QrScanActivity.this,
+                                "นำเข้าสำเร็จ: " + p.name,
+                                Toast.LENGTH_LONG).show();
+                        setResult(RESULT_OK);
+                        finish();
+                    });
+                })
+                .setNegativeButton("สแกนใหม่", (d, w) -> {
+                    handled = false;
+                    barcodeView.resume();
+                })
+                .setCancelable(false)
+                .show();
+    }
+
+    // ============================================================
+    // Lifecycle
+    // ============================================================
     @Override
     protected void onResume() {
         super.onResume();
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED) {
-            barcodeView.resume();
-        }
+        barcodeView.resume();
     }
 
     @Override

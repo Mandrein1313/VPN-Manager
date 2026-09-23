@@ -2,4 +2,5 @@
 <paths>
     <cache-path name="qr" path="qr/" />
     <files-path name="files" path="." />
+    <external-files-path name="ext_files" path="." />
 </paths>

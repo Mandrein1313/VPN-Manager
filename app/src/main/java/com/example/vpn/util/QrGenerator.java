@@ -1,125 +1,173 @@
 package com.example.vpn.util;
 
-import android.graphics.Bitmap;
-import android.graphics.Color;
+import android.util.Base64;
 
 import com.example.vpn.model.Profile;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.common.BitMatrix;
+import com.example.vpn.model.Protocol;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.json.JSONObject;
 
-public class QrGenerator {
+import java.nio.charset.StandardCharsets;
 
-    private static final int DEFAULT_SIZE = 800;
+/**
+ * ⭐ จัดการ payload ของ QR Code
+ *
+ * Format:
+ *   vpnmanager://profile?data=<base64>
+ *   vpnmanager://multi?data=<base64>
+ *
+ * หรือ decode จาก:
+ *   ssh://user:pass@host:port
+ *   user:pass@host:port
+ */
+public class QrPayload {
 
-    public static Bitmap generate(String content) {
-        return generate(content, DEFAULT_SIZE);
-    }
+    private static final String PREFIX_PROFILE = "vpnmanager://profile?data=";
+    private static final String PREFIX_MULTI = "vpnmanager://multi?data=";
 
-    public static Bitmap generate(String content, int size) {
-        if (content == null || content.isEmpty()) return null;
-
+    // ============================================================
+    // ⭐ Encode
+    // ============================================================
+    public static String encode(Profile p) {
         try {
-            Map<EncodeHintType, Object> hints = new HashMap<>();
-            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
-            hints.put(EncodeHintType.MARGIN, 1);
-            hints.put(EncodeHintType.ERROR_CORRECTION,
-                    com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M);
-
-            BitMatrix matrix = new MultiFormatWriter().encode(
-                    content, BarcodeFormat.QR_CODE, size, size, hints);
-
-            int width = matrix.getWidth();
-            int height = matrix.getHeight();
-            int[] pixels = new int[width * height];
-
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    pixels[y * width + x] = matrix.get(x, y)
-                            ? Color.BLACK : Color.WHITE;
-                }
-            }
-
-            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            bitmap.setPixels(pixels, 0, width, 0, 0, width, height);
-            return bitmap;
-
-        } catch (Exception e) {
-            VpnLogger.e("QrGenerator", "generate error: " + e.getMessage(), e);
-            return null;
-        }
-    }
-
-    /**
-     * สร้าง payload จาก Profile
-     * Format: vpnmanager://profile?data=base64(json)
-     */
-    public static String buildPayload(Profile p) {
-        try {
-            org.json.JSONObject o = new org.json.JSONObject();
+            JSONObject o = new JSONObject();
             o.put("v", 1);
             o.put("name", p.name);
             o.put("protocol", p.protocol.id);
             o.put("host", p.host);
             o.put("port", p.port);
-            o.put("user", p.user != null ? p.user : "");
-            o.put("pass", p.pass != null ? p.pass : "");
-            o.put("httpProxy", p.httpProxy != null ? p.httpProxy : "");
-            o.put("payload", p.payload != null ? p.payload : "");
-            o.put("sni", p.sni != null ? p.sni : "");
-            o.put("dns1", p.dns1 != null ? p.dns1 : "8.8.8.8");
-            o.put("dns2", p.dns2 != null ? p.dns2 : "8.8.4.4");
-
-            // ⭐ V2Ray fields
-            o.put("v2rayType", p.v2rayType != null ? p.v2rayType : "vless");
-            o.put("v2rayUuid", p.v2rayUuid != null ? p.v2rayUuid : "");
-            o.put("v2rayNetwork", p.v2rayNetwork != null ? p.v2rayNetwork : "tcp");
-            o.put("v2rayPath", p.v2rayPath != null ? p.v2rayPath : "/");
-            o.put("v2rayHost", p.v2rayHost != null ? p.v2rayHost : "");
-            o.put("v2rayServiceName", p.v2rayServiceName != null ? p.v2rayServiceName : "");
-            o.put("v2rayTls", p.v2rayTls);
-            o.put("v2rayFlow", p.v2rayFlow != null ? p.v2rayFlow : "");
-            o.put("v2rayMethod", p.v2rayMethod != null ? p.v2rayMethod : "aes-256-gcm");
+            o.put("user", p.user);
+            o.put("pass", p.pass);
+            o.put("httpProxy", p.httpProxy);
+            o.put("payload", p.payload);
+            o.put("sni", p.sni);
+            o.put("dns1", p.dns1);
+            o.put("dns2", p.dns2);
 
             String json = o.toString();
-            String base64 = android.util.Base64.encodeToString(
-                    json.getBytes("UTF-8"),
-                    android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE);
+            String base64 = Base64.encodeToString(
+                    json.getBytes(StandardCharsets.UTF_8),
+                    Base64.NO_WRAP | Base64.URL_SAFE);
 
-            return "vpnmanager://profile?data=" + base64;
+            return PREFIX_PROFILE + base64;
 
         } catch (Exception e) {
-            VpnLogger.e("QrGenerator", "buildPayload error: " + e.getMessage(), e);
+            VpnLogger.e("QrPayload", "encode error: " + e.getMessage(), e);
             return null;
         }
     }
 
-    /**
-     * Parse payload → Profile
-     */
-    public static Profile parsePayload(String content) {
-        if (content == null) return null;
+    // ============================================================
+    // ⭐ Decode
+    // ============================================================
+    public static DecodeResult decode(String content) {
+        DecodeResult result = new DecodeResult();
 
+        if (content == null || content.trim().isEmpty()) {
+            result.error = "ข้อมูลว่างเปล่า";
+            return result;
+        }
+
+        String text = content.trim();
+
+        // ---- 1. vpnmanager:// profile ----
+        if (text.startsWith(PREFIX_PROFILE)) {
+            return decodeVpnManager(text.substring(PREFIX_PROFILE.length()));
+        }
+
+        // ---- 2. vpnmanager:// multi ----
+        if (text.startsWith(PREFIX_MULTI)) {
+            return decodeVpnManagerMulti(text.substring(PREFIX_MULTI.length()));
+        }
+
+        // ---- 3. ssh:// ----
+        if (text.startsWith("ssh://")) {
+            ConfigParser.Result r = ConfigParser.parse(text);
+            if (r.isSuccess() && r.profile != null) {
+                result.profiles.add(r.profile);
+                result.success = true;
+                return result;
+            }
+            result.error = r.error;
+            return result;
+        }
+
+        // ---- 4. user:pass@host:port ----
+        if (text.contains("@") && text.contains(":")) {
+            ConfigParser.Result r = ConfigParser.parse(text);
+            if (r.isSuccess() && r.profile != null) {
+                result.profiles.add(r.profile);
+                result.success = true;
+                return result;
+            }
+        }
+
+        // ---- 5. JSON ตรงๆ ----
+        if (text.startsWith("{")) {
+            try {
+                JSONObject o = new JSONObject(text);
+                Profile p = jsonToProfile(o);
+                if (p != null) {
+                    result.profiles.add(p);
+                    result.success = true;
+                    return result;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        result.error = "รูปแบบไม่ถูกต้อง";
+        return result;
+    }
+
+    private static DecodeResult decodeVpnManager(String base64) {
+        DecodeResult result = new DecodeResult();
         try {
-            String prefix = "vpnmanager://profile?data=";
-            if (!content.startsWith(prefix)) return null;
+            byte[] decoded = Base64.decode(base64,
+                    Base64.NO_WRAP | Base64.URL_SAFE);
+            String json = new String(decoded, StandardCharsets.UTF_8);
+            JSONObject o = new JSONObject(json);
+            Profile p = jsonToProfile(o);
+            if (p == null) {
+                result.error = "ข้อมูลโปรไฟล์ไม่ครบถ้วน";
+                return result;
+            }
+            result.profiles.add(p);
+            result.success = true;
+            return result;
+        } catch (Exception e) {
+            result.error = "Decode ไม่สำเร็จ: " + e.getMessage();
+            return result;
+        }
+    }
 
-            String base64 = content.substring(prefix.length());
-            byte[] decoded = android.util.Base64.decode(
-                    base64,
-                    android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE);
+    private static DecodeResult decodeVpnManagerMulti(String base64) {
+        DecodeResult result = new DecodeResult();
+        try {
+            byte[] decoded = Base64.decode(base64,
+                    Base64.NO_WRAP | Base64.URL_SAFE);
+            String json = new String(decoded, StandardCharsets.UTF_8);
+            org.json.JSONArray arr = new org.json.JSONArray(json);
+            for (int i = 0; i < arr.length(); i++) {
+                Profile p = jsonToProfile(arr.getJSONObject(i));
+                if (p != null) result.profiles.add(p);
+            }
+            if (result.profiles.isEmpty()) {
+                result.error = "ไม่พบโปรไฟล์ในข้อมูล";
+                return result;
+            }
+            result.success = true;
+            return result;
+        } catch (Exception e) {
+            result.error = "Decode ไม่สำเร็จ: " + e.getMessage();
+            return result;
+        }
+    }
 
-            String json = new String(decoded, "UTF-8");
-            org.json.JSONObject o = new org.json.JSONObject(json);
-
+    private static Profile jsonToProfile(JSONObject o) {
+        try {
             Profile p = new Profile();
             p.name = o.optString("name", "");
-            p.protocol = com.example.vpn.model.Protocol.fromId(
-                    o.optString("protocol", "ssh"));
+            p.protocol = Protocol.fromId(o.optString("protocol", "ssh"));
             p.host = o.optString("host", "");
             p.port = o.optInt("port", 22);
             p.user = o.optString("user", "");
@@ -130,23 +178,25 @@ public class QrGenerator {
             p.dns1 = o.optString("dns1", "8.8.8.8");
             p.dns2 = o.optString("dns2", "8.8.4.4");
 
-            // ⭐ V2Ray fields
-            p.v2rayType = o.optString("v2rayType", "vless");
-            p.v2rayUuid = o.optString("v2rayUuid", "");
-            p.v2rayNetwork = o.optString("v2rayNetwork", "tcp");
-            p.v2rayPath = o.optString("v2rayPath", "/");
-            p.v2rayHost = o.optString("v2rayHost", "");
-            p.v2rayServiceName = o.optString("v2rayServiceName", "");
-            p.v2rayTls = o.optBoolean("v2rayTls", false);
-            p.v2rayFlow = o.optString("v2rayFlow", "");
-            p.v2rayMethod = o.optString("v2rayMethod", "aes-256-gcm");
-
+            if (p.name.isEmpty()) p.name = p.host;
             if (p.host.isEmpty()) return null;
-            return p;
 
+            return p;
         } catch (Exception e) {
-            VpnLogger.e("QrGenerator", "parsePayload error: " + e.getMessage(), e);
             return null;
+        }
+    }
+
+    // ============================================================
+    // Result
+    // ============================================================
+    public static class DecodeResult {
+        public boolean success = false;
+        public String error = null;
+        public java.util.List<Profile> profiles = new java.util.ArrayList<>();
+
+        public Profile getFirst() {
+            return profiles.isEmpty() ? null : profiles.get(0);
         }
     }
 }

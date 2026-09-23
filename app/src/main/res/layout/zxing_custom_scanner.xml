@@ -2,7 +2,6 @@
 <merge xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <!-- ⭐ ตัวกล้อง (BarcodeView) — id ต้องเป็น zxing_barcode_surface -->
     <com.journeyapps.barcodescanner.BarcodeView
         android:id="@+id/zxing_barcode_surface"
         android:layout_width="match_parent"
@@ -10,7 +9,6 @@
         app:zxing_framing_rect_width="280dp"
         app:zxing_framing_rect_height="280dp" />
 
-    <!-- ⭐ Viewfinder (กรอบสแกน) — id ต้องเป็น zxing_viewfinder_view -->
     <com.journeyapps.barcodescanner.ViewfinderView
         android:id="@+id/zxing_viewfinder_view"
         android:layout_width="match_parent"
@@ -21,7 +19,6 @@
         app:zxing_viewfinder_mask="@color/zxing_viewfinder_mask"
         app:zxing_viewfinder_laser_visibility="true" />
 
-    <!-- ⭐ ข้อความสถานะ (บนกลาง) — id ต้องเป็น zxing_status_view -->
     <TextView
         android:id="@+id/zxing_status_view"
         android:layout_width="wrap_content"
@@ -36,7 +33,6 @@
         android:textSize="14sp"
         android:textStyle="bold" />
 
-    <!-- ⭐ หัวข้อ (บนสุด) -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -46,15 +42,5 @@
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold" />
-
-    <!-- ⭐ คำแนะนำ (ล่างสุด) -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="60dp"
-        android:text="💡 จัด QR ให้เต็มกรอบ"
-        android:textColor="#B0BEC5"
-        android:textSize="13sp" />
 
 </merge>
