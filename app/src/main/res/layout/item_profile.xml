@@ -83,13 +83,25 @@
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- ===== Right: 3 Icons ===== -->
+        <!-- ===== Right: 4 Icons (QR + Star + Edit + Delete) ===== -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
+
+            <!-- ⭐ ปุ่ม QR (ใหม่) -->
+            <ImageButton
+                android:id="@+id/btnQr"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="แชร์ QR"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_share"
+                app:tint="#00BCD4" />
 
             <!-- Star (Favorite) -->
             <ImageButton

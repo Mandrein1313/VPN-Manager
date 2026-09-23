@@ -18,12 +18,11 @@ import java.util.List;
 public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     public interface Listener {
-        /** ⭐ กดที่การ์ด → เปิด ConnectionActivity ทันที */
         void onConnect(Profile p);
         void onEdit(Profile p);
         void onDelete(Profile p);
         void onToggleFavorite(Profile p);
-        void onShareQr(Profile p);   // ⭐ เพิ่ม method สำหรับแชร์ QR
+        void onShareQr(Profile p);
     }
 
     private final List<Profile> items = new ArrayList<>();
@@ -58,7 +57,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     static class VH extends RecyclerView.ViewHolder {
         TextView name, host, protocol, ping;
-        ImageButton btnFav, btnEdit, btnDelete;
+        ImageButton btnQr, btnFav, btnEdit, btnDelete;
 
         VH(@NonNull View v) {
             super(v);
@@ -66,6 +65,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             host = v.findViewById(R.id.txtHost);
             protocol = v.findViewById(R.id.txtProtocol);
             ping = v.findViewById(R.id.txtPing);
+            btnQr = v.findViewById(R.id.btnQr);       // ⭐ ใหม่
             btnFav = v.findViewById(R.id.btnFavorite);
             btnEdit = v.findViewById(R.id.btnEdit);
             btnDelete = v.findViewById(R.id.btnDelete);
@@ -81,14 +81,17 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
                     ? android.R.drawable.btn_star_big_on
                     : android.R.drawable.btn_star_big_off);
 
-            // ⭐ กดการ์ดทั้งใบ → เชื่อมต่อทันที
+            // กดการ์ด → เชื่อมต่อ
             itemView.setOnClickListener(v -> l.onConnect(p));
 
-            // ⭐ Long-press ที่การ์ด → แชร์/สแกน QR
+            // กดค้าง → เมนู QR (สำรอง)
             itemView.setOnLongClickListener(v -> {
                 l.onShareQr(p);
                 return true;
             });
+
+            // ⭐ ปุ่ม QR บนการ์ด
+            btnQr.setOnClickListener(v -> l.onShareQr(p));
 
             btnFav.setOnClickListener(v -> l.onToggleFavorite(p));
             btnEdit.setOnClickListener(v -> l.onEdit(p));
