@@ -9,6 +9,37 @@
         android:id="@+id/barcodeView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:zxing_scanner_layout="@layout/custom_scanner_overlay"
-        app:zxing_use_texture_view="true" />
+        app:zxing_use_texture_view="true"
+        app:zxing_scanner_layout="@layout/zxing_custom_scanner" />
+
+    <!-- ⭐ ปุ่มปิด (บนซ้าย) -->
+    <ImageButton
+        android:id="@+id/btnClose"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:contentDescription="ปิด"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        app:tint="#FFFFFF" />
+
+    <!-- ⭐ ปุ่ม Flash (บนขวา) -->
+    <ImageButton
+        android:id="@+id/btnFlash"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:contentDescription="แฟลช"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_menu_camera"
+        app:tint="#FFFFFF" />
+
 </FrameLayout>
