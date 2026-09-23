@@ -12,16 +12,10 @@ import com.google.zxing.common.BitMatrix;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * ⭐ สร้าง QR Code จาก Profile
- */
 public class QrGenerator {
 
     private static final int DEFAULT_SIZE = 800;
 
-    /**
-     * ⭐ สร้าง QR Code จาก string
-     */
     public static Bitmap generate(String content) {
         return generate(content, DEFAULT_SIZE);
     }
@@ -61,7 +55,7 @@ public class QrGenerator {
     }
 
     /**
-     * ⭐ สร้าง QR payload จาก Profile
+     * สร้าง payload จาก Profile
      * Format: vpnmanager://profile?data=base64(json)
      */
     public static String buildPayload(Profile p) {
@@ -72,13 +66,24 @@ public class QrGenerator {
             o.put("protocol", p.protocol.id);
             o.put("host", p.host);
             o.put("port", p.port);
-            o.put("user", p.user);
-            o.put("pass", p.pass);
-            o.put("httpProxy", p.httpProxy);
-            o.put("payload", p.payload);
-            o.put("sni", p.sni);
-            o.put("dns1", p.dns1);
-            o.put("dns2", p.dns2);
+            o.put("user", p.user != null ? p.user : "");
+            o.put("pass", p.pass != null ? p.pass : "");
+            o.put("httpProxy", p.httpProxy != null ? p.httpProxy : "");
+            o.put("payload", p.payload != null ? p.payload : "");
+            o.put("sni", p.sni != null ? p.sni : "");
+            o.put("dns1", p.dns1 != null ? p.dns1 : "8.8.8.8");
+            o.put("dns2", p.dns2 != null ? p.dns2 : "8.8.4.4");
+
+            // ⭐ V2Ray fields
+            o.put("v2rayType", p.v2rayType != null ? p.v2rayType : "vless");
+            o.put("v2rayUuid", p.v2rayUuid != null ? p.v2rayUuid : "");
+            o.put("v2rayNetwork", p.v2rayNetwork != null ? p.v2rayNetwork : "tcp");
+            o.put("v2rayPath", p.v2rayPath != null ? p.v2rayPath : "/");
+            o.put("v2rayHost", p.v2rayHost != null ? p.v2rayHost : "");
+            o.put("v2rayServiceName", p.v2rayServiceName != null ? p.v2rayServiceName : "");
+            o.put("v2rayTls", p.v2rayTls);
+            o.put("v2rayFlow", p.v2rayFlow != null ? p.v2rayFlow : "");
+            o.put("v2rayMethod", p.v2rayMethod != null ? p.v2rayMethod : "aes-256-gcm");
 
             String json = o.toString();
             String base64 = android.util.Base64.encodeToString(
@@ -94,19 +99,16 @@ public class QrGenerator {
     }
 
     /**
-     * ⭐ Parse QR payload → Profile
+     * Parse payload → Profile
      */
     public static Profile parsePayload(String content) {
         if (content == null) return null;
 
         try {
-            // ตัด prefix
             String prefix = "vpnmanager://profile?data=";
             if (!content.startsWith(prefix)) return null;
 
             String base64 = content.substring(prefix.length());
-
-            // Decode base64
             byte[] decoded = android.util.Base64.decode(
                     base64,
                     android.util.Base64.NO_WRAP | android.util.Base64.URL_SAFE);
@@ -127,6 +129,17 @@ public class QrGenerator {
             p.sni = o.optString("sni", "");
             p.dns1 = o.optString("dns1", "8.8.8.8");
             p.dns2 = o.optString("dns2", "8.8.4.4");
+
+            // ⭐ V2Ray fields
+            p.v2rayType = o.optString("v2rayType", "vless");
+            p.v2rayUuid = o.optString("v2rayUuid", "");
+            p.v2rayNetwork = o.optString("v2rayNetwork", "tcp");
+            p.v2rayPath = o.optString("v2rayPath", "/");
+            p.v2rayHost = o.optString("v2rayHost", "");
+            p.v2rayServiceName = o.optString("v2rayServiceName", "");
+            p.v2rayTls = o.optBoolean("v2rayTls", false);
+            p.v2rayFlow = o.optString("v2rayFlow", "");
+            p.v2rayMethod = o.optString("v2rayMethod", "aes-256-gcm");
 
             if (p.host.isEmpty()) return null;
             return p;

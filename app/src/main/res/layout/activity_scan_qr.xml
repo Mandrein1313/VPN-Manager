@@ -12,7 +12,7 @@
         app:zxing_use_texture_view="true"
         app:zxing_scanner_layout="@layout/zxing_custom_scanner" />
 
-    <!-- ⭐ ปุ่มปิด (บนซ้าย) -->
+    <!-- ปุ่มปิด (บนซ้าย) -->
     <ImageButton
         android:id="@+id/btnClose"
         android:layout_width="48dp"
@@ -27,7 +27,22 @@
         android:src="@android:drawable/ic_menu_close_clear_cancel"
         app:tint="#FFFFFF" />
 
-    <!-- ⭐ ปุ่ม Flash (บนขวา) -->
+    <!-- ⭐ ปุ่มเลือกจากแกลเลอรี (กลางล่าง) -->
+    <ImageButton
+        android:id="@+id/btnGallery"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:background="@android:drawable/dialog_holo_dark_frame"
+        android:clickable="true"
+        android:contentDescription="เลือกจากแกลเลอรี"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_menu_gallery"
+        app:tint="#FFFFFF" />
+
+    <!-- ปุ่ม Flash (บนขวา) -->
     <ImageButton
         android:id="@+id/btnFlash"
         android:layout_width="48dp"
