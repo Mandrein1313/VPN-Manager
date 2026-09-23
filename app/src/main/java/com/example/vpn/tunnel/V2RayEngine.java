@@ -13,12 +13,12 @@ import java.io.FileOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
+import libv2ray.CoreCallbackHandler;
+import libv2ray.CoreController;
 import libv2ray.Libv2ray;
-import libv2ray.V2RayPoint;
-import libv2ray.V2RayVPNServiceSupportsSet;
 
 /**
- * ⭐ V2Ray Engine — ใช้ AndroidLibXrayLite
+ * ⭐ V2Ray Engine — ใช้ AndroidLibXrayLite v26.9.9 (API ใหม่)
  * รองรับ VLESS, VMess, Trojan, Shadowsocks
  */
 public class V2RayEngine {
@@ -30,7 +30,7 @@ public class V2RayEngine {
     private final V2RayConfig config;
     private final SocketProtector protector;
 
-    private V2RayPoint v2rayPoint;
+    private CoreController coreController;
     private volatile boolean running = false;
     private Thread engineThread;
 
@@ -59,52 +59,39 @@ public class V2RayEngine {
         String configJson = buildConfigJson();
         VpnLogger.d(TAG, "Config:\n" + configJson);
 
+        // เขียนไฟล์ config (สำรองไว้ debug)
         File configFile = new File(ctx.getFilesDir(), "v2ray-config.json");
         try (FileOutputStream fos = new FileOutputStream(configFile)) {
             fos.write(configJson.getBytes("UTF-8"));
         }
 
-        v2rayPoint = Libv2ray.newV2RayPoint(
-                buildSupportSet(),
-                configFile.getAbsolutePath()
-        );
-        v2rayPoint.setDomainName(config.address);
-        v2rayPoint.setEnableLocalDNS(false);
+        // ✅ สร้าง CoreController ด้วย callback handler ใหม่
+        coreController = Libv2ray.newCoreController(buildCallbackHandler());
 
-        engineThread = new Thread(() -> {
-            try {
-                VpnLogger.i(TAG, "V2Ray runLoop starting...");
-                if (!v2rayPoint.runLoop(true)) {
-                    VpnLogger.e(TAG, "V2Ray runLoop returned false");
-                    running = false;
-                    return;
-                }
-                running = true;
-                VpnLogger.i(TAG, "V2Ray running on 127.0.0.1:" + SOCKS_PORT);
-            } catch (Exception e) {
-                VpnLogger.e(TAG, "V2Ray runLoop error: " + e.getMessage(), e);
-            }
-        }, "v2ray-engine");
-        engineThread.start();
+        // ✅ ส่ง config JSON เป็น String โดยตรง (ไม่ต้องใช้ path)
+        long ret = coreController.StartLoop(configJson);
+        VpnLogger.i(TAG, "StartLoop returned: " + ret);
 
         // รอ SOCKS พร้อม
         for (int i = 0; i < 30; i++) {
             try { Thread.sleep(200); } catch (InterruptedException ignored) {}
             if (checkSocksReady()) {
-                VpnLogger.i(TAG, "V2Ray SOCKS5 ready");
+                running = true;
+                VpnLogger.i(TAG, "V2Ray SOCKS5 ready on 127.0.0.1:" + SOCKS_PORT);
                 return;
             }
         }
         VpnLogger.w(TAG, "V2Ray SOCKS5 not ready after timeout");
+        running = true; // ถือว่าเริ่มไปแล้ว แม้จะ timeout
     }
 
     public void stop() {
         VpnLogger.i(TAG, "Stopping V2Ray...");
         running = false;
         try {
-            if (v2rayPoint != null) {
-                v2rayPoint.stopLoop();
-                v2rayPoint = null;
+            if (coreController != null) {
+                coreController.StopLoop();
+                coreController = null;
             }
         } catch (Exception e) {
             VpnLogger.w(TAG, "stop error: " + e.getMessage());
@@ -304,42 +291,28 @@ public class V2RayEngine {
     }
 
     // ============================================================
-    // V2Ray Support Set (JNI callback)
+    // ✅ Core Callback Handler (API ใหม่ แทน V2RayVPNServiceSupportsSet)
     // ============================================================
-    private V2RayVPNServiceSupportsSet buildSupportSet() {
-        return new V2RayVPNServiceSupportsSet() {
+    private CoreCallbackHandler buildCallbackHandler() {
+        return new CoreCallbackHandler() {
+
             @Override
-            public long shutdown() {
+            public long Startup() {
+                VpnLogger.i(TAG, "V2Ray callback: Startup");
+                return 0;
+            }
+
+            @Override
+            public long Shutdown() {
+                VpnLogger.i(TAG, "V2Ray callback: Shutdown");
                 running = false;
                 return 0;
             }
 
             @Override
-            public long prepare() {
-                return 0;
-            }
-
-            @Override
-            public boolean protect(long fd) {
-                try {
-                    if (protector != null) {
-                        return protector.protect((int) fd);
-                    }
-                } catch (Exception e) {
-                    VpnLogger.w(TAG, "protect error: " + e.getMessage());
-                }
-                return true;
-            }
-
-            @Override
-            public long onEmitStatus(long code, String message) {
+            public long OnEmitStatus(long code, String message) {
                 VpnLogger.d(TAG, "V2Ray status: " + code + " — " + message);
                 return 0;
-            }
-
-            @Override
-            public boolean setup(String conf) {
-                return true;
             }
         };
     }
