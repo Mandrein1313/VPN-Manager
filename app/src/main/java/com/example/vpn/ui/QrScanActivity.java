@@ -1,9 +1,12 @@
 package com.example.vpn.ui;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
@@ -13,6 +16,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.vpn.R;
@@ -43,6 +47,18 @@ public class QrScanActivity extends AppCompatActivity {
     private ProfileViewModel viewModel;
     private boolean handled = false;
     private boolean flashOn = false;
+
+    // ⭐ Launcher: ขอ Camera Permission
+    private final ActivityResultLauncher<String> cameraPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    granted -> {
+                        if (granted) {
+                            startCamera();
+                        } else {
+                            showPermissionDeniedDialog();
+                        }
+                    });
 
     // ⭐ Launcher: เลือกรูป
     private final ActivityResultLauncher<String> pickImageLauncher =
@@ -88,7 +104,26 @@ public class QrScanActivity extends AppCompatActivity {
             });
         }
 
-        // ⭐ Scanner
+        // ⭐ ตรวจสอบ Permission ก่อน
+        if (hasCameraPermission()) {
+            startCamera();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    // ============================================================
+    // ⭐ ตรวจสอบ Camera Permission
+    // ============================================================
+    private boolean hasCameraPermission() {
+        return ContextCompat.checkSelfPermission(this,
+                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // ============================================================
+    // ⭐ เริ่มกล้อง
+    // ============================================================
+    private void startCamera() {
         barcodeView.setStatusText("วาง QR ให้อยู่ในกรอบ");
         barcodeView.decodeContinuous(new BarcodeCallback() {
             @Override
@@ -102,10 +137,32 @@ public class QrScanActivity extends AppCompatActivity {
             }
 
             @Override
-            public void possibleResultPoints(List<com.google.zxing.ResultPoint> resultPoints) {
-                // ไม่ใช้
-            }
+            public void possibleResultPoints(List<com.google.zxing.ResultPoint> points) {}
         });
+        barcodeView.resume();
+    }
+
+    // ============================================================
+    // ⭐ แสดง Dialog ถ้าไม่อนุญาต
+    // ============================================================
+    private void showPermissionDeniedDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("🔒 ต้องการสิทธิ์ใช้กล้อง")
+                .setMessage("แอปต้องใช้กล้องเพื่อสแกน QR Code\n\n"
+                        + "คุณสามารถเปิดได้ที่:\n"
+                        + "Settings → Apps → VPN Manager → Permissions → Camera")
+                .setPositiveButton("เปิด Settings", (d, w) -> {
+                    try {
+                        Intent intent = new Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    } catch (Exception ignored) {}
+                    finish();
+                })
+                .setNegativeButton("ปิด", (d, w) -> finish())
+                .setCancelable(false)
+                .show();
     }
 
     // ============================================================
@@ -166,14 +223,11 @@ public class QrScanActivity extends AppCompatActivity {
                 }
             } catch (Exception ignored) {}
 
-            // ⭐ Decode ไม่ได้
             new MaterialAlertDialogBuilder(this)
                     .setTitle("❌ ไม่พบ QR Code")
                     .setMessage("ไม่พบ QR Code ในรูปภาพ\n\n"
                             + "ลองใหม่อีกครั้ง หรือใช้รูปที่คมชัดกว่านี้")
-                    .setPositiveButton("ลองใหม่", (d, w) -> {
-                        barcodeView.resume();
-                    })
+                    .setPositiveButton("ลองใหม่", (d, w) -> barcodeView.resume())
                     .setNegativeButton("ปิด", (d, w) -> finish())
                     .show();
 
@@ -185,7 +239,7 @@ public class QrScanActivity extends AppCompatActivity {
     }
 
     // ============================================================
-    // ⭐ Handle content ที่สแกนได้
+    // ⭐ Handle content
     // ============================================================
     private void handleScannedContent(String content) {
         QrPayload.DecodeResult result = QrPayload.decode(content);
@@ -209,17 +263,12 @@ public class QrScanActivity extends AppCompatActivity {
         }
 
         if (result.profiles.size() == 1) {
-            // ⭐ โปรไฟล์เดียว → ยืนยัน
             showConfirmDialog(result.profiles.get(0));
         } else {
-            // ⭐ หลายโปรไฟล์ → ให้เลือก
             showMultiDialog(result.profiles);
         }
     }
 
-    // ============================================================
-    // ⭐ Dialog: ยืนยันโปรไฟล์เดียว
-    // ============================================================
     private void showConfirmDialog(Profile p) {
         String msg = "ชื่อ: " + p.name + "\n"
                 + "Host: " + p.host + "\n"
@@ -250,9 +299,6 @@ public class QrScanActivity extends AppCompatActivity {
                 .show();
     }
 
-    // ============================================================
-    // ⭐ Dialog: หลายโปรไฟล์
-    // ============================================================
     private void showMultiDialog(List<Profile> profiles) {
         String[] items = new String[profiles.size()];
         for (int i = 0; i < profiles.size(); i++) {
@@ -287,7 +333,9 @@ public class QrScanActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        barcodeView.resume();
+        if (hasCameraPermission()) {
+            barcodeView.resume();
+        }
     }
 
     @Override
