@@ -125,9 +125,19 @@ public class ConnectionActivity extends AppCompatActivity
         viewPager.setAdapter(pagerAdapter);
         viewPager.setUserInputEnabled(true);
 
+        // ⭐ 3 Tabs: MAIN / CHART / LOG
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            if (position == 0) tab.setText("MAIN");
-            else tab.setText("LOG");
+            switch (position) {
+                case 0:
+                    tab.setText("MAIN");
+                    break;
+                case 1:
+                    tab.setText("CHART");
+                    break;
+                case 2:
+                    tab.setText("LOG");
+                    break;
+            }
         }).attach();
 
         setSupportActionBar(toolbar);
@@ -237,8 +247,9 @@ public class ConnectionActivity extends AppCompatActivity
                 openEditForCurrent();
             });
         }
+        // ⭐ กด Log → ไปแท็บ LOG (index 2)
         if (actionLog != null) {
-            actionLog.setOnClickListener(v -> viewPager.setCurrentItem(1, true));
+            actionLog.setOnClickListener(v -> viewPager.setCurrentItem(2, true));
         }
         if (actionDelete != null) {
             actionDelete.setOnClickListener(v -> {
@@ -373,8 +384,12 @@ public class ConnectionActivity extends AppCompatActivity
             viewPager.setCurrentItem(0, true);
         } else if (id == R.id.nav_profiles) {
             openProfilePicker();
-        } else if (id == R.id.nav_log) {
+        } else if (id == R.id.nav_chart) {
+            // ⭐ ไปหน้า CHART
             viewPager.setCurrentItem(1, true);
+        } else if (id == R.id.nav_log) {
+            // ⭐ ไปหน้า LOG
+            viewPager.setCurrentItem(2, true);
         } else if (id == R.id.nav_crash) {
             startActivity(new Intent(this, CrashLogActivity.class));
         } else if (id == R.id.nav_bypass) {

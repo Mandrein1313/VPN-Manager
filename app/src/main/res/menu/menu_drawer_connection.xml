@@ -42,6 +42,10 @@
     android:id="@+id/nav_theme"
     android:icon="@android:drawable/ic_menu_day"
     android:title="เปลี่ยนธีม" />
+    <item
+    android:id="@+id/nav_chart"
+    android:icon="@android:drawable/ic_menu_gallery"
+    android:title="กราฟการใช้งาน" />
             <item
                 android:id="@+id/nav_about"
                 android:icon="@android:drawable/ic_menu_help"

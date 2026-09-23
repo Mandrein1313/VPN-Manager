@@ -52,7 +52,6 @@ android {
 }
 
 // ⭐ force androidx.core ให้เป็นเวอร์ชันเก่า
-// (เพราะ hevtunnel ดึง core-ktx:1.17.0 ที่ต้องการ compileSdk 36)
 configurations.all {
     resolutionStrategy {
         force 'androidx.core:core:1.15.0'
@@ -101,8 +100,11 @@ dependencies {
     implementation 'androidx.viewpager2:viewpager2:1.1.0'
     implementation 'androidx.fragment:fragment:1.6.2'
 
+    // ⭐ MPAndroidChart — กราฟแสดง Traffic
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
+
     // ===== Testing =====
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-}
+} 
