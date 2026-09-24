@@ -54,12 +54,45 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
             Log.e(TAG, "Failed to save crash", t);
         }
 
+        // ⭐ เคลียร์ VPN ค้างก่อนตาย — กันกุญแจค้างบน status bar
+        try {
+            forceCleanupVpn();
+        } catch (Throwable t) {
+            Log.e(TAG, "forceCleanupVpn failed", t);
+        }
+
         // ส่งต่อไป handler เก่า (ทำให้แอป crash ตามปกติ)
         if (defaultHandler != null) {
             defaultHandler.uncaughtException(thread, ex);
         } else {
             android.os.Process.killProcess(android.os.Process.myPid());
             System.exit(1);
+        }
+    }
+
+    /**
+     * พยายามหยุด VPN service + ล้าง flag ตอน crash
+     * ไม่รับประกัน 100% ถ้า process ถูก kill ทันที แต่ช่วยได้หลายกรณี
+     */
+    private void forceCleanupVpn() {
+        try {
+            appContext.getSharedPreferences("vpn_state", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("running", false)
+                    .commit(); // ใช้ commit ให้เขียนทันทีก่อน process ตาย
+        } catch (Throwable ignored) {}
+
+        try {
+            android.content.Intent stop = new android.content.Intent(
+                    appContext, Class.forName("com.example.vpn.ProxyVpnService"));
+            stop.setAction("STOP_VPN");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appContext.startForegroundService(stop);
+            } else {
+                appContext.startService(stop);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Could not start STOP_VPN: " + t.getMessage());
         }
     }
 

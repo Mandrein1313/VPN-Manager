@@ -1,1047 +1,714 @@
-package com.example.vpn;
+package com.example.vpn.ui;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
+import android.net.TrafficStats;
 import android.net.VpnService;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.ParcelFileDescriptor;
-import android.service.quicksettings.TileService;
-import android.util.Log;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.Toast;
 
-import androidx.core.app.NotificationCompat;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.viewpager2.widget.ViewPager2;
 
+import com.example.vpn.MainActivity;
+import com.example.vpn.ProxyVpnService;
+import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
-import com.example.vpn.model.V2RayConfig;
-import com.example.vpn.tunnel.Socks5Server;
-import com.example.vpn.tunnel.SshTunnel;
-import com.example.vpn.tunnel.V2RayEngine;
-import com.example.vpn.util.BypassPrefs;
-import com.example.vpn.util.ConnectivityChecker;
-import com.example.vpn.util.NetworkBinder;
-import com.example.vpn.util.NetworkMonitor;
 import com.example.vpn.util.StatusBus;
+import com.example.vpn.util.ThemePrefs;
 import com.example.vpn.util.VpnLogger;
-import com.example.vpn.util.VpnPrefs;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Set;
+import java.util.Locale;
 
-import hev.htproxy.TProxyService;
+public class ConnectionActivity extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener,
+                   MainFragment.Listener {
 
-public class ProxyVpnService extends VpnService
-        implements NetworkMonitor.Listener {
-
-    public static final String TAG = "ProxyVpnService";
-    public static final String ACTION_START = "START_VPN";
-    public static final String ACTION_STOP  = "STOP_VPN";
-    public static final String ACTION_RECONNECT = "RECONNECT_VPN";
-    // ⭐ Notification actions
-    public static final String ACTION_TOGGLE_BYPASS = "TOGGLE_BYPASS";
-    public static final String ACTION_SHOW_STATS = "SHOW_STATS";
-    public static final String ACTION_RESTART_VPN = "RESTART_VPN";
     public static final String EXTRA_PROFILE_ID = "profile_id";
 
-    private static final String CHANNEL_ID = "vpn_channel";
-    private static final int NOTIF_ID = 1001;
-    private static final String VPN_ADDRESS = "10.0.0.2";
-    private static final String VPN_ROUTE   = "0.0.0.0";
-    private static final int VPN_PREFIX     = 0;
-    private static final int VPN_MTU = 1280;
+    private DrawerLayout drawerLayout;
+    private NavigationView navView;
+    private MaterialToolbar toolbar;
+    private TabLayout tabLayout;
+    private ViewPager2 viewPager;
 
-    private static final String STATE_PREF = "vpn_state";
-    private static final String KEY_RUNNING = "running";
+    private MainFragment mainFragment;
+    private LogFragment logFragment;
 
-    private ParcelFileDescriptor tunFd;
-    private Thread workerThread;
-    private volatile boolean running = false;
-    private volatile boolean destroying = false;
-    private volatile boolean tun2socksRunning = false;
-    private File configFile;
+    private ProfileViewModel viewModel;
+    private Profile targetProfile;
+    private long sessionStartTime = 0L;
+    private long lastUploadBytes = 0L;
+    private long lastDownloadBytes = 0L;
 
-    private SshTunnel sshTunnel;
-    private Socks5Server socks5Server;
-    private V2RayEngine v2rayEngine;
-    private NetworkMonitor networkMonitor;
-    private ConnectivityChecker connectivityChecker;
-    private VpnPrefs prefs;
-    private BypassPrefs bypassPrefs;
+    private boolean skipNextResumeReload = false;
 
-    private Profile currentProfile;
-    private volatile boolean connected = false;
-    private volatile boolean reconnecting = false;
+    private ThemePrefs themePrefs;
 
-    private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
-    private static final long RECONNECT_DELAY_MS = 3000;
-
-    // ⭐ Heartbeat — ส่ง traffic เล็ก ๆ ผ่าน tunnel ทุก 20 วินาที กัน idle หลุด
-    private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
-    private Runnable heartbeatRunnable;
-    private static final long HEARTBEAT_INTERVAL_MS = 20_000;
-    private volatile int heartbeatFailCount = 0;
-    private static final int HEARTBEAT_FAIL_MAX = 3;
+    private final Handler statsHandler = new Handler(Looper.getMainLooper());
+    private final Runnable statsRunnable = this::updateStats;
 
     // ============================================================
-    // ⭐ Service state
+    // Launchers
     // ============================================================
-
-    private void setServiceRunning(boolean running) {
-        try {
-            getSharedPreferences(STATE_PREF, MODE_PRIVATE)
-                    .edit()
-                    .putBoolean(KEY_RUNNING, running)
-                    .apply();
-            VpnLogger.i(TAG, "Service running = " + running);
-            notifyTileStateChanged();
-        } catch (Exception ignored) {}
-    }
-
-    public static boolean isServiceRunning(Context ctx) {
-        try {
-            return ctx.getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
-                    .getBoolean(KEY_RUNNING, false);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private void notifyTileStateChanged() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                TileService.requestListeningState(
-                        this,
-                        new ComponentName(this, VpnTileService.class));
-                VpnLogger.i(TAG, "Requested tile state refresh");
-            }
-        } catch (Exception e) {
-            VpnLogger.w(TAG, "notifyTileStateChanged failed: " + e.getMessage());
-        }
-    }
-
-    // ============================================================
-    // Lifecycle
-    // ============================================================
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        prefs = new VpnPrefs(this);
-        bypassPrefs = new BypassPrefs(this);
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null) return START_NOT_STICKY;
-
-        String action = intent.getAction();
-
-        // ===== STOP =====
-        if (ACTION_STOP.equals(action)) {
-            VpnLogger.i(TAG, "STOP action received");
-            prefs.setWasConnected(false);
-            prefs.setKillSwitch(false);
-            stopVpn(true);
-            return START_NOT_STICKY;
-        }
-
-        // ===== RECONNECT =====
-        if (ACTION_RECONNECT.equals(action)) {
-            if (currentProfile != null && !reconnecting) {
-                VpnLogger.i(TAG, "Manual reconnect requested");
-                doReconnect();
-            }
-            return START_STICKY;
-        }
-
-        // ===== RESTART VPN =====
-        if (ACTION_RESTART_VPN.equals(action)) {
-            VpnLogger.i(TAG, "Restart VPN requested");
-            handleRestartVpn();
-            return START_STICKY;
-        }
-
-        // ===== TOGGLE BYPASS =====
-        if (ACTION_TOGGLE_BYPASS.equals(action)) {
-            VpnLogger.i(TAG, "Toggle bypass requested");
-            handleToggleBypass();
-            return START_STICKY;
-        }
-
-        // ===== SHOW STATS =====
-        if (ACTION_SHOW_STATS.equals(action)) {
-            VpnLogger.i(TAG, "Show stats requested");
-            handleShowStats();
-            return START_STICKY;
-        }
-
-        // ===== START =====
-        if (ACTION_START.equals(action)) {
-            long profileId = intent.getLongExtra(EXTRA_PROFILE_ID, -1L);
-            if (profileId <= 0) {
-                VpnLogger.e(TAG, "Invalid profile id");
-                stopSelf();
-                return START_NOT_STICKY;
-            }
-            try {
-                if (running || workerThread != null || tunFd != null) {
-                    setServiceRunning(true);
-                    return START_STICKY;
-                }
-                startForeground(NOTIF_ID, buildNotification("กำลังเชื่อมต่อ..."));
-            } catch (Throwable e) {
-                VpnLogger.e(TAG, "startForeground failed", e);
-                stopSelf();
-                return START_NOT_STICKY;
-            }
-            prefs.setLastProfileId(profileId);
-            setServiceRunning(true);
-            loadProfileAndStart(profileId);
-        }
-
-        return START_STICKY;
-    }
-
-    // ============================================================
-    // ⭐ Notification Action Handlers
-    // ============================================================
-
-    /**
-     * ⭐ Toggle Bypass — เปิด/ปิดการใช้งาน bypass list ชั่วคราว
-     */
-    private void handleToggleBypass() {
-        try {
-            boolean currentDisabled = prefs.isBypassDisabled();
-            boolean newDisabled = !currentDisabled;
-            prefs.setBypassDisabled(newDisabled);
-
-            VpnLogger.i(TAG, "Bypass disabled = " + newDisabled);
-
-            // แจ้งสถานะ
-            if (newDisabled) {
-                updateNotification("Bypass ปิด — กำลัง restart...");
-            } else {
-                updateNotification("Bypass เปิด — กำลัง restart...");
-            }
-
-            // Restart VPN เพื่อ apply การเปลี่ยนแปลง
-            if (connected && currentProfile != null) {
-                reconnectHandler.postDelayed(this::doReconnect, 500);
-            } else {
-                // แค่อัปเดต notification
-                updateNotification(connected
-                        ? "เชื่อมต่อแล้ว: " + currentProfile.name
-                        : "VPN ปิด");
-            }
-        } catch (Exception e) {
-            VpnLogger.e(TAG, "handleToggleBypass error: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * ⭐ Show Stats — เปิดแอปไปที่หน้า Connection
-     */
-    private void handleShowStats() {
-        try {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            intent.putExtra("show_stats", true);
-            startActivity(intent);
-        } catch (Exception e) {
-            VpnLogger.e(TAG, "handleShowStats error: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * ⭐ Restart VPN — หยุดชั่วคราว + เริ่มใหม่
-     */
-    private void handleRestartVpn() {
-        if (currentProfile == null) return;
-        VpnLogger.i(TAG, "Restarting VPN...");
-        reconnecting = true;
-        stopHeartbeat();
-
-        // หยุด components แต่ไม่ปิด TUN
-        if (connectivityChecker != null) {
-            connectivityChecker.cancel();
-            connectivityChecker = null;
-        }
-        if (tun2socksRunning) {
-            try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
-            tun2socksRunning = false;
-        }
-        if (v2rayEngine != null) {
-            try { v2rayEngine.stop(); } catch (Throwable ignored) {}
-            v2rayEngine = null;
-        }
-        if (socks5Server != null) {
-            try { socks5Server.stop(); } catch (Throwable ignored) {}
-            socks5Server = null;
-        }
-        if (sshTunnel != null) {
-            try { sshTunnel.disconnect(); } catch (Throwable ignored) {}
-            sshTunnel = null;
-        }
-
-        // เริ่มใหม่หลัง 500ms
-        reconnectHandler.postDelayed(() -> {
-            reconnecting = false;
-            if (currentProfile != null) {
-                workerThread = new Thread(
-                        () -> connectSshAndSocks(currentProfile), "vpn-restart");
-                workerThread.start();
-            }
-        }, 500);
-    }
-
-    // ============================================================
-    // Load & Start
-    // ============================================================
-
-    private void loadProfileAndStart(long profileId) {
-        ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
-        repo.getById(profileId, profile -> {
-            if (profile == null) {
-                VpnLogger.e(TAG, "Profile not found: " + profileId);
-                stopVpn(true);
-                return;
-            }
-            currentProfile = profile;
-            workerThread = new Thread(() -> startVpn(profile), "vpn-worker");
-            workerThread.start();
-        });
-    }
-
-    private static String emptyToNull(String s) {
-        return (s == null || s.trim().isEmpty()) ? null : s.trim();
-    }
-
-    private void startVpn(Profile profile) {
-        try {
-            if (profile == null || profile.host == null || profile.host.trim().isEmpty()) {
-                throw new IOException("โปรไฟล์ไม่มี host");
-            }
-            if (profile.port < 1 || profile.port > 65535) {
-                throw new IOException("พอร์ตไม่ถูกต้อง: " + profile.port);
-            }
-
-            StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังสร้าง TUN...");
-            VpnLogger.i(TAG, "Creating TUN interface...");
-
-            Builder builder = new Builder()
-                    .setSession(profile.name)
-                    .addAddress(VPN_ADDRESS, 32)
-                    .addRoute(VPN_ROUTE, VPN_PREFIX)
-                    .addDisallowedApplication(getPackageName())
-                    .setMtu(VPN_MTU)
-                    .setBlocking(true);
-
-            // ⭐ Apply bypass list — ถ้าไม่ถูก disable
-            int bypassCount = 0;
-            if (!prefs.isBypassDisabled()) {
-                Set<String> bypassed = bypassPrefs.getPackages();
-                for (String pkg : bypassed) {
-                    try {
-                        builder.addDisallowedApplication(pkg);
-                        bypassCount++;
-                    } catch (Exception e) {
-                        VpnLogger.w(TAG, "Bypass: cannot add " + pkg);
-                    }
-                }
-                if (bypassCount > 0) {
-                    VpnLogger.i(TAG, "Bypass Mode: " + bypassCount + " apps excluded");
-                }
-            } else {
-                VpnLogger.i(TAG, "Bypass Mode: DISABLED (user toggled)");
-            }
-
-            addDnsIfValid(builder, profile.dns1);
-            addDnsIfValid(builder, profile.dns2);
-
-            tunFd = builder.establish();
-            if (tunFd == null) {
-                throw new IOException("Failed to establish TUN");
-            }
-            running = true;
-            VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd() + " MTU=" + VPN_MTU);
-
-            prefs.setWasConnected(true);
-
-            try {
-                setUnderlyingNetworks(null);
-                VpnLogger.i(TAG, "Forced underlying networks = null");
-            } catch (Throwable t) {
-                VpnLogger.w(TAG, "setUnderlyingNetworks failed: " + t.getMessage());
-            }
-
-            try { Thread.sleep(800); } catch (InterruptedException ignored) {}
-            VpnLogger.i(TAG, "VPN fully established — starting connection...");
-
-            connectSshAndSocks(profile);
-
-        } catch (Throwable e) {
-            VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
-            try {
-                StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
-                updateNotification("ผิดพลาด: " + e.getMessage());
-            } catch (Exception ignored) {}
-
-            if (prefs.isKillSwitch() && tunFd != null) {
-                VpnLogger.w(TAG, "Kill Switch: keeping TUN active");
-                updateNotification("🔒 Kill Switch Active");
-                return;
-            }
-
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-            stopVpn(true);
-        }
-    }
-
-    private void connectSshAndSocks(Profile profile) {
-        try {
-            // ⭐ แยกตาม protocol
-            boolean isV2Ray = profile.protocol == com.example.vpn.model.Protocol.V2RAY
-                    || profile.protocol == com.example.vpn.model.Protocol.TROJAN
-                    || profile.protocol == com.example.vpn.model.Protocol.SHADOWSOCKS;
-
-            if (isV2Ray) {
-                connectV2Ray(profile);
-                return;
-            }
-
-            // ---- SSH Tunnel ----
-            StatusBus.post(StatusBus.State.CONNECTING_SSH,
-                    "กำลังเชื่อมต่อ SSH: " + profile.host + ":" + profile.port);
-            updateNotification("กำลังเชื่อมต่อ SSH...");
-            VpnLogger.i(TAG, "Connecting SSH to " + profile.host + ":" + profile.port);
-
-            sshTunnel = new SshTunnel(
-                    profile.host,
-                    profile.port,
-                    profile.user,
-                    profile.pass,
-                    emptyToNull(profile.httpProxy),
-                    emptyToNull(profile.payload),
-                    emptyToNull(profile.sni),
-                    socket -> protect(socket)
-            );
-
-            if (!sshTunnel.isConnected()) {
-                throw new IOException("SSH not connected");
-            }
-            StatusBus.post(StatusBus.State.SSH_CONNECTED, "SSH เชื่อมต่อแล้ว");
-            VpnLogger.i(TAG, "SSH connected");
-            updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
-
-            VpnLogger.i(TAG, "Starting SOCKS5 server...");
-            socks5Server = new Socks5Server(sshTunnel);
-            socks5Server.start();
-
-            StatusBus.post(StatusBus.State.SOCKS_READY,
-                    "SOCKS5 พร้อม: 127.0.0.1:" + Socks5Server.LOCAL_PORT);
-            VpnLogger.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
-
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-            VpnLogger.i(TAG, "Waiting 500ms for SOCKS5 to be fully ready...");
-
-            StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
-            updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
-            VpnLogger.i(TAG, "Starting Tun2Socks bridge...");
-
-            copyConfigFromAssets();
-            VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
-
-            boolean started = false;
-            try {
-                started = TProxyService.TProxyStartService(
-                        configFile.getAbsolutePath(),
-                        tunFd.getFd()
-                );
-            } catch (Throwable t) {
-                VpnLogger.e(TAG, "TProxyStartService threw: " + t.getMessage(),
-                        t instanceof Exception ? (Exception) t : new Exception(t));
-            }
-
-            if (!started) {
-                VpnLogger.w(TAG, "Tun2Socks not available — SSH/SOCKS5 only");
-                tun2socksRunning = false;
-                connected = true;
-                StatusBus.post(StatusBus.State.CONNECTED,
-                        "เชื่อมต่อ (SSH เท่านั้น): " + profile.name);
-                updateNotification("SSH พร้อม — Tun2Socks ไม่ทำงาน");
-                startNetworkMonitor();
-                startHeartbeat();
-                return;
-            }
-
-            tun2socksRunning = true;
-            VpnLogger.i(TAG, "Tun2Socks started — VPN is active");
-
-            // FIRST CONNECT FIX
-            try { Thread.sleep(800); } catch (InterruptedException ignored) {}
-            VpnLogger.i(TAG, "[Fix] Waiting 800ms for tunnel to stabilize...");
-
-            NetworkBinder.forceReroute(this);
-            VpnLogger.i(TAG, "[Fix] Forced network reroute");
-
-            try {
-                setUnderlyingNetworks(null);
-                VpnLogger.i(TAG, "[Fix] setUnderlyingNetworks(null) — Force re-evaluate");
-            } catch (Throwable t) {
-                VpnLogger.w(TAG, "[Fix] setUnderlyingNetworks failed: " + t.getMessage());
-            }
-
-            StatusBus.post(StatusBus.State.TUN2SOCKS_READY,
-                    "กำลังตรวจสอบการเชื่อมต่อ...");
-            updateNotification("กำลังตรวจสอบการเชื่อมต่อ...");
-
-            connectivityChecker = new ConnectivityChecker(this);
-            connectivityChecker.check(new ConnectivityChecker.Callback() {
-                @Override
-                public void onReady() {
-                    connected = true;
-                    VpnLogger.i(TAG, "[Fix] ✅ Connectivity verified — VPN ready!");
-                    StatusBus.post(StatusBus.State.CONNECTED,
-                            "เชื่อมต่อแล้ว: " + profile.name);
-                    updateNotification("เชื่อมต่อแล้ว: " + profile.name);
-                    startNetworkMonitor();
-                    startHeartbeat();
-                }
-
-                @Override
-                public void onFailed(String reason) {
-                    connected = true;
-                    VpnLogger.w(TAG, "[Fix] ⚠️ Verification failed: " + reason);
-                    StatusBus.post(StatusBus.State.CONNECTED,
-                            "เชื่อมต่อแล้ว (อาจต้องรอสักครู่): " + profile.name);
-                    updateNotification("เชื่อมต่อแล้ว: " + profile.name);
-                    startNetworkMonitor();
-                    startHeartbeat();
-                }
-            });
-
-        } catch (Throwable e) {
-            VpnLogger.e(TAG, "connectSshAndSocks error: " + e.getMessage(), e);
-            try {
-                StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
-                updateNotification("ผิดพลาด: " + e.getMessage());
-            } catch (Exception ignored) {}
-
-            if (prefs.isKillSwitch() && tunFd != null) {
-                VpnLogger.w(TAG, "Kill Switch: keeping TUN active");
-                updateNotification("🔒 Kill Switch Active");
-                scheduleReconnect();
-                return;
-            }
-
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-            stopVpn(true);
-        }
-    }
-
-    // ============================================================
-    // ⭐ V2Ray Connection
-    // ============================================================
-    private void connectV2Ray(Profile profile) throws Exception {
-        VpnLogger.i(TAG, "Connecting V2Ray: " + profile.v2rayType);
-        StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังเชื่อมต่อ V2Ray...");
-        updateNotification("กำลังเชื่อมต่อ V2Ray...");
-
-        // สร้าง config
-        V2RayConfig cfg = new V2RayConfig();
-        cfg.type = profile.v2rayType;
-        cfg.address = profile.host;
-        cfg.port = profile.port;
-        cfg.uuid = profile.v2rayUuid;
-        cfg.password = profile.pass;
-        cfg.method = profile.v2rayMethod;
-        cfg.network = profile.v2rayNetwork;
-        cfg.path = profile.v2rayPath;
-        cfg.host = profile.v2rayHost;
-        cfg.serviceName = profile.v2rayServiceName;
-        cfg.tls = profile.v2rayTls;
-        cfg.sni = profile.sni;
-        cfg.flow = profile.v2rayFlow;
-        cfg.fingerprint = "chrome";
-        cfg.allowInsecure = true;
-
-        // ⭐ สร้าง engine
-        v2rayEngine = new V2RayEngine(this, cfg, fd -> protect(fd));
-        v2rayEngine.start();
-
-        StatusBus.post(StatusBus.State.SOCKS_READY,
-                "V2Ray พร้อม: 127.0.0.1:" + V2RayEngine.SOCKS_PORT);
-        VpnLogger.i(TAG, "V2Ray started on port " + V2RayEngine.SOCKS_PORT);
-
-        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-
-        // ---- Tun2Socks (ชี้ไปที่ V2Ray SOCKS port) ----
-        StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
-        updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
-
-        copyConfigFromAssets();
-        // ⭐ แก้ config ให้ชี้ port 1081
-        rewriteConfigPort(V2RayEngine.SOCKS_PORT);
-
-        boolean started = false;
-        try {
-            started = TProxyService.TProxyStartService(
-                    configFile.getAbsolutePath(),
-                    tunFd.getFd()
-            );
-        } catch (Throwable t) {
-            VpnLogger.e(TAG, "TProxyStartService threw: " + t.getMessage());
-        }
-
-        if (!started) {
-            throw new IOException("Tun2Socks failed");
-        }
-
-        tun2socksRunning = true;
-        connected = true;
-        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready");
-
-        try { Thread.sleep(800); } catch (InterruptedException ignored) {}
-
-        StatusBus.post(StatusBus.State.CONNECTED,
-                "เชื่อมต่อแล้ว: " + profile.name);
-        updateNotification("เชื่อมต่อแล้ว: " + profile.name);
-        startNetworkMonitor();
-        startHeartbeat();
-    }
-
-    /** ⭐ แก้ port ใน config yml */
-    private void rewriteConfigPort(int port) {
-        try {
-            java.io.BufferedReader br = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(
-                            new java.io.FileInputStream(configFile)));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                if (line.trim().startsWith("port:")) {
-                    sb.append("  port: ").append(port).append("\n");
-                } else {
-                    sb.append(line).append("\n");
-                }
-            }
-            br.close();
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile);
-            fos.write(sb.toString().getBytes("UTF-8"));
-            fos.close();
-        } catch (Exception e) {
-            VpnLogger.w(TAG, "rewriteConfigPort error: " + e.getMessage());
-        }
-    }
-
-    // ============================================================
-    // ⭐ Heartbeat — กัน SSH/NAT ตัดตอน idle
-    // ============================================================
-
-    private void startHeartbeat() {
-        stopHeartbeat();
-        heartbeatFailCount = 0;
-
-        heartbeatRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (!running || !connected || destroying) {
-                    return;
-                }
-
-                new Thread(() -> {
-                    boolean ok = doHeartbeatPing();
-                    if (!running || !connected) return;
-
-                    if (ok) {
-                        heartbeatFailCount = 0;
-                        VpnLogger.d(TAG, "Heartbeat OK");
-                    } else {
-                        heartbeatFailCount++;
-                        VpnLogger.w(TAG, "Heartbeat FAIL (" + heartbeatFailCount
-                                + "/" + HEARTBEAT_FAIL_MAX + ")");
-
-                        if (heartbeatFailCount >= HEARTBEAT_FAIL_MAX) {
-                            heartbeatFailCount = 0;
-                            if (prefs != null && prefs.isAutoReconnect()
-                                    && currentProfile != null && !reconnecting) {
-                                VpnLogger.w(TAG, "Heartbeat dead → schedule reconnect");
-                                reconnectHandler.post(() -> {
-                                    connected = false;
-                                    updateNotification("Heartbeat หลุด — กำลัง reconnect...");
-                                    scheduleReconnect();
+    private final ActivityResultLauncher<Intent> vpnPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (result.getResultCode() == RESULT_OK && targetProfile != null) {
+                            startVpnService(targetProfile);
+                        } else {
+                            Toast.makeText(this, "คุณไม่อนุญาตให้ใช้ VPN",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
+
+    private final ActivityResultLauncher<Intent> manageProfilesLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (result.getResultCode() == RESULT_OK
+                                && result.getData() != null) {
+                            long profileId = result.getData()
+                                    .getLongExtra(EXTRA_PROFILE_ID, -1L);
+                            if (profileId > 0) {
+                                viewModel.getRepo().getById(profileId, p -> {
+                                    if (p != null) bindProfile(p);
                                 });
                                 return;
                             }
                         }
-                    }
+                        reloadProfiles();
+                    });
 
-                    if (running && connected && heartbeatRunnable != null) {
-                        heartbeatHandler.postDelayed(
-                                heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
-                    }
-                }, "vpn-heartbeat").start();
+    private final ActivityResultLauncher<Intent> addProfileLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> reloadProfiles());
+
+    // ============================================================
+    // Lifecycle
+    // ============================================================
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_connection);
+
+        themePrefs = new ThemePrefs(this);
+
+        drawerLayout = findViewById(R.id.drawerLayout);
+        navView = findViewById(R.id.navView);
+        toolbar = findViewById(R.id.toolbar);
+        tabLayout = findViewById(R.id.tabLayout);
+        viewPager = findViewById(R.id.viewPager);
+
+        ConnectionPagerAdapter pagerAdapter = new ConnectionPagerAdapter(this);
+        viewPager.setAdapter(pagerAdapter);
+        viewPager.setUserInputEnabled(true);
+
+        // ⭐ 3 Tabs: MAIN / CHART / LOG
+        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
+            switch (position) {
+                case 0:
+                    tab.setText("MAIN");
+                    break;
+                case 1:
+                    tab.setText("CHART");
+                    break;
+                case 2:
+                    tab.setText("LOG");
+                    break;
             }
-        };
+        }).attach();
 
-        heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
-        VpnLogger.i(TAG, "Heartbeat started (every " + HEARTBEAT_INTERVAL_MS + "ms)");
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
+        toolbar.setTitle("VPN Manager");
+
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar,
+                R.string.app_name, R.string.app_name);
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        navView.setNavigationItemSelectedListener(this);
+
+        ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
+        viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
+                .get(ProfileViewModel.class);
+
+        long profileId = getIntent().getLongExtra(EXTRA_PROFILE_ID, -1L);
+        if (profileId > 0) {
+            viewModel.getRepo().getById(profileId, p -> {
+                if (p == null) {
+                    Toast.makeText(this, "ไม่พบโปรไฟล์", Toast.LENGTH_SHORT).show();
+                    reloadProfiles();
+                    return;
+                }
+                bindProfile(p);
+            });
+        } else {
+            viewModel.getProfiles().observe(this, list -> {
+                if (targetProfile != null) return;
+                if (list == null || list.isEmpty()) {
+                    updateStatusText("[ NO PROFILE ]", 0xFF00E676);
+                    updateConfigCard("Not Set", "---", "---");
+                    toolbar.setTitle("VPN Manager");
+                    return;
+                }
+                Profile p = null;
+                for (Profile x : list) if (x.isFavorite) { p = x; break; }
+                if (p == null) p = list.get(0);
+                bindProfile(p);
+            });
+        }
+
+        // ⭐ Observe Status
+        StatusBus.get().observe(this, status -> {
+            if (status == null) return;
+
+            switch (status.state) {
+                case CONNECTED:
+                    updateStatusText("[ CONNECTED ]", 0xFF00E676);
+                    break;
+                case ERROR:
+                    updateStatusText("[ ERROR ]", 0xFFEF5350);
+                    break;
+                case CONNECTING_SSH:
+                case SSH_CONNECTED:
+                case SOCKS_READY:
+                case TUN2SOCKS_READY:
+                    updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+                    break;
+                case STOPPED:
+                case IDLE:
+                default:
+                    updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+                    break;
+            }
+
+            if (mainFragment != null && mainFragment.getConnectButton() != null) {
+                mainFragment.getConnectButton().setState(mapStatus(status.state));
+            }
+
+            if (status.state == StatusBus.State.CONNECTED) {
+                if (sessionStartTime == 0L) {
+                    sessionStartTime = System.currentTimeMillis();
+                    startStatsUpdates();
+                }
+            } else if (status.state == StatusBus.State.STOPPED
+                    || status.state == StatusBus.State.ERROR) {
+                stopStatsUpdates();
+                sessionStartTime = 0L;
+                if (mainFragment != null) {
+                    if (mainFragment.getTxtSession() != null)
+                        mainFragment.getTxtSession().setText("00:00:00");
+                    if (mainFragment.getTxtUpload() != null)
+                        mainFragment.getTxtUpload().setText("0 B");
+                    if (mainFragment.getTxtDownload() != null)
+                        mainFragment.getTxtDownload().setText("0 B");
+                }
+            }
+        });
+
+        View actionEdit = findViewById(R.id.actionEdit);
+        View actionLog = findViewById(R.id.actionLog);
+        View actionDelete = findViewById(R.id.actionDelete);
+        View actionAdd = findViewById(R.id.actionAdd);
+
+        if (actionEdit != null) {
+            actionEdit.setOnClickListener(v -> {
+                if (targetProfile == null) {
+                    Toast.makeText(this, "ยังไม่มีโปรไฟล์",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                openEditForCurrent();
+            });
+        }
+        // ⭐ กด Log → ไปแท็บ LOG (index 2)
+        if (actionLog != null) {
+            actionLog.setOnClickListener(v -> viewPager.setCurrentItem(2, true));
+        }
+        if (actionDelete != null) {
+            actionDelete.setOnClickListener(v -> {
+                if (targetProfile == null) {
+                    Toast.makeText(this, "ไม่มีโปรไฟล์ให้ลบ",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                confirmDeleteCurrent();
+            });
+        }
+        if (actionAdd != null) {
+            actionAdd.setOnClickListener(v -> {
+                Intent i = new Intent(this, ProfileEditActivity.class);
+                addProfileLauncher.launch(i);
+            });
+        }
     }
 
-    private void stopHeartbeat() {
-        if (heartbeatRunnable != null) {
-            heartbeatHandler.removeCallbacks(heartbeatRunnable);
-            heartbeatRunnable = null;
+    @Override
+    public void onAttachFragment(@NonNull androidx.fragment.app.Fragment fragment) {
+        super.onAttachFragment(fragment);
+        if (fragment instanceof MainFragment) {
+            mainFragment = (MainFragment) fragment;
+            mainFragment.setListener(this);
+        } else if (fragment instanceof LogFragment) {
+            logFragment = (LogFragment) fragment;
         }
-        heartbeatHandler.removeCallbacksAndMessages(null);
-        heartbeatFailCount = 0;
-        VpnLogger.i(TAG, "Heartbeat stopped");
+    }
+
+    // ============================================================
+    // MainFragment.Listener
+    // ============================================================
+    @Override
+    public void onMainConnectClick() {
+        if (targetProfile == null) {
+            Toast.makeText(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
+
+        if (serviceRunning) {
+            VpnLogger.i("ConnectionActivity", "Service is running — stopping");
+            stopVpnService();
+            return;
+        }
+
+        if (mainFragment != null && mainFragment.getConnectButton() != null) {
+            ConnectButtonView.State state = mainFragment.getConnectButton().getState();
+            if (state == ConnectButtonView.State.CONNECTING) {
+                stopVpnService();
+                return;
+            }
+        }
+
+        requestConnect();
+    }
+
+    @Override
+    public void onConfigCardClick() {
+        openProfilePicker();
+    }
+
+    @Override
+    public void onAdFreeClick() {
+        Toast.makeText(this, "Ad-free time — เร็วๆ นี้",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    // ============================================================
+    // Update UI helpers
+    // ============================================================
+    private void updateStatusText(String text, int color) {
+        if (mainFragment == null || mainFragment.getTxtStatus() == null) return;
+        mainFragment.getTxtStatus().setText(text);
+        mainFragment.getTxtStatus().setTextColor(color);
+    }
+
+    private void updateConfigCard(String name, String left, String right) {
+        if (mainFragment == null) return;
+        if (mainFragment.getTxtConfigName() != null)
+            mainFragment.getTxtConfigName().setText(name);
+        if (mainFragment.getTxtConfigLeft() != null)
+            mainFragment.getTxtConfigLeft().setText(left);
+        if (mainFragment.getTxtConfigRight() != null)
+            mainFragment.getTxtConfigRight().setText(right);
+    }
+
+    private void syncButtonState() {
+        if (mainFragment == null || mainFragment.getConnectButton() == null) return;
+
+        boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
+        ConnectButtonView.State currentState = mainFragment.getConnectButton().getState();
+
+        if (!serviceRunning && currentState == ConnectButtonView.State.CONNECTED) {
+            mainFragment.getConnectButton().setState(ConnectButtonView.State.IDLE);
+            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+            VpnLogger.i("ConnectionActivity", "Synced to IDLE");
+        } else if (serviceRunning && currentState == ConnectButtonView.State.IDLE) {
+            mainFragment.getConnectButton().setState(ConnectButtonView.State.CONNECTED);
+            updateStatusText("[ CONNECTED ]", 0xFF00E676);
+            VpnLogger.i("ConnectionActivity", "Synced to CONNECTED");
+        }
+    }
+
+    private void reloadProfiles() {
+        viewModel.getProfiles().observe(this, list -> {
+            if (targetProfile != null) return;
+            if (list == null || list.isEmpty()) {
+                updateStatusText("[ NO PROFILE ]", 0xFF00E676);
+                updateConfigCard("Not Set", "---", "---");
+                toolbar.setTitle("VPN Manager");
+                return;
+            }
+            Profile p = null;
+            for (Profile x : list) if (x.isFavorite) { p = x; break; }
+            if (p == null) p = list.get(0);
+            bindProfile(p);
+        });
+    }
+
+    // ============================================================
+    // Navigation Drawer
+    // ============================================================
+    @Override
+public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+    int id = item.getItemId();
+
+    if (id == R.id.nav_home) {
+        viewPager.setCurrentItem(0, true);
+    } else if (id == R.id.nav_profiles) {
+        openProfilePicker();
+    } else if (id == R.id.nav_chart) {
+        // ⭐ ไปหน้า CHART
+        viewPager.setCurrentItem(1, true);
+    } else if (id == R.id.nav_log) {
+        // ⭐ ไปหน้า LOG
+        viewPager.setCurrentItem(2, true);
+    } else if (id == R.id.nav_crash) {
+        startActivity(new Intent(this, CrashLogActivity.class));
+    } else if (id == R.id.nav_bypass) {
+        startActivity(new Intent(this, BypassActivity.class));
+    } else if (id == R.id.nav_backup) {
+        // ⭐ หน้า Backup/Restore
+        startActivity(new Intent(this, BackupActivity.class));
+    } else if (id == R.id.nav_theme) {
+        showThemeDialog();
+    } else if (id == R.id.nav_import) {
+        Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
+                Toast.LENGTH_SHORT).show();
+        openProfilePicker();
+    } else if (id == R.id.nav_about) {
+        showAboutDialog();
+    } else if (id == R.id.nav_exit) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("ออกจากแอป?")
+                .setMessage("คุณต้องการปิดแอปทั้งหมดหรือไม่?")
+                .setPositiveButton("ออก", (d, w) -> {
+                    stopVpnService();
+                    finishAffinity();
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    drawerLayout.closeDrawer(GravityCompat.START);
+    return true;
+}
+    private void showAboutDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("เกี่ยวกับ VPN Manager")
+                .setMessage("VPN Manager v1.0\n\n" +
+                        "แอป VPN ที่รองรับ SSH Tunnel\n" +
+                        "และหลาย protocol\n\n" +
+                        "สร้างด้วย ❤️ ในประเทศไทย")
+                .setPositiveButton("ตกลง", null)
+                .show();
+    }
+
+    // ============================================================
+    // ⭐ Theme Picker Dialog
+    // ============================================================
+    private void showThemeDialog() {
+        final int[] modes = {
+                ThemePrefs.MODE_SYSTEM,
+                ThemePrefs.MODE_LIGHT,
+                ThemePrefs.MODE_DARK
+        };
+        final String[] names = {
+                "🌗  ตามระบบ (System)",
+                "☀️  สว่าง (Light)",
+                "🌙  มืด (Dark)"
+        };
+
+        int current = themePrefs.getMode();
+        int checkedItem = 0;
+        for (int i = 0; i < modes.length; i++) {
+            if (modes[i] == current) {
+                checkedItem = i;
+                break;
+            }
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("เลือกธีม")
+                .setSingleChoiceItems(names, checkedItem, (d, which) -> {
+                    themePrefs.setMode(modes[which]);
+                    d.dismiss();
+                    Toast.makeText(this,
+                            "ธีม: " + ThemePrefs.getModeName(modes[which]),
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else if (viewPager.getCurrentItem() != 0) {
+            viewPager.setCurrentItem(0, true);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private void openProfilePicker() {
+        skipNextResumeReload = true;
+        Intent i = new Intent(this, MainActivity.class);
+        manageProfilesLauncher.launch(i);
+    }
+
+    private void confirmDeleteCurrent() {
+        if (targetProfile == null) return;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("ลบโปรไฟล์?")
+                .setMessage("คุณต้องการลบ \"" + targetProfile.name + "\" ใช่หรือไม่?")
+                .setPositiveButton("ลบ", (d, w) -> {
+                    viewModel.delete(targetProfile);
+                    targetProfile = null;
+                    reloadProfiles();
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    private void openEditForCurrent() {
+        if (targetProfile == null) {
+            Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent i = new Intent(this, ProfileEditActivity.class);
+        i.putExtra(MainActivity.EXTRA_PROFILE_ID, targetProfile.id);
+        startActivity(i);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // ⭐ ถ้า UI บอกว่าไม่เชื่อมต่อ แต่ service flag ยัง running → บังคับหยุด (กันกุญแจค้าง)
+        tryCleanupOrphanVpn();
+
+        syncButtonState();
+
+        if (skipNextResumeReload) {
+            skipNextResumeReload = false;
+            return;
+        }
+        if (targetProfile != null) {
+            viewModel.getRepo().getById(targetProfile.id, p -> {
+                if (p != null) {
+                    bindProfile(p);
+                } else {
+                    targetProfile = null;
+                    reloadProfiles();
+                }
+            });
+        } else {
+            reloadProfiles();
+        }
     }
 
     /**
-     * ส่ง traffic เล็ก ๆ ผ่าน tunnel
-     * - โหมด SSH: เปิด direct-tcpip ไป 1.1.1.1:53 แล้วปิด
-     * - โหมด V2Ray / อื่น ๆ: TCP connect ผ่าน VPN
+     * ⭐ เคลียร์ VPN ที่ค้าง (แอปตาย / crash แล้วกุญแจยังโชว์)
+     * เรียกตอน onResume เมื่อสถานะ UI ไม่สอดคล้องกับ service
      */
-    private boolean doHeartbeatPing() {
-        SshTunnel tunnel = sshTunnel;
-        if (tunnel != null) {
-            if (!tunnel.isConnected()) {
-                VpnLogger.w(TAG, "Heartbeat: SSH session not connected");
-                return false;
-            }
-            com.jcraft.jsch.ChannelDirectTCPIP channel = null;
-            try {
-                channel = tunnel.openTcp("1.1.1.1", 53);
-                java.io.OutputStream out = channel.getOutputStream();
-                if (out != null) {
-                    out.write(new byte[]{
-                            0x00, 0x00,
-                            0x01, 0x00,
-                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-                    });
-                    out.flush();
-                }
-                try { Thread.sleep(200); } catch (InterruptedException ignored) {}
-                return true;
-            } catch (Exception e) {
-                VpnLogger.w(TAG, "Heartbeat SSH ping error: " + e.getMessage());
-                return false;
-            } finally {
-                if (channel != null) {
-                    try { channel.disconnect(); } catch (Exception ignored) {}
-                }
-            }
-        }
-
-        java.net.Socket s = null;
+    private void tryCleanupOrphanVpn() {
         try {
-            s = new java.net.Socket();
-            s.connect(new java.net.InetSocketAddress("1.1.1.1", 53), 4_000);
-            s.setTcpNoDelay(true);
-            return s.isConnected();
+            boolean flagRunning = ProxyVpnService.isServiceRunning(this);
+            // ถ้า flag บอกว่า running แต่เราอยู่หน้าจอ NOT CONNECTED หลัง process เกิดใหม่
+            // หรือ service ตายแล้ว flag ค้าง — ส่ง STOP ให้แน่ใจ
+            if (flagRunning) {
+                // ไม่ force ทุกครั้งถ้ากำลังเชื่อมจริง — ดูจาก StatusBus / ปุ่ม
+                // ถ้า mainFragment บอกว่ายังไม่ connected ให้หยุด
+                boolean uiConnected = false;
+                try {
+                    if (mainFragment != null && mainFragment.getTxtStatus() != null) {
+                        CharSequence st = mainFragment.getTxtStatus().getText();
+                        if (st != null) {
+                            String s = st.toString().toLowerCase();
+                            uiConnected = s.contains("connected") && !s.contains("not");
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                if (!uiConnected) {
+                    android.util.Log.w("ConnectionActivity",
+                            "Orphan VPN flag detected — sending STOP");
+                    Intent stop = new Intent(this, ProxyVpnService.class);
+                    stop.setAction(ProxyVpnService.ACTION_STOP);
+                    try {
+                        startService(stop);
+                    } catch (Exception e) {
+                        // fallback ล้าง flag อย่างเดียว
+                        getSharedPreferences("vpn_state", MODE_PRIVATE)
+                                .edit().putBoolean("running", false).apply();
+                    }
+                }
+            }
         } catch (Exception e) {
-            VpnLogger.w(TAG, "Heartbeat TCP ping error: " + e.getMessage());
-            return false;
-        } finally {
-            if (s != null) {
-                try { s.close(); } catch (Exception ignored) {}
-            }
+            android.util.Log.w("ConnectionActivity",
+                    "tryCleanupOrphanVpn: " + e.getMessage());
         }
     }
 
-    private void startNetworkMonitor() {
-        if (networkMonitor == null) {
-            networkMonitor = new NetworkMonitor(this, this);
-        }
-        networkMonitor.start();
-        VpnLogger.i(TAG, "NetworkMonitor started");
-    }
+    private void bindProfile(Profile p) {
+        targetProfile = p;
+        // ⭐ ไม่ใส่ชื่อโปรไฟล์บน toolbar — กันตัวอักษรหลุด (เช่น "h" จากชื่อ "hT")
+        // ชื่อโปรไฟล์แสดงที่การ์ด ACTIVE CONFIGURATION อยู่แล้ว
+        toolbar.setTitle("VPN Manager");
 
-    private void stopNetworkMonitor() {
-        if (networkMonitor != null) {
-            networkMonitor.stop();
-            networkMonitor = null;
-        }
-    }
+        updateConfigCard(p.name, p.host, String.valueOf(p.port));
 
-    @Override
-    public void onNetworkAvailable() {
-        VpnLogger.i(TAG, "Network available — checking VPN state");
-        if (!connected && currentProfile != null && prefs.isAutoReconnect()) {
-            VpnLogger.i(TAG, "Auto-reconnect: network is back");
-            scheduleReconnect();
-        }
-    }
-
-    @Override
-    public void onNetworkLost() {
-        VpnLogger.w(TAG, "Network lost");
-        stopHeartbeat();
-        if (connected) {
-            connected = false;
-            if (prefs.isKillSwitch()) {
-                updateNotification("🔒 รอ network กลับมา...");
+        if (mainFragment != null && mainFragment.getImgConfigIcon() != null) {
+            if (p.protocol == com.example.vpn.model.Protocol.SSH) {
+                mainFragment.getImgConfigIcon().setImageResource(
+                        android.R.drawable.ic_lock_lock);
             } else {
-                updateNotification("Network lost — กำลังรอ...");
+                mainFragment.getImgConfigIcon().setImageResource(
+                        android.R.drawable.ic_menu_upload);
             }
-            StatusBus.post(StatusBus.State.ERROR, "Network lost");
         }
     }
 
-    private void scheduleReconnect() {
-        if (reconnecting) return;
-        reconnecting = true;
-
-        reconnectHandler.removeCallbacksAndMessages(null);
-        reconnectHandler.postDelayed(() -> {
-            reconnecting = false;
-            if (currentProfile != null) {
-                doReconnect();
-            }
-        }, RECONNECT_DELAY_MS);
-
-        VpnLogger.i(TAG, "Reconnect scheduled in " + RECONNECT_DELAY_MS + "ms");
+    private void requestConnect() {
+        Intent prepare = VpnService.prepare(this);
+        if (prepare != null) {
+            vpnPermissionLauncher.launch(prepare);
+            return;
+        }
+        startVpnService(targetProfile);
     }
 
-    private void doReconnect() {
-        if (currentProfile == null) return;
-        VpnLogger.i(TAG, "Reconnecting...");
-        stopHeartbeat();
-        updateNotification("กำลังเชื่อมต่อใหม่...");
-        StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลัง reconnect...");
-
-        if (connectivityChecker != null) {
-            connectivityChecker.cancel();
-            connectivityChecker = null;
-        }
-
-        if (tun2socksRunning) {
-            try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
-            tun2socksRunning = false;
-        }
-
-        // ⭐ ปิด V2Ray
-        if (v2rayEngine != null) {
-            try { v2rayEngine.stop(); } catch (Throwable ignored) {}
-            v2rayEngine = null;
-        }
-
-        if (socks5Server != null) {
-            try { socks5Server.stop(); } catch (Throwable ignored) {}
-            socks5Server = null;
-        }
-        if (sshTunnel != null) {
-            try { sshTunnel.disconnect(); } catch (Throwable ignored) {}
-            sshTunnel = null;
-        }
-
-        workerThread = new Thread(() -> connectSshAndSocks(currentProfile), "vpn-reconnect");
-        workerThread.start();
-    }
-
-    private void stopVpn(boolean fullClose) {
-        running = false;
-        connected = false;
-        VpnLogger.i(TAG, "Stopping VPN (full=" + fullClose + ")...");
-
-        stopHeartbeat();
-
-        if (connectivityChecker != null) {
-            connectivityChecker.cancel();
-            connectivityChecker = null;
-        }
-
-        stopNetworkMonitor();
-
-        if (workerThread != null) {
-            workerThread.interrupt();
-            workerThread = null;
-        }
-
-        if (tun2socksRunning) {
-            try {
-                TProxyService.TProxyStopService();
-                VpnLogger.i(TAG, "Tun2Socks stopped");
-            } catch (Throwable t) {
-                VpnLogger.w(TAG, "TProxyStopService error: " + t.getMessage());
-            }
-            tun2socksRunning = false;
-        }
-
-        // ⭐ ปิด V2Ray
-        if (v2rayEngine != null) {
-            try { v2rayEngine.stop(); } catch (Throwable ignored) {}
-            v2rayEngine = null;
-        }
-
-        if (socks5Server != null) {
-            try { socks5Server.stop(); } catch (Throwable ignored) {}
-            socks5Server = null;
-        }
-
-        if (sshTunnel != null) {
-            try { sshTunnel.disconnect(); } catch (Throwable ignored) {}
-            sshTunnel = null;
-        }
-
-        if (fullClose) {
-            if (tunFd != null) {
-                try { tunFd.close(); } catch (IOException ignored) {}
-                tunFd = null;
-            }
-            if (configFile != null && configFile.exists()) {
-                configFile.delete();
-                configFile = null;
-            }
-            prefs.setWasConnected(false);
-
-            setServiceRunning(false);
-            StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
-
-            try { stopForeground(true); } catch (Exception ignored) {}
-
-            if (!destroying) {
-                new Handler(Looper.getMainLooper()).postDelayed(this::stopSelf, 100);
+    private void startVpnService(Profile p) {
+        Intent svc = new Intent(this, ProxyVpnService.class);
+        svc.setAction(ProxyVpnService.ACTION_START);
+        svc.putExtra(ProxyVpnService.EXTRA_PROFILE_ID, p.id);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(svc);
             } else {
-                stopSelf();
+                startService(svc);
             }
-        } else {
-            VpnLogger.w(TAG, "Keeping TUN active (kill switch mode)");
+        } catch (Exception e) {
+            Toast.makeText(this, "ผิดพลาด: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void stopVpnService() {
+        Intent svc = new Intent(this, ProxyVpnService.class);
+        svc.setAction(ProxyVpnService.ACTION_STOP);
+        try {
+            startService(svc);
+        } catch (Exception e) {
+            VpnLogger.w("ConnectionActivity", "stopVpnService error: " + e.getMessage());
+        }
+    }
+
+    private ConnectButtonView.State mapStatus(StatusBus.State s) {
+        switch (s) {
+            case CONNECTING_SSH:
+            case SSH_CONNECTED:
+            case SOCKS_READY:
+            case TUN2SOCKS_READY:
+                return ConnectButtonView.State.CONNECTING;
+            case CONNECTED:
+                return ConnectButtonView.State.CONNECTED;
+            case ERROR:
+                return ConnectButtonView.State.ERROR;
+            case IDLE:
+            case STOPPED:
+            default:
+                return ConnectButtonView.State.IDLE;
+        }
+    }
+
+    // ============================================================
+    // Stats
+    // ============================================================
+    private void startStatsUpdates() {
+        statsHandler.removeCallbacks(statsRunnable);
+        statsHandler.post(statsRunnable);
+    }
+
+    private void stopStatsUpdates() {
+        statsHandler.removeCallbacks(statsRunnable);
+    }
+
+    private void updateStats() {
+        if (sessionStartTime == 0L) return;
+
+        long elapsed = System.currentTimeMillis() - sessionStartTime;
+        long h = elapsed / 3_600_000L;
+        long m = (elapsed % 3_600_000L) / 60_000L;
+        long s = (elapsed % 60_000L) / 1000L;
+
+        if (mainFragment != null) {
+            if (mainFragment.getTxtSession() != null) {
+                mainFragment.getTxtSession().setText(
+                        String.format(Locale.US, "%02d:%02d:%02d", h, m, s));
+            }
+        }
+
+        long rx = TrafficStats.getUidRxBytes(android.os.Process.myUid());
+        long tx = TrafficStats.getUidTxBytes(android.os.Process.myUid());
+        if (rx < 0) rx = 0;
+        if (tx < 0) tx = 0;
+
+        if (mainFragment != null) {
+            if (mainFragment.getTxtDownload() != null)
+                mainFragment.getTxtDownload().setText(
+                        formatBytes(rx - lastDownloadBytes));
+            if (mainFragment.getTxtUpload() != null)
+                mainFragment.getTxtUpload().setText(
+                        formatBytes(tx - lastUploadBytes));
+        }
+
+        statsHandler.postDelayed(statsRunnable, 1000);
+    }
+
+    private static String formatBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024)
+            return String.format(Locale.US, "%.1f KB", bytes / 1024.0);
+        if (bytes < 1024L * 1024 * 1024)
+            return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024));
+        return String.format(Locale.US, "%.2f GB",
+                bytes / (1024.0 * 1024 * 1024));
     }
 
     @Override
-    public void onDestroy() {
-        destroying = true;
-        stopVpn(true);
-        setServiceRunning(false);
+    protected void onDestroy() {
         super.onDestroy();
-    }
-
-    @Override
-    public void onRevoke() {
-        prefs.setWasConnected(false);
-        stopVpn(true);
-        super.onRevoke();
-    }
-
-    private static void addDnsIfValid(Builder builder, String dns) {
-        if (dns == null || dns.trim().isEmpty()) return;
-        String value = dns.trim();
-        if (!value.matches("[0-9a-fA-F:.]+") || !value.matches(".*[0-9].*")) return;
-        try {
-            builder.addDnsServer(value);
-        } catch (IllegalArgumentException ignored) {}
-    }
-
-    private void copyConfigFromAssets() throws IOException {
-        configFile = new File(getFilesDir(), "hev-config.yml");
-        try (InputStream in = getAssets().open("hev-config.yml");
-             FileOutputStream out = new FileOutputStream(configFile)) {
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-        }
-    }
-
-    // ============================================================
-    // ⭐ Notification — 4 ปุ่ม
-    // ============================================================
-    private Notification buildNotification(String text) {
-        createChannelIfNeeded();
-
-        // ===== Open App =====
-        Intent openIntent = new Intent(this, MainActivity.class);
-        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pi = PendingIntent.getActivity(
-                this, 0, openIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // ===== Stop =====
-        Intent stopIntent = new Intent(this, ProxyVpnService.class);
-        stopIntent.setAction(ACTION_STOP);
-        PendingIntent stopPi = PendingIntent.getService(
-                this, 1, stopIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // ===== Reconnect =====
-        Intent reconnectIntent = new Intent(this, ProxyVpnService.class);
-        reconnectIntent.setAction(ACTION_RECONNECT);
-        PendingIntent reconnectPi = PendingIntent.getService(
-                this, 2, reconnectIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // ⭐ Toggle Bypass
-        Intent bypassIntent = new Intent(this, ProxyVpnService.class);
-        bypassIntent.setAction(ACTION_TOGGLE_BYPASS);
-        PendingIntent bypassPi = PendingIntent.getService(
-                this, 3, bypassIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // ⭐ Show Stats
-        Intent statsIntent = new Intent(this, ProxyVpnService.class);
-        statsIntent.setAction(ACTION_SHOW_STATS);
-        PendingIntent statsPi = PendingIntent.getService(
-                this, 4, statsIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // ⭐ ตรวจสอบสถานะ Bypass
-        boolean bypassDisabled = prefs.isBypassDisabled();
-        String bypassLabel = bypassDisabled ? "Bypass: ปิด" : "Bypass: เปิด";
-        int bypassIcon = bypassDisabled
-                ? android.R.drawable.checkbox_off_background
-                : android.R.drawable.checkbox_on_background;
-
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("VPN Manager")
-                .setContentText(text)
-                .setSmallIcon(R.drawable.ic_vpn)
-                .setContentIntent(pi)
-                // ⭐ 4 ปุ่ม
-                .addAction(bypassIcon, bypassLabel, bypassPi)
-                .addAction(android.R.drawable.ic_menu_info_details,
-                        "Stats", statsPi)
-                .addAction(android.R.drawable.ic_menu_rotate,
-                        "Reconnect", reconnectPi)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel,
-                        "หยุด", stopPi)
-                .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .build();
-    }
-
-    private void updateNotification(String text) {
-        try {
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null) nm.notify(NOTIF_ID, buildNotification(text));
-        } catch (Exception e) {
-            VpnLogger.w(TAG, "updateNotification error: " + e.getMessage());
-        }
-    }
-
-    private void createChannelIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null && nm.getNotificationChannel(CHANNEL_ID) == null) {
-                NotificationChannel ch = new NotificationChannel(
-                        CHANNEL_ID, "VPN Status",
-                        NotificationManager.IMPORTANCE_LOW);
-                ch.setDescription("สถานะการเชื่อมต่อ VPN");
-                nm.createNotificationChannel(ch);
-            }
-        }
+        statsHandler.removeCallbacks(statsRunnable);
+        VpnLogger.setListener(null);
     }
 }
