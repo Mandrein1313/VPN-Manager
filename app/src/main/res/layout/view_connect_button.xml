@@ -9,7 +9,9 @@
         android:layout_width="260dp"
         android:layout_height="260dp"
         android:layout_gravity="center"
-        android:background="@drawable/bg_connect_ring_outer" />
+        android:background="@drawable/bg_connect_ring_outer"
+        android:clickable="false"
+        android:focusable="false" />
 
     <!-- วงกลาง -->
     <View
@@ -17,9 +19,11 @@
         android:layout_width="210dp"
         android:layout_height="210dp"
         android:layout_gravity="center"
-        android:background="@drawable/bg_connect_ring_middle" />
+        android:background="@drawable/bg_connect_ring_middle"
+        android:clickable="false"
+        android:focusable="false" />
 
-    <!-- วงใน = ปุ่มกด -->
+    <!-- วงใน = ปุ่มกด — ตัดขอบให้เป็นวงกลม ไม่ให้โชว์สี่เหลี่ยมตอนกด -->
     <FrameLayout
         android:id="@+id/circleInner"
         android:layout_width="160dp"
@@ -28,20 +32,27 @@
         android:background="@drawable/bg_connect_circle_idle"
         android:clickable="true"
         android:focusable="true"
-        android:foreground="?attr/selectableItemBackgroundBorderless">
+        android:clipToOutline="true"
+        android:outlineProvider="background"
+        android:foreground="@null"
+        android:stateListAnimator="@null">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:clickable="false"
+            android:focusable="false">
 
             <ImageView
                 android:id="@+id/iconPower"
                 android:layout_width="52dp"
                 android:layout_height="52dp"
                 android:src="@drawable/ic_power"
-                android:contentDescription="Connect" />
+                android:contentDescription="Connect"
+                android:clickable="false"
+                android:focusable="false" />
 
             <TextView
                 android:id="@+id/txtButtonLabel"
@@ -52,7 +63,9 @@
                 android:text="เชื่อมต่อ"
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:clickable="false"
+                android:focusable="false" />
         </LinearLayout>
     </FrameLayout>
 </merge>

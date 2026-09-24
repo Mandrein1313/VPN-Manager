@@ -3,9 +3,12 @@ package com.example.vpn.ui;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Outline;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -13,7 +16,6 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 
 import com.example.vpn.R;
 
@@ -54,6 +56,14 @@ public class ConnectButtonView extends FrameLayout {
     }
 
     private void init(Context ctx) {
+        // กันธีมระบบใส่พื้นหลังสี่เหลี่ยมให้ FrameLayout นี้
+        setBackground(null);
+        setClipChildren(false);
+        setClipToPadding(false);
+        setClickable(false);
+        setFocusable(false);
+        setForeground(null);
+
         LayoutInflater.from(ctx).inflate(R.layout.view_connect_button, this, true);
 
         ringOuter = findViewById(R.id.ringOuter);
@@ -62,12 +72,29 @@ public class ConnectButtonView extends FrameLayout {
         iconPower = findViewById(R.id.iconPower);
         txtButtonLabel = findViewById(R.id.txtButtonLabel);
 
+        clipToOval(circleInner);
+
         circleInner.setOnClickListener(v -> {
             if (listener != null) listener.onConnectClick();
         });
 
-        // เริ่มที่ idle
         applyState(State.IDLE);
+    }
+
+    /** ตัดวิวให้เป็นวงกลม — ripple/highlight จะไม่เป็นสี่เหลี่ยม */
+    private void clipToOval(View view) {
+        if (view == null) return;
+        view.setForeground(null);
+        view.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View v, Outline outline) {
+                outline.setOval(0, 0, v.getWidth(), v.getHeight());
+            }
+        });
+        view.setClipToOutline(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            view.setForeground(null);
+        }
     }
 
     public void setListener(Listener l) {
@@ -120,6 +147,7 @@ public class ConnectButtonView extends FrameLayout {
         }
 
         circleInner.setBackgroundResource(circleRes);
+        clipToOval(circleInner);
         iconPower.setColorFilter(iconColor);
         txtButtonLabel.setText(label);
     }
@@ -131,7 +159,6 @@ public class ConnectButtonView extends FrameLayout {
         pulseAnimator.setInterpolator(new LinearInterpolator());
         pulseAnimator.start();
 
-        // วงแหวนหมุนนุ่มนวล
         ringMiddle.animate()
                 .scaleX(1.05f).scaleY(1.05f)
                 .setDuration(800)
