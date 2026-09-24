@@ -6,12 +6,14 @@ import android.content.SharedPreferences;
 public class VpnPrefs {
 
     private static final String PREF_NAME = "vpn_prefs";
+
     private static final String KEY_AUTO_RECONNECT = "auto_reconnect";
     private static final String KEY_KILL_SWITCH = "kill_switch";
     private static final String KEY_LAST_PROFILE_ID = "last_profile_id";
     private static final String KEY_WAS_CONNECTED = "was_connected";
     private static final String KEY_AUTO_CONNECT_BOOT = "auto_connect_boot";
-    private static final String KEY_SHARE_EXTERNAL = "share_external";   // ⭐ ใหม่
+    private static final String KEY_SHARE_EXTERNAL = "share_external";
+    private static final String KEY_BYPASS_DISABLED = "bypass_disabled";  // ⭐ ใหม่
 
     private final SharedPreferences prefs;
 
@@ -47,13 +49,22 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_AUTO_CONNECT_BOOT, value).apply();
     }
 
-    // ⭐ ===== SOCKS5 Sharing =====
+    // ===== SOCKS5 Sharing =====
     public boolean isShareExternal() {
         return prefs.getBoolean(KEY_SHARE_EXTERNAL, false);
     }
 
     public void setShareExternal(boolean value) {
         prefs.edit().putBoolean(KEY_SHARE_EXTERNAL, value).apply();
+    }
+
+    // ⭐ ===== Bypass Disabled (toggle จาก notification) =====
+    public boolean isBypassDisabled() {
+        return prefs.getBoolean(KEY_BYPASS_DISABLED, false);
+    }
+
+    public void setBypassDisabled(boolean value) {
+        prefs.edit().putBoolean(KEY_BYPASS_DISABLED, value).apply();
     }
 
     // ===== Profile =====
