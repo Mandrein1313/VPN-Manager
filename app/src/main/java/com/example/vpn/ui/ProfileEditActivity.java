@@ -49,6 +49,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     // ⭐ Options switches
     private MaterialSwitch switchAutoReconnect;
     private MaterialSwitch switchKillSwitch;
+    private MaterialSwitch switchShareExternal;     // ⭐ SOCKS5 Sharing
     private MaterialSwitch switchAutoConnectBoot;   // ⭐ ใหม่
 
     private VpnPrefs prefs;
@@ -119,6 +120,14 @@ public class ProfileEditActivity extends AppCompatActivity {
             switchKillSwitch.setChecked(prefs.isKillSwitch());
             switchKillSwitch.setOnCheckedChangeListener((b, checked) ->
                     prefs.setKillSwitch(checked));
+        }
+
+        // ⭐ SOCKS5 Sharing toggle
+        switchShareExternal = findViewById(R.id.switchShareExternal);
+        if (switchShareExternal != null) {
+            switchShareExternal.setChecked(prefs.isShareExternal());
+            switchShareExternal.setOnCheckedChangeListener((b, checked) ->
+                    prefs.setShareExternal(checked));
         }
 
         // ⭐ Auto-connect on Boot toggle
@@ -243,62 +252,62 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
 
     private void save() {
-    String name = text(edtName);
-    String host = text(edtHost);
-    String portStr = text(edtPort);
+        String name = text(edtName);
+        String host = text(edtHost);
+        String portStr = text(edtPort);
 
-    if (TextUtils.isEmpty(name)) { edtName.setError("กรุณากรอกชื่อ"); return; }
-    if (TextUtils.isEmpty(host)) { edtHost.setError("กรุณากรอก Host"); return; }
-    if (TextUtils.isEmpty(portStr)) { edtPort.setError("กรุณากรอก Port"); return; }
+        if (TextUtils.isEmpty(name)) { edtName.setError("กรุณากรอกชื่อ"); return; }
+        if (TextUtils.isEmpty(host)) { edtHost.setError("กรุณากรอก Host"); return; }
+        if (TextUtils.isEmpty(portStr)) { edtPort.setError("กรุณากรอก Port"); return; }
 
-    int port;
-    try { port = Integer.parseInt(portStr); }
-    catch (NumberFormatException e) { edtPort.setError("Port ไม่ถูกต้อง"); return; }
+        int port;
+        try { port = Integer.parseInt(portStr); }
+        catch (NumberFormatException e) { edtPort.setError("Port ไม่ถูกต้อง"); return; }
 
-    Profile p = existing != null ? existing.copy() : new Profile();
-    p.name = name;
-    p.protocol = currentProtocol();
-    p.host = host;
-    p.port = port;
-    p.user = text(edtUser);
-    p.pass = text(edtPass);
-    p.httpProxy = text(edtHttpProxy);
-    p.payload = text(edtPayload);
-    p.sni = text(edtSni);
-    p.dns1 = text(edtDns1);
-    p.dns2 = text(edtDns2);
+        Profile p = existing != null ? existing.copy() : new Profile();
+        p.name = name;
+        p.protocol = currentProtocol();
+        p.host = host;
+        p.port = port;
+        p.user = text(edtUser);
+        p.pass = text(edtPass);
+        p.httpProxy = text(edtHttpProxy);
+        p.payload = text(edtPayload);
+        p.sni = text(edtSni);
+        p.dns1 = text(edtDns1);
+        p.dns2 = text(edtDns2);
 
-    // ... ถ้ามี field V2Ray ให้อ่านเหมือนเดิม ...
+        // ... ถ้ามี field V2Ray ให้อ่านเหมือนเดิม ...
 
-    long excludeId = (existing != null) ? existing.id : 0L;
+        long excludeId = (existing != null) ? existing.id : 0L;
 
-    // ⭐ ตรวจชื่อซ้ำ
-    viewModel.getRepo().findByName(name, excludeId, dup -> {
-        if (dup != null) {
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle("ชื่อซ้ำ")
-                    .setMessage("มีโปรไฟล์ชื่อ \"" + name + "\" อยู่แล้ว\n\n"
-                            + "Host: " + dup.host + ":" + dup.port + "\n\n"
-                            + "ต้องการอัปเดตโปรไฟล์เดิม หรือยกเลิก?")
-                    .setPositiveButton("อัปเดตของเดิม", (d, w) -> {
-                        p.id = dup.id;   // เขียนทับตัวเดิม
-                        doSave(p);
-                    })
-                    .setNegativeButton("ยกเลิก", null)
-                    .show();
-        } else {
-            doSave(p);
-        }
-    });
-}
+        // ⭐ ตรวจชื่อซ้ำ
+        viewModel.getRepo().findByName(name, excludeId, dup -> {
+            if (dup != null) {
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle("ชื่อซ้ำ")
+                        .setMessage("มีโปรไฟล์ชื่อ \"" + name + "\" อยู่แล้ว\n\n"
+                                + "Host: " + dup.host + ":" + dup.port + "\n\n"
+                                + "ต้องการอัปเดตโปรไฟล์เดิม หรือยกเลิก?")
+                        .setPositiveButton("อัปเดตของเดิม", (d, w) -> {
+                            p.id = dup.id;   // เขียนทับตัวเดิม
+                            doSave(p);
+                        })
+                        .setNegativeButton("ยกเลิก", null)
+                        .show();
+            } else {
+                doSave(p);
+            }
+        });
+    }
 
-private void doSave(Profile p) {
-    viewModel.save(p, id -> {
-        Toast.makeText(this, "บันทึกแล้ว", Toast.LENGTH_SHORT).show();
-        setResult(RESULT_OK);
-        finish();
-    });
-}
+    private void doSave(Profile p) {
+        viewModel.save(p, id -> {
+            Toast.makeText(this, "บันทึกแล้ว", Toast.LENGTH_SHORT).show();
+            setResult(RESULT_OK);
+            finish();
+        });
+    }
 
     private String text(TextInputEditText e) {
         return e.getText() == null ? "" : e.getText().toString().trim();

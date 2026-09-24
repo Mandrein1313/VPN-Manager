@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.vpn.R;
+import com.example.vpn.util.VpnPrefs;
 
 public class MainFragment extends Fragment {
 
@@ -98,5 +99,49 @@ public class MainFragment extends Fragment {
                 if (listener != null) listener.onAdFreeClick();
             });
         }
+
+        // ⭐ Share IP Card
+        View shareIpCard = v.findViewById(R.id.shareIpCard);
+        TextView txtShareIp = v.findViewById(R.id.txtShareIp);
+
+        // เช็ค pref
+        VpnPrefs prefs = new VpnPrefs(v.getContext());
+        if (prefs.isShareExternal() && shareIpCard != null) {
+            shareIpCard.setVisibility(View.VISIBLE);
+            if (txtShareIp != null) {
+                String ip = getHotspotIp() + ":1080";
+                txtShareIp.setText(ip);
+            }
+        } else if (shareIpCard != null) {
+            shareIpCard.setVisibility(View.GONE);
+        }
+    }
+
+    /** ⭐ ดึง IP ของ Hotspot เพื่อแสดงให้ผู้ใช้ */
+    public static String getHotspotIp() {
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> interfaces =
+                    java.net.NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                java.net.NetworkInterface iface = interfaces.nextElement();
+                if (iface.isLoopback() || !iface.isUp()) continue;
+
+                String name = iface.getName();
+                // Hotspot มักขึ้นต้นด้วย ap, wlan, swlan, softap
+                if (name.startsWith("ap") || name.startsWith("swlan")
+                        || name.startsWith("softap") || name.startsWith("wlan")) {
+                    java.util.Enumeration<java.net.InetAddress> addrs =
+                            iface.getInetAddresses();
+                    while (addrs.hasMoreElements()) {
+                        java.net.InetAddress addr = addrs.nextElement();
+                        if (!addr.isLoopbackAddress()
+                                && addr instanceof java.net.Inet4Address) {
+                            return addr.getHostAddress();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return "192.168.43.1";  // fallback
     }
 }

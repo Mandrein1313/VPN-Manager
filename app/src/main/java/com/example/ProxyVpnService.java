@@ -437,8 +437,16 @@ public class ProxyVpnService extends VpnService
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
 
             VpnLogger.i(TAG, "Starting SOCKS5 server...");
-            socks5Server = new Socks5Server(sshTunnel);
+            boolean shareExternal = prefs.isShareExternal();
+            socks5Server = new Socks5Server(sshTunnel, shareExternal);
             socks5Server.start();
+
+            if (shareExternal) {
+                VpnLogger.i(TAG, "SOCKS5 Sharing: enabled — external devices can connect");
+                updateNotification("แชร์ SOCKS5: เปิด");
+            } else {
+                VpnLogger.i(TAG, "SOCKS5 Sharing: disabled (localhost only)");
+            }
 
             StatusBus.post(StatusBus.State.SOCKS_READY,
                     "SOCKS5 พร้อม: 127.0.0.1:" + Socks5Server.LOCAL_PORT);

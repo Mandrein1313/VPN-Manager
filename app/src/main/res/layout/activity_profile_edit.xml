@@ -269,6 +269,25 @@
                 android:textColor="#666666"
                 android:textSize="11sp" />
 
+            <!-- ⭐ SOCKS5 Sharing -->
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchShareExternal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="แชร์ SOCKS5 ให้เครื่องอื่น"
+                android:textColor="#DDDDDD"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="2dp"
+                android:text="เครื่องอื่นใช้ SOCKS5 Proxy: [Hotspot IP]:1080"
+                android:textColor="#666666"
+                android:textSize="11sp" />
+
             <!-- ⭐ Auto-connect on Boot -->
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switchAutoConnectBoot"
@@ -412,13 +431,6 @@
                     android:textSize="14sp" />
             </LinearLayout>
 
-            <!-- ===== Save button ===== -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSave"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="บันทึก" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

@@ -11,7 +11,7 @@ public class VpnPrefs {
     private static final String KEY_LAST_PROFILE_ID = "last_profile_id";
     private static final String KEY_WAS_CONNECTED = "was_connected";
     private static final String KEY_AUTO_CONNECT_BOOT = "auto_connect_boot";
-    private static final String KEY_BYPASS_DISABLED = "bypass_disabled";   // ⭐ ใหม่
+    private static final String KEY_SHARE_EXTERNAL = "share_external";   // ⭐ ใหม่
 
     private final SharedPreferences prefs;
 
@@ -20,6 +20,7 @@ public class VpnPrefs {
                 .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
+    // ===== Auto-reconnect =====
     public boolean isAutoReconnect() {
         return prefs.getBoolean(KEY_AUTO_RECONNECT, true);
     }
@@ -28,6 +29,7 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_AUTO_RECONNECT, value).apply();
     }
 
+    // ===== Kill Switch =====
     public boolean isKillSwitch() {
         return prefs.getBoolean(KEY_KILL_SWITCH, false);
     }
@@ -36,6 +38,7 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_KILL_SWITCH, value).apply();
     }
 
+    // ===== Auto-connect on Boot =====
     public boolean isAutoConnectBoot() {
         return prefs.getBoolean(KEY_AUTO_CONNECT_BOOT, false);
     }
@@ -44,15 +47,16 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_AUTO_CONNECT_BOOT, value).apply();
     }
 
-    // ⭐ Bypass toggle
-    public boolean isBypassDisabled() {
-        return prefs.getBoolean(KEY_BYPASS_DISABLED, false);
+    // ⭐ ===== SOCKS5 Sharing =====
+    public boolean isShareExternal() {
+        return prefs.getBoolean(KEY_SHARE_EXTERNAL, false);
     }
 
-    public void setBypassDisabled(boolean value) {
-        prefs.edit().putBoolean(KEY_BYPASS_DISABLED, value).apply();
+    public void setShareExternal(boolean value) {
+        prefs.edit().putBoolean(KEY_SHARE_EXTERNAL, value).apply();
     }
 
+    // ===== Profile =====
     public long getLastProfileId() {
         return prefs.getLong(KEY_LAST_PROFILE_ID, -1L);
     }

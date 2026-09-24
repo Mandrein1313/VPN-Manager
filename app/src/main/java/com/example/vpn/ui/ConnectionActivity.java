@@ -234,7 +234,6 @@ public class ConnectionActivity extends AppCompatActivity
 
         View actionEdit = findViewById(R.id.actionEdit);
         View actionLog = findViewById(R.id.actionLog);
-        View actionDelete = findViewById(R.id.actionDelete);
         View actionAdd = findViewById(R.id.actionAdd);
 
         if (actionEdit != null) {
@@ -250,16 +249,6 @@ public class ConnectionActivity extends AppCompatActivity
         // ⭐ กด Log → ไปแท็บ LOG (index 2)
         if (actionLog != null) {
             actionLog.setOnClickListener(v -> viewPager.setCurrentItem(2, true));
-        }
-        if (actionDelete != null) {
-            actionDelete.setOnClickListener(v -> {
-                if (targetProfile == null) {
-                    Toast.makeText(this, "ไม่มีโปรไฟล์ให้ลบ",
-                            Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                confirmDeleteCurrent();
-            });
         }
         if (actionAdd != null) {
             actionAdd.setOnClickListener(v -> {
@@ -377,49 +366,50 @@ public class ConnectionActivity extends AppCompatActivity
     // Navigation Drawer
     // ============================================================
     @Override
-public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-    int id = item.getItemId();
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
 
-    if (id == R.id.nav_home) {
-        viewPager.setCurrentItem(0, true);
-    } else if (id == R.id.nav_profiles) {
-        openProfilePicker();
-    } else if (id == R.id.nav_chart) {
-        // ⭐ ไปหน้า CHART
-        viewPager.setCurrentItem(1, true);
-    } else if (id == R.id.nav_log) {
-        // ⭐ ไปหน้า LOG
-        viewPager.setCurrentItem(2, true);
-    } else if (id == R.id.nav_crash) {
-        startActivity(new Intent(this, CrashLogActivity.class));
-    } else if (id == R.id.nav_bypass) {
-        startActivity(new Intent(this, BypassActivity.class));
-    } else if (id == R.id.nav_backup) {
-        // ⭐ หน้า Backup/Restore
-        startActivity(new Intent(this, BackupActivity.class));
-    } else if (id == R.id.nav_theme) {
-        showThemeDialog();
-    } else if (id == R.id.nav_import) {
-        Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
-                Toast.LENGTH_SHORT).show();
-        openProfilePicker();
-    } else if (id == R.id.nav_about) {
-        showAboutDialog();
-    } else if (id == R.id.nav_exit) {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("ออกจากแอป?")
-                .setMessage("คุณต้องการปิดแอปทั้งหมดหรือไม่?")
-                .setPositiveButton("ออก", (d, w) -> {
-                    stopVpnService();
-                    finishAffinity();
-                })
-                .setNegativeButton("ยกเลิก", null)
-                .show();
+        if (id == R.id.nav_home) {
+            viewPager.setCurrentItem(0, true);
+        } else if (id == R.id.nav_profiles) {
+            openProfilePicker();
+        } else if (id == R.id.nav_chart) {
+            // ⭐ ไปหน้า CHART
+            viewPager.setCurrentItem(1, true);
+        } else if (id == R.id.nav_log) {
+            // ⭐ ไปหน้า LOG
+            viewPager.setCurrentItem(2, true);
+        } else if (id == R.id.nav_crash) {
+            startActivity(new Intent(this, CrashLogActivity.class));
+        } else if (id == R.id.nav_bypass) {
+            startActivity(new Intent(this, BypassActivity.class));
+        } else if (id == R.id.nav_backup) {
+            // ⭐ หน้า Backup/Restore
+            startActivity(new Intent(this, BackupActivity.class));
+        } else if (id == R.id.nav_theme) {
+            showThemeDialog();
+        } else if (id == R.id.nav_import) {
+            Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
+                    Toast.LENGTH_SHORT).show();
+            openProfilePicker();
+        } else if (id == R.id.nav_about) {
+            showAboutDialog();
+        } else if (id == R.id.nav_exit) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("ออกจากแอป?")
+                    .setMessage("คุณต้องการปิดแอปทั้งหมดหรือไม่?")
+                    .setPositiveButton("ออก", (d, w) -> {
+                        stopVpnService();
+                        finishAffinity();
+                    })
+                    .setNegativeButton("ยกเลิก", null)
+                    .show();
+        }
+
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
     }
 
-    drawerLayout.closeDrawer(GravityCompat.START);
-    return true;
-}
     private void showAboutDialog() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("เกี่ยวกับ VPN Manager")
@@ -483,20 +473,6 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         skipNextResumeReload = true;
         Intent i = new Intent(this, MainActivity.class);
         manageProfilesLauncher.launch(i);
-    }
-
-    private void confirmDeleteCurrent() {
-        if (targetProfile == null) return;
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("ลบโปรไฟล์?")
-                .setMessage("คุณต้องการลบ \"" + targetProfile.name + "\" ใช่หรือไม่?")
-                .setPositiveButton("ลบ", (d, w) -> {
-                    viewModel.delete(targetProfile);
-                    targetProfile = null;
-                    reloadProfiles();
-                })
-                .setNegativeButton("ยกเลิก", null)
-                .show();
     }
 
     private void openEditForCurrent() {

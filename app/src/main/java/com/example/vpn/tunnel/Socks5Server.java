@@ -30,31 +30,46 @@ public class Socks5Server {
     private static final int REP_CMD_NOT_SUPPORTED = 0x07;
 
     private final SshTunnel ssh;
+    private final boolean allowExternal;   // ⭐ ใหม่
     private final AtomicBoolean running = new AtomicBoolean(false);
     private ServerSocket server;
     private Thread acceptThread;
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
+    /** Constructor เก่า — localhost only */
     public Socks5Server(SshTunnel ssh) {
+        this(ssh, false);
+    }
+
+    /** ⭐ Constructor ใหม่ — เปิดให้เครื่องอื่นเข้าถึงได้ */
+    public Socks5Server(SshTunnel ssh, boolean allowExternal) {
         this.ssh = ssh;
+        this.allowExternal = allowExternal;
     }
 
     public void start() throws IOException {
-        server = new ServerSocket(LOCAL_PORT, 50,
-                InetAddress.getByName("127.0.0.1"));
+        // ⭐ bind on 0.0.0.0 ถ้า allowExternal
+        InetAddress bindAddr = allowExternal
+                ? InetAddress.getByName("0.0.0.0")
+                : InetAddress.getByName("127.0.0.1");
+
+        server = new ServerSocket(LOCAL_PORT, 50, bindAddr);
         running.set(true);
 
         acceptThread = new Thread(this::acceptLoop, "socks5-accept");
         acceptThread.setDaemon(true);
         acceptThread.start();
 
-        Log.i(TAG, "SOCKS5 server listening on 127.0.0.1:" + LOCAL_PORT);
+        Log.i(TAG, "SOCKS5 server listening on "
+                + bindAddr.getHostAddress() + ":" + LOCAL_PORT
+                + " (external=" + allowExternal + ")");
     }
 
     private void acceptLoop() {
         while (running.get()) {
             try {
                 Socket client = server.accept();
+                client.setTcpNoDelay(true);
                 pool.execute(() -> handleClient(client));
             } catch (IOException e) {
                 if (running.get()) Log.w(TAG, "accept error", e);
@@ -65,25 +80,21 @@ public class Socks5Server {
     private void handleClient(Socket client) {
         ChannelDirectTCPIP channel = null;
         try {
-            client.setTcpNoDelay(true);
             DataInputStream in = new DataInputStream(client.getInputStream());
             OutputStream out = client.getOutputStream();
 
-            // ---- Handshake: [VER, NMETHODS, METHODS...] ----
             int ver = in.readUnsignedByte();
             if (ver != VER) { client.close(); return; }
 
             int nMethods = in.readUnsignedByte();
             for (int i = 0; i < nMethods; i++) in.readUnsignedByte();
 
-            // Reply: [VER, METHOD=0x00 (no auth)]
             out.write(new byte[]{(byte) VER, 0x00});
             out.flush();
 
-            // ---- Request: [VER, CMD, RSV, ATYP, DST.ADDR, DST.PORT] ----
-            in.readUnsignedByte();           // VER
-            int cmd = in.readUnsignedByte(); // CMD
-            in.readUnsignedByte();           // RSV
+            in.readUnsignedByte();
+            int cmd = in.readUnsignedByte();
+            in.readUnsignedByte();
             int atyp = in.readUnsignedByte();
 
             String destHost;
@@ -121,17 +132,14 @@ public class Socks5Server {
                 return;
             }
 
-            // ---- เปิด SSH channel ไปปลายทาง ----
             channel = ssh.openTcp(destHost, destPort);
 
-            // ตอบสำเร็จ
             out.write(new byte[]{
                     (byte) VER, (byte) REP_SUCCESS, 0x00, (byte) ATYP_IPV4,
                     0, 0, 0, 0, 0, 0
             });
             out.flush();
 
-            // ---- Pipe bytes 2 ทาง ----
             final ChannelDirectTCPIP ch = channel;
             Thread t1 = new Thread(() -> pipe(client, ch));
             Thread t2 = new Thread(() -> pipe(ch, client));
