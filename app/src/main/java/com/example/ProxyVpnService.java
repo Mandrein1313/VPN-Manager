@@ -88,9 +88,10 @@ public class ProxyVpnService extends VpnService
     // ⭐ Heartbeat — ส่ง traffic เล็ก ๆ ผ่าน tunnel ทุก 20 วินาที กัน idle หลุด
     private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
     private Runnable heartbeatRunnable;
-    private static final long HEARTBEAT_INTERVAL_MS = 20_000;
+    private static final long HEARTBEAT_INTERVAL_MS = 15_000; // ตรวจถี่ขึ้น
+    private static final long HEARTBEAT_RETRY_MS = 5_000;     // หลัง fail ลองใหม่เร็ว
     private volatile int heartbeatFailCount = 0;
-    private static final int HEARTBEAT_FAIL_MAX = 3;
+    private static final int HEARTBEAT_FAIL_MAX = 2; // เน็ตค้างจริง → reconnect เร็วขึ้น (~20-30 วิ)
 
     // ============================================================
     // ⭐ Service state
@@ -646,7 +647,7 @@ public class ProxyVpnService extends VpnService
     }
 
     // ============================================================
-    // ⭐ Heartbeat — กัน SSH/NAT ตัดตอน idle
+    // ⭐ Heartbeat — กัน SSH/NAT ตัดตอน idle (เน็ตค้างจริง → reconnect เร็ว)
     // ============================================================
 
     private void startHeartbeat() {
@@ -661,42 +662,63 @@ public class ProxyVpnService extends VpnService
                 }
 
                 new Thread(() -> {
-                    boolean ok = doHeartbeatPing();
+                    int result = doHeartbeatPing(); // 1=ok, 0=soft fail, -1=hard fail
                     if (!running || !connected) return;
 
-                    if (ok) {
+                    if (result > 0) {
                         heartbeatFailCount = 0;
                         VpnLogger.d(TAG, "Heartbeat OK");
-                    } else {
-                        heartbeatFailCount++;
-                        VpnLogger.w(TAG, "Heartbeat FAIL (" + heartbeatFailCount
-                                + "/" + HEARTBEAT_FAIL_MAX + ")");
+                        scheduleNextHeartbeat(HEARTBEAT_INTERVAL_MS);
+                        return;
+                    }
 
-                        if (heartbeatFailCount >= HEARTBEAT_FAIL_MAX) {
-                            heartbeatFailCount = 0;
-                            if (prefs != null && prefs.isAutoReconnect()
-                                    && currentProfile != null && !reconnecting) {
-                                VpnLogger.w(TAG, "Heartbeat dead → schedule reconnect");
-                                reconnectHandler.post(() -> {
-                                    connected = false;
-                                    updateNotification("Heartbeat หลุด — กำลัง reconnect...");
-                                    scheduleReconnect();
-                                });
-                                return;
-                            }
+                    // hard fail = session ตาย → reconnect ทันที
+                    if (result < 0) {
+                        VpnLogger.w(TAG, "Heartbeat HARD FAIL — SSH session dead → reconnect now");
+                        heartbeatFailCount = 0;
+                        reconnectHandler.post(() -> {
+                            if (!running || destroying) return;
+                            connected = false;
+                            updateNotification("SSH หลุด — กำลัง reconnect...");
+                            scheduleReconnect();
+                        });
+                        return;
+                    }
+
+                    // soft fail = channel เปิดไม่ได้ชั่วคราว
+                    heartbeatFailCount++;
+                    VpnLogger.w(TAG, "Heartbeat FAIL (" + heartbeatFailCount
+                            + "/" + HEARTBEAT_FAIL_MAX + ")");
+
+                    if (heartbeatFailCount >= HEARTBEAT_FAIL_MAX) {
+                        heartbeatFailCount = 0;
+                        if (prefs != null && prefs.isAutoReconnect()
+                                && currentProfile != null && !reconnecting) {
+                            VpnLogger.w(TAG, "Heartbeat dead → schedule reconnect");
+                            reconnectHandler.post(() -> {
+                                if (!running || destroying) return;
+                                connected = false;
+                                updateNotification("Heartbeat หลุด — กำลัง reconnect...");
+                                scheduleReconnect();
+                            });
+                            return;
                         }
                     }
 
-                    if (running && connected && heartbeatRunnable != null) {
-                        heartbeatHandler.postDelayed(
-                                heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
-                    }
+                    // ลองใหม่เร็วกว่าปกติ
+                    scheduleNextHeartbeat(HEARTBEAT_RETRY_MS);
                 }, "vpn-heartbeat").start();
             }
         };
 
         heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
-        VpnLogger.i(TAG, "Heartbeat started (every " + HEARTBEAT_INTERVAL_MS + "ms)");
+        VpnLogger.i(TAG, "Heartbeat started (every " + HEARTBEAT_INTERVAL_MS
+                + "ms, failMax=" + HEARTBEAT_FAIL_MAX + ")");
+    }
+
+    private void scheduleNextHeartbeat(long delayMs) {
+        if (!running || !connected || heartbeatRunnable == null) return;
+        heartbeatHandler.postDelayed(heartbeatRunnable, delayMs);
     }
 
     private void stopHeartbeat() {
@@ -710,16 +732,14 @@ public class ProxyVpnService extends VpnService
     }
 
     /**
-     * ส่ง traffic เล็ก ๆ ผ่าน tunnel
-     * - โหมด SSH: เปิด direct-tcpip ไป 1.1.1.1:53 แล้วปิด
-     * - โหมด V2Ray / อื่น ๆ: TCP connect ผ่าน VPN
+     * @return 1 = OK, 0 = soft fail (channel), -1 = hard fail (session dead)
      */
-    private boolean doHeartbeatPing() {
+    private int doHeartbeatPing() {
         SshTunnel tunnel = sshTunnel;
         if (tunnel != null) {
             if (!tunnel.isConnected()) {
                 VpnLogger.w(TAG, "Heartbeat: SSH session not connected");
-                return false;
+                return -1; // hard fail
             }
             com.jcraft.jsch.ChannelDirectTCPIP channel = null;
             try {
@@ -733,11 +753,22 @@ public class ProxyVpnService extends VpnService
                     });
                     out.flush();
                 }
-                try { Thread.sleep(200); } catch (InterruptedException ignored) {}
-                return true;
+                try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+                return 1;
             } catch (Exception e) {
+                String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
                 VpnLogger.w(TAG, "Heartbeat SSH ping error: " + e.getMessage());
-                return false;
+                // session ตายจริง → hard fail
+                if (!tunnel.isConnected()
+                        || msg.contains("session is down")
+                        || msg.contains("not connected")
+                        || msg.contains("connection is closed")) {
+                    return -1;
+                }
+                // channel is not opened ฯลฯ แต่ session ยัง flag ว่า connected
+                // จากประสบการณ์ผู้ใช้: ตอนนี้เน็ตมักใช้ไม่ได้แล้ว → นับ soft fail
+                // (fail 2 ครั้งติด + retry 5 วิ จะ reconnect เร็ว)
+                return 0;
             } finally {
                 if (channel != null) {
                     try { channel.disconnect(); } catch (Exception ignored) {}
@@ -748,12 +779,12 @@ public class ProxyVpnService extends VpnService
         java.net.Socket s = null;
         try {
             s = new java.net.Socket();
-            s.connect(new java.net.InetSocketAddress("1.1.1.1", 53), 4_000);
+            s.connect(new java.net.InetSocketAddress("1.1.1.1", 53), 3_000);
             s.setTcpNoDelay(true);
-            return s.isConnected();
+            return s.isConnected() ? 1 : 0;
         } catch (Exception e) {
             VpnLogger.w(TAG, "Heartbeat TCP ping error: " + e.getMessage());
-            return false;
+            return 0;
         } finally {
             if (s != null) {
                 try { s.close(); } catch (Exception ignored) {}
