@@ -25,6 +25,10 @@ public class SshTunnel {
             + "AppleWebKit/537.36 (KHTML, like Gecko) "
             + "Chrome/120.0.0.0 Mobile Safari/537.36";
 
+    // ⭐ Keep-alive ที่แรงขึ้นสำหรับมือถือ (กัน NAT/Carrier ตัด idle)
+    private static final int SERVER_ALIVE_INTERVAL_MS = 15_000;  // ทุก 15 วินาที
+    private static final int SERVER_ALIVE_COUNT_MAX   = 6;       // ทนได้ ~90 วินาที
+
     private final Session session;
 
     public interface SocketProtector {
@@ -47,6 +51,8 @@ public class SshTunnel {
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
         config.put("PreferredAuthentications", "password,keyboard-interactive");
+        // ช่วยให้ JSch ไม่ตัด session เร็วเกินไป
+        config.put("MaxAuthTries", "3");
         session.setConfig(config);
 
         final String fSshHost = host;
@@ -58,6 +64,15 @@ public class SshTunnel {
             @Override
             public Socket createSocket(String h, int p) throws IOException {
                 Socket s = new Socket();
+
+                // ⭐ เปิด TCP Keep-Alive + ปิด Nagle ตั้งแต่สร้าง socket
+                try {
+                    s.setKeepAlive(true);
+                    s.setTcpNoDelay(true);
+                    s.setSoTimeout(0); // ไม่ timeout ตอนอ่าน (idle ได้)
+                } catch (Exception e) {
+                    VpnLogger.w(TAG, "Socket option error: " + e.getMessage());
+                }
 
                 if (protector != null) {
                     try { protector.protect(s); }
@@ -71,6 +86,12 @@ public class SshTunnel {
                         return createDirectPayload(s, h, p, fPayload);
                     } else {
                         s.connect(new InetSocketAddress(h, p), 20_000);
+                        // ยืนยัน keep-alive อีกครั้งหลัง connect
+                        try {
+                            s.setKeepAlive(true);
+                            s.setTcpNoDelay(true);
+                            s.setSoTimeout(0);
+                        } catch (Exception ignored) {}
                         return s;
                     }
                 } catch (IOException e) {
@@ -90,10 +111,12 @@ public class SshTunnel {
             }
         });
 
-        session.setServerAliveInterval(30_000);
-        session.setServerAliveCountMax(3);
+        // ⭐ SSH application-level keep-alive (สำคัญมากบนมือถือ)
+        session.setServerAliveInterval(SERVER_ALIVE_INTERVAL_MS);
+        session.setServerAliveCountMax(SERVER_ALIVE_COUNT_MAX);
 
-        VpnLogger.i(TAG, "Connecting SSH to " + host + ":" + port);
+        VpnLogger.i(TAG, "Connecting SSH to " + host + ":" + port
+                + " (alive=" + SERVER_ALIVE_INTERVAL_MS + "ms x" + SERVER_ALIVE_COUNT_MAX + ")");
         session.connect(25_000);
         VpnLogger.i(TAG, "SSH connected successfully");
     }
@@ -118,6 +141,7 @@ public class SshTunnel {
 
         VpnLogger.i(TAG, "Connecting to proxy " + proxyHost + ":" + proxyPort);
         s.connect(new InetSocketAddress(proxyHost, proxyPort), 20_000);
+        s.setKeepAlive(true);
         s.setTcpNoDelay(true);
         VpnLogger.i(TAG, "Proxy TCP connected");
 
@@ -196,7 +220,13 @@ public class SshTunnel {
             }
         }
 
+        // สำคัญ: ปิด timeout เพื่อให้ idle ได้
         s.setSoTimeout(0);
+        try {
+            s.setKeepAlive(true);
+            s.setTcpNoDelay(true);
+        } catch (Exception ignored) {}
+
         VpnLogger.i(TAG, "Handing socket to JSch for SSH handshake");
         return s;
     }
@@ -362,6 +392,7 @@ public class SshTunnel {
                                                String payload) throws IOException {
         VpnLogger.i(TAG, "Direct connect + payload to " + host + ":" + port);
         s.connect(new InetSocketAddress(host, port), 20_000);
+        s.setKeepAlive(true);
         s.setTcpNoDelay(true);
 
         String replaced = payload
@@ -407,6 +438,11 @@ public class SshTunnel {
         }
 
         s.setSoTimeout(0);
+        try {
+            s.setKeepAlive(true);
+            s.setTcpNoDelay(true);
+        } catch (Exception ignored) {}
+
         return s;
     }
 

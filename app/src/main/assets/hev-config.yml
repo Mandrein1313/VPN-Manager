@@ -12,8 +12,9 @@ misc:
   log-file: stderr
   log-level: warn
   task-stack-size: 65536
-  connect-timeout: 10000
-  read-write-timeout: 120000
-  tcp-buffer-size: 65536
+  connect-timeout: 15000
+  # ⭐ เพิ่มเป็น 5 นาที — ลดการตัด connection ตอน idle (เดิม 120000 = 2 นาที)
+  read-write-timeout: 300000
+  tcp-buffer-size: 131072
   udp-recv-buffer-size: 65536
   limit-nofile: 65535

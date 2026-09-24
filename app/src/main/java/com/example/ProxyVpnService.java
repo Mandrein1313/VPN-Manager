@@ -85,6 +85,13 @@ public class ProxyVpnService extends VpnService
     private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
     private static final long RECONNECT_DELAY_MS = 3000;
 
+    // ⭐ Heartbeat — ส่ง traffic เล็ก ๆ ผ่าน tunnel ทุก 20 วินาที กัน idle หลุด
+    private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
+    private Runnable heartbeatRunnable;
+    private static final long HEARTBEAT_INTERVAL_MS = 20_000;
+    private volatile int heartbeatFailCount = 0;
+    private static final int HEARTBEAT_FAIL_MAX = 3;
+
     // ============================================================
     // ⭐ Service state
     // ============================================================
@@ -263,6 +270,7 @@ public class ProxyVpnService extends VpnService
         if (currentProfile == null) return;
         VpnLogger.i(TAG, "Restarting VPN...");
         reconnecting = true;
+        stopHeartbeat();
 
         // หยุด components แต่ไม่ปิด TUN
         if (connectivityChecker != null) {
@@ -473,6 +481,7 @@ public class ProxyVpnService extends VpnService
                         "เชื่อมต่อ (SSH เท่านั้น): " + profile.name);
                 updateNotification("SSH พร้อม — Tun2Socks ไม่ทำงาน");
                 startNetworkMonitor();
+                startHeartbeat();
                 return;
             }
 
@@ -507,6 +516,7 @@ public class ProxyVpnService extends VpnService
                             "เชื่อมต่อแล้ว: " + profile.name);
                     updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                     startNetworkMonitor();
+                    startHeartbeat();
                 }
 
                 @Override
@@ -517,6 +527,7 @@ public class ProxyVpnService extends VpnService
                             "เชื่อมต่อแล้ว (อาจต้องรอสักครู่): " + profile.name);
                     updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                     startNetworkMonitor();
+                    startHeartbeat();
                 }
             });
 
@@ -607,6 +618,7 @@ public class ProxyVpnService extends VpnService
                 "เชื่อมต่อแล้ว: " + profile.name);
         updateNotification("เชื่อมต่อแล้ว: " + profile.name);
         startNetworkMonitor();
+        startHeartbeat();
     }
 
     /** ⭐ แก้ port ใน config yml */
@@ -630,6 +642,122 @@ public class ProxyVpnService extends VpnService
             fos.close();
         } catch (Exception e) {
             VpnLogger.w(TAG, "rewriteConfigPort error: " + e.getMessage());
+        }
+    }
+
+    // ============================================================
+    // ⭐ Heartbeat — กัน SSH/NAT ตัดตอน idle
+    // ============================================================
+
+    private void startHeartbeat() {
+        stopHeartbeat();
+        heartbeatFailCount = 0;
+
+        heartbeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!running || !connected || destroying) {
+                    return;
+                }
+
+                new Thread(() -> {
+                    boolean ok = doHeartbeatPing();
+                    if (!running || !connected) return;
+
+                    if (ok) {
+                        heartbeatFailCount = 0;
+                        VpnLogger.d(TAG, "Heartbeat OK");
+                    } else {
+                        heartbeatFailCount++;
+                        VpnLogger.w(TAG, "Heartbeat FAIL (" + heartbeatFailCount
+                                + "/" + HEARTBEAT_FAIL_MAX + ")");
+
+                        if (heartbeatFailCount >= HEARTBEAT_FAIL_MAX) {
+                            heartbeatFailCount = 0;
+                            if (prefs != null && prefs.isAutoReconnect()
+                                    && currentProfile != null && !reconnecting) {
+                                VpnLogger.w(TAG, "Heartbeat dead → schedule reconnect");
+                                reconnectHandler.post(() -> {
+                                    connected = false;
+                                    updateNotification("Heartbeat หลุด — กำลัง reconnect...");
+                                    scheduleReconnect();
+                                });
+                                return;
+                            }
+                        }
+                    }
+
+                    if (running && connected && heartbeatRunnable != null) {
+                        heartbeatHandler.postDelayed(
+                                heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
+                    }
+                }, "vpn-heartbeat").start();
+            }
+        };
+
+        heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
+        VpnLogger.i(TAG, "Heartbeat started (every " + HEARTBEAT_INTERVAL_MS + "ms)");
+    }
+
+    private void stopHeartbeat() {
+        if (heartbeatRunnable != null) {
+            heartbeatHandler.removeCallbacks(heartbeatRunnable);
+            heartbeatRunnable = null;
+        }
+        heartbeatHandler.removeCallbacksAndMessages(null);
+        heartbeatFailCount = 0;
+        VpnLogger.i(TAG, "Heartbeat stopped");
+    }
+
+    /**
+     * ส่ง traffic เล็ก ๆ ผ่าน tunnel
+     * - โหมด SSH: เปิด direct-tcpip ไป 1.1.1.1:53 แล้วปิด
+     * - โหมด V2Ray / อื่น ๆ: TCP connect ผ่าน VPN
+     */
+    private boolean doHeartbeatPing() {
+        SshTunnel tunnel = sshTunnel;
+        if (tunnel != null) {
+            if (!tunnel.isConnected()) {
+                VpnLogger.w(TAG, "Heartbeat: SSH session not connected");
+                return false;
+            }
+            com.jcraft.jsch.ChannelDirectTCPIP channel = null;
+            try {
+                channel = tunnel.openTcp("1.1.1.1", 53);
+                java.io.OutputStream out = channel.getOutputStream();
+                if (out != null) {
+                    out.write(new byte[]{
+                            0x00, 0x00,
+                            0x01, 0x00,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                    });
+                    out.flush();
+                }
+                try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+                return true;
+            } catch (Exception e) {
+                VpnLogger.w(TAG, "Heartbeat SSH ping error: " + e.getMessage());
+                return false;
+            } finally {
+                if (channel != null) {
+                    try { channel.disconnect(); } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        java.net.Socket s = null;
+        try {
+            s = new java.net.Socket();
+            s.connect(new java.net.InetSocketAddress("1.1.1.1", 53), 4_000);
+            s.setTcpNoDelay(true);
+            return s.isConnected();
+        } catch (Exception e) {
+            VpnLogger.w(TAG, "Heartbeat TCP ping error: " + e.getMessage());
+            return false;
+        } finally {
+            if (s != null) {
+                try { s.close(); } catch (Exception ignored) {}
+            }
         }
     }
 
@@ -660,6 +788,7 @@ public class ProxyVpnService extends VpnService
     @Override
     public void onNetworkLost() {
         VpnLogger.w(TAG, "Network lost");
+        stopHeartbeat();
         if (connected) {
             connected = false;
             if (prefs.isKillSwitch()) {
@@ -689,6 +818,7 @@ public class ProxyVpnService extends VpnService
     private void doReconnect() {
         if (currentProfile == null) return;
         VpnLogger.i(TAG, "Reconnecting...");
+        stopHeartbeat();
         updateNotification("กำลังเชื่อมต่อใหม่...");
         StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลัง reconnect...");
 
@@ -725,6 +855,8 @@ public class ProxyVpnService extends VpnService
         running = false;
         connected = false;
         VpnLogger.i(TAG, "Stopping VPN (full=" + fullClose + ")...");
+
+        stopHeartbeat();
 
         if (connectivityChecker != null) {
             connectivityChecker.cancel();
