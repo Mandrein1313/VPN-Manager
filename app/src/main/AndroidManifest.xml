@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ===== Permissions ===== -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- ⭐ กล้องสำหรับ QR -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- ⭐ Auto-connect on Boot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.MyApp"
+        tools:targetApi="34">
+
+        <!-- ⭐ FileProvider สำหรับแชร์ QR -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- ⭐ ConnectionActivity = LAUNCHER (หน้าแรก) -->
+        <activity
+            android:name=".ui.ConnectionActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- MainActivity = Profile Management -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="จัดการโปรไฟล์"
+            android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- Profile Edit -->
+        <activity
+            android:name=".ui.ProfileEditActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- Log Viewer -->
+        <activity
+            android:name=".ui.LogViewerActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- Crash Log -->
+        <activity
+            android:name=".ui.CrashLogActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- ⭐ Bypass Mode -->
+        <activity
+            android:name=".ui.BypassActivity"
+            android:exported="false"
+            android:label="Bypass Mode"
+            android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- ⭐ Backup/Restore -->
+        <activity
+            android:name=".ui.BackupActivity"
+            android:exported="false"
+            android:label="สำรอง/กู้คืนข้อมูล"
+            android:parentActivityName=".ui.ConnectionActivity" />
+
+        <!-- ⭐ QR Share -->
+        <activity
+            android:name=".ui.QrShareActivity"
+            android:exported="false"
+            android:label="แชร์ QR"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- ⭐ QR Scan -->
+        <activity
+            android:name=".ui.QrScanActivity"
+            android:exported="false"
+            android:label="สแกน QR"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainActivity" />
+
+        <!-- ⭐ Auto-connect on Boot Receiver -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ⭐ Quick Settings Tile -->
+        <service
+            android:name=".VpnTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_vpn"
+            android:label="VPN Manager"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- VPN Service -->
+        <service
+            android:name=".ProxyVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:foregroundServiceType="specialUse">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="vpn_tunnel" />
+        </service>
+
+    </application>
+</manifest>

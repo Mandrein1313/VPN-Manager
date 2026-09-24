@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_home"
+            android:icon="@android:drawable/ic_menu_compass"
+            android:title="หน้าแรก" />
+
+        <item
+            android:id="@+id/nav_profiles"
+            android:icon="@android:drawable/ic_menu_sort_by_size"
+            android:title="จัดการโปรไฟล์" />
+    </group>
+
+    <item android:title="เครื่องมือ">
+        <menu>
+        <item
+    android:id="@+id/nav_backup"
+    android:icon="@android:drawable/ic_menu_save"
+    android:title="สำรอง/กู้คืน" />
+            <item
+                android:id="@+id/nav_log"
+                android:icon="@android:drawable/ic_menu_info_details"
+                android:title="Log การเชื่อมต่อ" />
+
+            <item
+                android:id="@+id/nav_crash"
+                android:icon="@android:drawable/ic_menu_report_image"
+                android:title="Crash Log" />
+           <item  
+                android:id="@+id/nav_bypass"
+                android:icon="@android:drawable/ic_menu_manage"
+                android:title="Bypass Mode" />
+
+            <item
+                android:id="@+id/nav_import"
+                android:icon="@android:drawable/ic_menu_upload"
+                android:title="Import จาก Clipboard" />
+        </menu>
+    </item>
+
+    <item android:title="อื่นๆ">
+        <menu>
+        <item
+    android:id="@+id/nav_theme"
+    android:icon="@android:drawable/ic_menu_day"
+    android:title="เปลี่ยนธีม" />
+    <item
+    android:id="@+id/nav_chart"
+    android:icon="@android:drawable/ic_menu_gallery"
+    android:title="กราฟการใช้งาน" />
+            <item
+                android:id="@+id/nav_about"
+                android:icon="@android:drawable/ic_menu_help"
+                android:title="เกี่ยวกับ" />
+
+            <item
+                android:id="@+id/nav_exit"
+                android:icon="@android:drawable/ic_lock_power_off"
+                android:title="ออกจากแอป" />
+        </menu>
+    </item>
+
+</menu>

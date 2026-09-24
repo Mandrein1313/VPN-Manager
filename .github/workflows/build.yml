@@ -1,0 +1,142 @@
+name: Android Cloud Build Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK + NDK
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: 11076708
+        packages: 'platform-tools platforms;android-34 build-tools;34.0.0 ndk;25.2.9519653'
+        accept-android-sdk-licenses: true
+        log-accepted-android-sdk-licenses: true
+
+    # ⭐ คอมไพล์ hev-socks5-tunnel .so เองด้วย NDK
+    - name: Build hev-socks5-tunnel .so
+      run: |
+        set -e
+        
+        echo "===== Cloning hev-socks5-tunnel ====="
+        git clone --recursive --depth 1 https://github.com/heiher/hev-socks5-tunnel.git
+        
+        cd hev-socks5-tunnel
+        
+        echo "===== Creating Android.mk ====="
+        mkdir -p jni
+        cat > jni/Android.mk << 'EOF'
+        LOCAL_PATH := $(call my-dir)
+        include $(call all-subdir-makefiles)
+        EOF
+        
+        if [ ! -d "jni/hev-socks5-tunnel" ]; then
+          ln -sf "$(pwd)" jni/hev-socks5-tunnel
+        fi
+        
+        echo "===== Running ndk-build ====="
+        export NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653
+        
+        $NDK_HOME/ndk-build \
+          NDK_PROJECT_PATH=. \
+          APP_BUILD_SCRIPT=jni/Android.mk \
+          "APP_ABI=arm64-v8a armeabi-v7a x86 x86_64" \
+          "APP_PLATFORM=android-24" \
+          "APP_CFLAGS=-O3 -DPKGNAME=hev/htproxy -DCLSNAME=TProxyService" \
+          V=1 2>&1 | tail -50
+        
+        mkdir -p ../app/src/main/jniLibs/arm64-v8a
+        mkdir -p ../app/src/main/jniLibs/armeabi-v7a
+        mkdir -p ../app/src/main/jniLibs/x86
+        mkdir -p ../app/src/main/jniLibs/x86_64
+        
+        for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+          if [ -f "libs/$abi/libhev-socks5-tunnel.so" ]; then
+            cp "libs/$abi/libhev-socks5-tunnel.so" "../app/src/main/jniLibs/$abi/"
+            echo "✅ Copied $abi"
+          fi
+        done
+        
+        find ../app/src/main/jniLibs -name "*.so" -exec ls -lh {} \;
+
+    # ⭐ ดาวน์โหลด AndroidLibXrayLite AAR (libv2ray.aar)
+    - name: Download AndroidLibXrayLite AAR
+      run: |
+        set -e
+        
+        mkdir -p app/libs
+        
+        # ⭐ ดึง version ล่าสุดจาก GitHub API
+        echo "===== Getting latest release ====="
+        LATEST_JSON=$(curl -sL "https://api.github.com/repos/2dust/AndroidLibXrayLite/releases/latest")
+        
+        TAG_NAME=$(echo "$LATEST_JSON" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+        echo "Latest tag: $TAG_NAME"
+        
+        # ⭐ ดึง URL ของไฟล์ .aar
+        AAR_URL=$(echo "$LATEST_JSON" \
+          | grep -o '"browser_download_url": *"[^"]*libv2ray.aar"' \
+          | head -1 \
+          | sed 's/.*"\(http[^"]*\)".*/\1/')
+        
+        echo "AAR URL: $AAR_URL"
+        
+        if [ -z "$AAR_URL" ]; then
+          echo "❌ Cannot find libv2ray.aar URL"
+          echo "$LATEST_JSON" | grep "browser_download_url" | head -10
+          exit 1
+        fi
+        
+        echo "===== Downloading ====="
+        curl -fSL -o app/libs/libv2ray.aar "$AAR_URL"
+        
+        SIZE=$(stat -c%s app/libs/libv2ray.aar)
+        echo "✅ Downloaded libv2ray.aar ($SIZE bytes)"
+        
+        echo "===== Files in app/libs/ ====="
+        ls -lh app/libs/
+        
+        echo "===== AAR structure (first 30) ====="
+        unzip -l app/libs/libv2ray.aar | head -30
+
+    - name: Setup Gradle 8.13
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.13'
+
+    - name: Clean & Build Debug APK
+      run: gradle clean assembleDebug --no-daemon --build-cache --stacktrace
+
+    - name: Generate Timestamp
+      id: timestamp
+      run: echo "timestamp=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+    - name: Upload APK to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: "build-${{ steps.timestamp.outputs.timestamp }}"
+        name: "Build ${{ steps.timestamp.outputs.timestamp }}"
+        draft: false
+        prerelease: false
+        make_latest: true
+        overwrite_files: true
+        files: "**/build/outputs/apk/**/*.apk"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
