@@ -70,7 +70,12 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private final ActivityResultLauncher<Intent> addProfileLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
-                    result -> { /* list observe เอง */ });
+                    result -> {
+                        if (result.getResultCode() == RESULT_OK) {
+                            Toast.makeText(this, "บันทึกคอนฟิกแล้ว", Toast.LENGTH_SHORT).show();
+                            // LiveData จะรีเฟรชรายการเอง
+                        }
+                    });
 
     // ⭐ Launcher สำหรับรับผลการสแกน QR
     private final ActivityResultLauncher<Intent> qrScanLauncher =
@@ -152,10 +157,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         recycler.setAdapter(adapter);
 
         // ===== Empty state buttons =====
-        btnAddConfig.setOnClickListener(v -> {
-            Intent i = new Intent(this, ProfileEditActivity.class);
-            addProfileLauncher.launch(i);
-        });
+        btnAddConfig.setOnClickListener(v -> showAddConfigurationMenu());
 
         btnImportClipboard.setOnClickListener(v -> importFromClipboard());
 
@@ -419,7 +421,9 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         ClipboardManager cm = (ClipboardManager)
                 getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null) {
-            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,
+                    "Clipboard ว่าง — คัดลอก ssh:// หรือ user:pass@host:port ก่อน",
+                    Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -470,6 +474,49 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
+    }
+
+    // ============================================================
+    // ⭐ เมนูเพิ่มคอนฟิก (Add Configuration)
+    // ============================================================
+    private void showAddConfigurationMenu() {
+        final String[] items = {
+                "✏️  กรอกเอง (Manual)",
+                "📋  นำเข้าจาก Clipboard",
+                "📷  สแกน QR Code"
+        };
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Add Configuration")
+                .setItems(items, (d, which) -> {
+                    switch (which) {
+                        case 0:
+                            openManualAdd();
+                            break;
+                        case 1:
+                            importFromClipboard();
+                            break;
+                        case 2:
+                            openQrScan();
+                            break;
+                    }
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    private void openManualAdd() {
+        Intent i = new Intent(this, ProfileEditActivity.class);
+        addProfileLauncher.launch(i);
+    }
+
+    private void openQrScan() {
+        try {
+            Intent i = new Intent(this, QrScanActivity.class);
+            qrScanLauncher.launch(i);
+        } catch (Exception e) {
+            Toast.makeText(this, "เปิดสแกน QR ไม่ได้: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     // ============================================================
