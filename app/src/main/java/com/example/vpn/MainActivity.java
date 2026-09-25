@@ -56,8 +56,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
     private View btnAddConfig;
     private View btnImportClipboard;
-    private View btnBack;
-
     // FAB Speed Dial
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabMain;
     private View fabOptionAdd, fabOptionImport, fabOptionQr;
@@ -131,7 +129,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 .get(ProfileViewModel.class);
 
         // ===== Bind views =====
-        btnBack = findViewById(R.id.btnBack);
         emptyState = findViewById(R.id.emptyState);
         recycler = findViewById(R.id.recyclerProfiles);
         btnAddConfig = findViewById(R.id.btnAddConfig);
@@ -156,6 +153,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         // ===== Toolbar =====
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
+            toolbar.setNavigationOnClickListener(v -> finish());
             setSupportActionBar(toolbar);
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setDisplayShowTitleEnabled(false);
@@ -163,9 +161,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         }
 
         // ===== Back button =====
-        if (btnBack != null) {
-            btnBack.setOnClickListener(v -> finish());
-        }
 
         // ===== List =====
         recycler.setLayoutManager(new LinearLayoutManager(this));
