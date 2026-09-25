@@ -5,16 +5,19 @@
     <!-- ===== Permissions ===== -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
     <!-- ⭐ กล้องสำหรับ QR -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
 
     <!-- ⭐ Auto-connect on Boot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -105,12 +108,13 @@
             android:label="สแกน QR"
             android:screenOrientation="portrait"
             android:parentActivityName=".MainActivity" />
-            
+
+        <!-- ⭐ แชร์ VPN ผ่าน Wi‑Fi / Hotspot (SOCKS5) -->
         <activity
-    android:name=".ui.ShareWifiActivity"
-    android:exported="false"
-    android:label="แชร์ VPN"
-    android:parentActivityName=".ui.ConnectionActivity" />
+            android:name=".ui.ShareWifiActivity"
+            android:exported="false"
+            android:label="แชร์ VPN"
+            android:parentActivityName=".ui.ConnectionActivity" />
 
         <!-- ⭐ Auto-connect on Boot Receiver -->
         <receiver
