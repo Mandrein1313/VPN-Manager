@@ -9,13 +9,13 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.vpn.R;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.CrashHandler;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
@@ -115,14 +115,14 @@ public class CrashLogActivity extends AppCompatActivity {
 
     private void copyCurrent() {
         if (selectedIndex < 0 || selectedIndex >= crashFiles.length) {
-            Toast.makeText(this, "ไม่มี crash log", Toast.LENGTH_SHORT).show();
+            StyledToast.error(this, "ไม่มี crash log");
             return;
         }
         String text = txtDetail.getText().toString();
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm != null) {
             cm.setPrimaryClip(ClipData.newPlainText("Crash Log", text));
-            Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_SHORT).show();
+            StyledToast.success(this, "คัดลอกแล้ว");
         }
     }
 
@@ -134,7 +134,7 @@ public class CrashLogActivity extends AppCompatActivity {
                     CrashHandler.clearAll(this);
                     refreshList();
                     txtDetail.setText("");
-                    Toast.makeText(this, "ลบแล้ว", Toast.LENGTH_SHORT).show();
+                    StyledToast.delete(this, "ลบแล้ว");
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();

@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -18,6 +17,7 @@ import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.BackupManager;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
@@ -147,15 +147,13 @@ public class BackupActivity extends AppCompatActivity {
         try {
             String json = backupManager.exportAll(cachedProfiles);
             if (json == null) {
-                Toast.makeText(this, "สร้าง backup ไม่สำเร็จ",
-                        Toast.LENGTH_SHORT).show();
+                StyledToast.error(this, "สร้าง backup ไม่สำเร็จ");
                 return;
             }
 
             OutputStream os = getContentResolver().openOutputStream(uri);
             if (os == null) {
-                Toast.makeText(this, "ไม่สามารถเขียนไฟล์ได้",
-                        Toast.LENGTH_SHORT).show();
+                StyledToast.info(this, "ไม่สามารถเขียนไฟล์ได้");
                 return;
             }
 
@@ -163,22 +161,17 @@ public class BackupActivity extends AppCompatActivity {
             os.flush();
             os.close();
 
-            Toast.makeText(this,
-                    "✅ Backup สำเร็จ: " + cachedProfiles.size() + " โปรไฟล์",
-                    Toast.LENGTH_LONG).show();
+            StyledToast.success(this, "✅ Backup สำเร็จ: " + cachedProfiles.size() + " โปรไฟล์");
 
         } catch (Exception e) {
-            Toast.makeText(this,
-                    "❌ ผิดพลาด: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+            StyledToast.error(this, "❌ ผิดพลาด: " + e.getMessage());
         }
     }
 
     private void shareAsText() {
         String json = backupManager.exportAll(cachedProfiles);
         if (json == null) {
-            Toast.makeText(this, "สร้าง backup ไม่สำเร็จ",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.error(this, "สร้าง backup ไม่สำเร็จ");
             return;
         }
 
@@ -192,8 +185,7 @@ public class BackupActivity extends AppCompatActivity {
     private void copyToClipboard() {
         String json = backupManager.exportAll(cachedProfiles);
         if (json == null) {
-            Toast.makeText(this, "สร้าง backup ไม่สำเร็จ",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.error(this, "สร้าง backup ไม่สำเร็จ");
             return;
         }
 
@@ -203,8 +195,7 @@ public class BackupActivity extends AppCompatActivity {
         if (cm != null) {
             cm.setPrimaryClip(android.content.ClipData.newPlainText(
                     "VPN Backup", json));
-            Toast.makeText(this, "คัดลอกแล้ว — paste ที่ไหนก็ได้",
-                    Toast.LENGTH_LONG).show();
+            StyledToast.success(this, "คัดลอกแล้ว — paste ที่ไหนก็ได้");
         }
     }
 
@@ -248,15 +239,13 @@ public class BackupActivity extends AppCompatActivity {
                 (android.content.ClipboardManager) getSystemService(
                         CLIPBOARD_SERVICE);
         if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null) {
-            Toast.makeText(this, "Clipboard ว่างเปล่า",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "Clipboard ว่างเปล่า");
             return;
         }
 
         CharSequence text = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
         if (text == null || text.length() == 0) {
-            Toast.makeText(this, "Clipboard ว่างเปล่า",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "Clipboard ว่างเปล่า");
             return;
         }
 
@@ -280,8 +269,7 @@ public class BackupActivity extends AppCompatActivity {
 
         if (profileCount == 0 && bypassCount == 0
                 && !result.hasSettings && !result.hasTheme) {
-            Toast.makeText(this, "ไฟล์ไม่มีข้อมูล",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "ไฟล์ไม่มีข้อมูล");
             return;
         }
 
@@ -330,9 +318,7 @@ public class BackupActivity extends AppCompatActivity {
         final int finalImported = imported;
         new android.os.Handler(android.os.Looper.getMainLooper())
                 .postDelayed(() -> {
-                    Toast.makeText(this,
-                            "✅ นำเข้าสำเร็จ " + finalImported + " โปรไฟล์",
-                            Toast.LENGTH_LONG).show();
+                    StyledToast.success(this, "✅ นำเข้าสำเร็จ " + finalImported + " โปรไฟล์");
 
                     // Refresh
                     updateCounts();

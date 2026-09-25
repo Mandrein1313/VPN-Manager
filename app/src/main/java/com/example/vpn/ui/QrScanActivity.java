@@ -10,7 +10,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -23,6 +22,7 @@ import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.QrPayload;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -173,15 +173,14 @@ public class QrScanActivity extends AppCompatActivity {
             if (flashOn) {
                 barcodeView.setTorchOff();
                 flashOn = false;
-                Toast.makeText(this, "ปิดแฟลช", Toast.LENGTH_SHORT).show();
+                StyledToast.info(this, "ปิดแฟลช");
             } else {
                 barcodeView.setTorchOn();
                 flashOn = true;
-                Toast.makeText(this, "เปิดแฟลช", Toast.LENGTH_SHORT).show();
+                StyledToast.info(this, "เปิดแฟลช");
             }
         } catch (Exception e) {
-            Toast.makeText(this, "อุปกรณ์ไม่รองรับแฟลช",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.info(this, "อุปกรณ์ไม่รองรับแฟลช");
         }
     }
 
@@ -192,8 +191,7 @@ public class QrScanActivity extends AppCompatActivity {
         try {
             InputStream is = getContentResolver().openInputStream(uri);
             if (is == null) {
-                Toast.makeText(this, "ไม่สามารถเปิดรูปได้",
-                        Toast.LENGTH_SHORT).show();
+                StyledToast.info(this, "ไม่สามารถเปิดรูปได้");
                 barcodeView.resume();
                 return;
             }
@@ -202,7 +200,7 @@ public class QrScanActivity extends AppCompatActivity {
             is.close();
 
             if (bitmap == null) {
-                Toast.makeText(this, "อ่านรูปไม่ได้", Toast.LENGTH_SHORT).show();
+                StyledToast.error(this, "อ่านรูปไม่ได้");
                 barcodeView.resume();
                 return;
             }
@@ -232,8 +230,7 @@ public class QrScanActivity extends AppCompatActivity {
                     .show();
 
         } catch (Exception e) {
-            Toast.makeText(this, "ผิดพลาด: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+            StyledToast.error(this, "ผิดพลาด: " + e.getMessage());
             barcodeView.resume();
         }
     }
@@ -283,9 +280,7 @@ public class QrScanActivity extends AppCompatActivity {
                 .setPositiveButton("นำเข้า", (d, w) -> {
                     p.id = 0;
                     viewModel.save(p, id -> {
-                        Toast.makeText(QrScanActivity.this,
-                                "นำเข้าสำเร็จ: " + p.name,
-                                Toast.LENGTH_LONG).show();
+                        StyledToast.success(QrScanActivity.this, "นำเข้าสำเร็จ: " + p.name);
                         setResult(RESULT_OK);
                         finish();
                     });
@@ -312,9 +307,7 @@ public class QrScanActivity extends AppCompatActivity {
                     Profile p = profiles.get(which);
                     p.id = 0;
                     viewModel.save(p, id -> {
-                        Toast.makeText(QrScanActivity.this,
-                                "นำเข้าสำเร็จ: " + p.name,
-                                Toast.LENGTH_LONG).show();
+                        StyledToast.success(QrScanActivity.this, "นำเข้าสำเร็จ: " + p.name);
                         setResult(RESULT_OK);
                         finish();
                     });

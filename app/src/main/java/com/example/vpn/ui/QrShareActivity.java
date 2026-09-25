@@ -13,7 +13,6 @@ import android.provider.MediaStore;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,6 +23,7 @@ import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.QrPayload;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
@@ -73,14 +73,14 @@ public class QrShareActivity extends AppCompatActivity {
 
         long profileId = getIntent().getLongExtra(EXTRA_PROFILE_ID, -1L);
         if (profileId <= 0) {
-            Toast.makeText(this, "ไม่พบโปรไฟล์", Toast.LENGTH_SHORT).show();
+            StyledToast.info(this, "ไม่พบโปรไฟล์");
             finish();
             return;
         }
 
         viewModel.getRepo().getById(profileId, p -> {
             if (p == null) {
-                Toast.makeText(this, "ไม่พบโปรไฟล์", Toast.LENGTH_SHORT).show();
+                StyledToast.info(this, "ไม่พบโปรไฟล์");
                 finish();
                 return;
             }
@@ -93,14 +93,14 @@ public class QrShareActivity extends AppCompatActivity {
                           MaterialButton btnCopy, MaterialButton btnSave) {
         String payload = QrPayload.encode(p);
         if (payload == null) {
-            Toast.makeText(this, "สร้าง QR ไม่สำเร็จ", Toast.LENGTH_SHORT).show();
+            StyledToast.error(this, "สร้าง QR ไม่สำเร็จ");
             finish();
             return;
         }
 
         qrBitmap = generateQr(payload, 800);
         if (qrBitmap == null) {
-            Toast.makeText(this, "สร้าง QR ไม่สำเร็จ", Toast.LENGTH_SHORT).show();
+            StyledToast.error(this, "สร้าง QR ไม่สำเร็จ");
             finish();
             return;
         }
@@ -226,8 +226,7 @@ public class QrShareActivity extends AppCompatActivity {
             startActivity(Intent.createChooser(share, "แชร์ QR"));
 
         } catch (Exception e) {
-            Toast.makeText(this, "แชร์ไม่สำเร็จ: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+            StyledToast.error(this, "แชร์ไม่สำเร็จ: " + e.getMessage());
         }
     }
 
@@ -275,14 +274,10 @@ public class QrShareActivity extends AppCompatActivity {
             os.flush();
             os.close();
 
-            Toast.makeText(this,
-                    "✅ บันทึกแล้ว: Pictures/VPN Manager",
-                    Toast.LENGTH_LONG).show();
+            StyledToast.success(this, "✅ บันทึกแล้ว: Pictures/VPN Manager");
 
         } catch (Exception e) {
-            Toast.makeText(this,
-                    "❌ บันทึกไม่สำเร็จ: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+            StyledToast.error(this, "❌ บันทึกไม่สำเร็จ: " + e.getMessage());
         }
     }
 
@@ -293,9 +288,7 @@ public class QrShareActivity extends AppCompatActivity {
         ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         if (cm != null) {
             cm.setPrimaryClip(ClipData.newPlainText("VPN Profile", payload));
-            Toast.makeText(this,
-                    "📋 คัดลอกลิงก์แล้ว — paste ที่ไหนก็ได้",
-                    Toast.LENGTH_LONG).show();
+            StyledToast.success(this, "📋 คัดลอกลิงก์แล้ว — paste ที่ไหนก็ได้");
         }
     }
 
@@ -315,8 +308,7 @@ public class QrShareActivity extends AppCompatActivity {
                             + payload);
             startActivity(Intent.createChooser(share, "แชร์ข้อมูล"));
         } catch (Exception e) {
-            Toast.makeText(this, "แชร์ไม่สำเร็จ",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.error(this, "แชร์ไม่สำเร็จ");
         }
     }
 }

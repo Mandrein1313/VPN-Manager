@@ -8,7 +8,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -19,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.vpn.ProxyVpnService;
 import com.example.vpn.R;
 import com.example.vpn.model.AppInfo;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.BypassPrefs;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -115,9 +115,7 @@ public class BypassActivity extends AppCompatActivity
                     if (loadingView.getVisibility() == View.VISIBLE) {
                         loadingView.setVisibility(View.GONE);
                         emptyView.setVisibility(View.VISIBLE);
-                        Toast.makeText(this,
-                                "โหลดช้าเกินไป — ลองเปิดอีกครั้ง",
-                                Toast.LENGTH_SHORT).show();
+                        StyledToast.info(this, "โหลดช้าเกินไป — ลองเปิดอีกครั้ง");
                     }
                 }, 12_000);
 
@@ -278,9 +276,7 @@ public class BypassActivity extends AppCompatActivity
 
     private void hintReconnectIfNeeded() {
         if (ProxyVpnService.isServiceRunning(this)) {
-            Toast.makeText(this,
-                    "บันทึกแล้ว — กด Reconnect VPN เพื่อให้มีผล",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.success(this, "บันทึกแล้ว — กด Reconnect VPN เพื่อให้มีผล");
         }
     }
 
@@ -340,11 +336,9 @@ public class BypassActivity extends AppCompatActivity
             }
             applyFilter();
             updateCount();
-            Toast.makeText(this,
-                    removed > 0
+            StyledToast.warning(this, removed > 0
                             ? "ยกเลิก Bypass แอป AI แล้ว (" + removed + " แอป)"
-                            : "ไม่มีแอป AI ในรายการ bypass",
-                    Toast.LENGTH_SHORT).show();
+                            : "ไม่มีแอป AI ในรายการ bypass");
             if (removed > 0) hintReconnectIfNeeded();
         }
     }
@@ -396,7 +390,7 @@ public class BypassActivity extends AppCompatActivity
                         for (AppInfo app : allApps) app.bypassed = false;
                         applyFilter();
                         updateCount();
-                        Toast.makeText(this, "ล้างแล้ว", Toast.LENGTH_SHORT).show();
+                        StyledToast.info(this, "ล้างแล้ว");
                         hintReconnectIfNeeded();
                     })
                     .setNegativeButton("ยกเลิก", null)

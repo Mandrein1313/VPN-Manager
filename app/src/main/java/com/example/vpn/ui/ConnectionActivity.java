@@ -9,7 +9,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -28,6 +27,7 @@ import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.ThemePrefs;
 import com.example.vpn.util.VpnLogger;
@@ -77,8 +77,7 @@ public class ConnectionActivity extends AppCompatActivity
                         if (result.getResultCode() == RESULT_OK && targetProfile != null) {
                             startVpnService(targetProfile);
                         } else {
-                            Toast.makeText(this, "คุณไม่อนุญาตให้ใช้ VPN",
-                                    Toast.LENGTH_SHORT).show();
+                            StyledToast.info(this, "คุณไม่อนุญาตให้ใช้ VPN");
                         }
                     });
 
@@ -162,7 +161,7 @@ public class ConnectionActivity extends AppCompatActivity
         if (profileId > 0) {
             viewModel.getRepo().getById(profileId, p -> {
                 if (p == null) {
-                    Toast.makeText(this, "ไม่พบโปรไฟล์", Toast.LENGTH_SHORT).show();
+                    StyledToast.info(this, "ไม่พบโปรไฟล์");
                     reloadProfiles();
                     return;
                 }
@@ -283,8 +282,7 @@ public class ConnectionActivity extends AppCompatActivity
     @Override
     public void onMainConnectClick() {
         if (targetProfile == null) {
-            Toast.makeText(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง",
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง");
             return;
         }
 
@@ -314,8 +312,7 @@ public class ConnectionActivity extends AppCompatActivity
 
     @Override
     public void onAdFreeClick() {
-        Toast.makeText(this, "Ad-free time — เร็วๆ นี้",
-                Toast.LENGTH_SHORT).show();
+        StyledToast.info(this, "Ad-free time — เร็วๆ นี้");
     }
 
     // ============================================================
@@ -409,11 +406,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         showThemeDialog();
 
     } else if (id == R.id.nav_import) {
-        Toast.makeText(
-                this,
-                "เปิดหน้า Profile เพื่อ Import",
-                Toast.LENGTH_SHORT
-        ).show();
+        StyledToast.info(this, "เปิดหน้า Profile เพื่อ Import");
         openProfilePicker();
 
     } else if (id == R.id.nav_about) {
@@ -474,9 +467,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 .setSingleChoiceItems(names, checkedItem, (d, which) -> {
                     themePrefs.setMode(modes[which]);
                     d.dismiss();
-                    Toast.makeText(this,
-                            "ธีม: " + ThemePrefs.getModeName(modes[which]),
-                            Toast.LENGTH_SHORT).show();
+                    StyledToast.info(this, "ธีม: " + ThemePrefs.getModeName(modes[which]));
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
@@ -515,7 +506,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
     private void openEditForCurrent() {
         if (targetProfile == null) {
-            Toast.makeText(this, "ไม่มีโปรไฟล์", Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "ไม่มีโปรไฟล์");
             return;
         }
         Intent i = new Intent(this, ProfileEditActivity.class);
@@ -632,8 +623,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 startService(svc);
             }
         } catch (Exception e) {
-            Toast.makeText(this, "ผิดพลาด: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+            StyledToast.error(this, "ผิดพลาด: " + e.getMessage());
         }
     }
 

@@ -7,7 +7,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,6 +18,7 @@ import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.model.Protocol;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.VpnPrefs;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
@@ -294,7 +294,7 @@ public class ProfileEditActivity extends AppCompatActivity {
 
 private void doSave(Profile p) {
     viewModel.save(p, id -> {
-        Toast.makeText(this, "บันทึกแล้ว", Toast.LENGTH_SHORT).show();
+        StyledToast.success(this, "บันทึกแล้ว");
         setResult(RESULT_OK);
         finish();
     });

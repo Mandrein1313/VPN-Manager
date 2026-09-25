@@ -41,6 +41,7 @@ import com.example.vpn.util.ConfigParser;
 import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.ProfileExporter;
 import com.example.vpn.util.ProfileImporter;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.ThemePrefs;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -81,7 +82,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> {
                         if (result.getResultCode() == RESULT_OK) {
-                            Toast.makeText(this, "บันทึกคอนฟิกแล้ว", Toast.LENGTH_SHORT).show();
+                            StyledToast.success(this, "บันทึกคอนฟิกแล้ว");
                             // LiveData จะรีเฟรชรายการเอง
                         }
                     });
@@ -92,8 +93,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> {
                         if (result.getResultCode() == RESULT_OK) {
-                            Toast.makeText(this, "นำเข้าจาก QR สำเร็จ",
-                                    Toast.LENGTH_SHORT).show();
+                            StyledToast.success(this, "นำเข้าจาก QR สำเร็จ");
                         }
                     });
 
@@ -257,11 +257,11 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         String text = ProfileExporter.toClipboardText(p);
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm == null) {
-            Toast.makeText(this, "Clipboard ไม่พร้อม", Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "Clipboard ไม่พร้อม");
             return;
         }
         cm.setPrimaryClip(ClipData.newPlainText("VPN Config", text));
-        Toast.makeText(this, "คัดลอก config แล้ว", Toast.LENGTH_SHORT).show();
+        StyledToast.success(this, "คัดลอก config แล้ว");
     }
 
     private void exportProfileAsFile(Profile p) {
@@ -271,7 +271,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
             File dir = new File(getCacheDir(), "export");
             if (!dir.exists() && !dir.mkdirs()) {
-                Toast.makeText(this, "สร้างโฟลเดอร์ไม่สำเร็จ", Toast.LENGTH_SHORT).show();
+                StyledToast.error(this, "สร้างโฟลเดอร์ไม่สำเร็จ");
                 return;
             }
 
@@ -293,8 +293,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(Intent.createChooser(share, "ส่งออก config"));
         } catch (Exception e) {
-            Toast.makeText(this, "ส่งออกไม่สำเร็จ: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+            StyledToast.error(this, "ส่งออกไม่สำเร็จ: " + e.getMessage());
         }
     }
 
@@ -370,7 +369,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         }
 
         if (toDelete.isEmpty()) {
-            Toast.makeText(this, "ไม่พบชื่อซ้ำ", Toast.LENGTH_SHORT).show();
+            StyledToast.info(this, "ไม่พบชื่อซ้ำ");
             return;
         }
 
@@ -381,8 +380,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                     for (Profile p : toDelete) {
                         viewModel.delete(p);
                     }
-                    Toast.makeText(this, "ลบแล้ว " + toDelete.size() + " รายการ",
-                            Toast.LENGTH_SHORT).show();
+                    StyledToast.delete(this, "ลบแล้ว " + toDelete.size() + " รายการ");
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
@@ -448,7 +446,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private void exportAllProfiles() {
         List<Profile> all = cachedProfiles;
         if (all == null || all.isEmpty()) {
-            Toast.makeText(this, "ไม่มีโปรไฟล์ให้ส่งออก", Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "ไม่มีโปรไฟล์ให้ส่งออก");
             return;
         }
 
@@ -462,7 +460,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                             getSystemService(Context.CLIPBOARD_SERVICE);
                     if (cm != null) {
                         cm.setPrimaryClip(ClipData.newPlainText("VPN Config", json));
-                        Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_LONG).show();
+                        StyledToast.success(this, "คัดลอกแล้ว");
                     }
                 })
                 .setNeutralButton("แชร์", (d, w) -> {
@@ -482,15 +480,13 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         ClipboardManager cm = (ClipboardManager)
                 getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null) {
-            Toast.makeText(this,
-                    "Clipboard ว่าง — คัดลอก ssh:// หรือ user:pass@host:port ก่อน",
-                    Toast.LENGTH_LONG).show();
+            StyledToast.warning(this, "Clipboard ว่าง — คัดลอก config ก่อน");
             return;
         }
 
         CharSequence text = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
         if (text == null || text.length() == 0) {
-            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "Clipboard ว่างเปล่า");
             return;
         }
 
@@ -678,8 +674,7 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             Intent i = new Intent(this, QrScanActivity.class);
             qrScanLauncher.launch(i);
         } catch (Exception e) {
-            Toast.makeText(this, "เปิดสแกน QR ไม่ได้: " + e.getMessage(),
-                    Toast.LENGTH_SHORT).show();
+            StyledToast.error(this, "เปิดสแกน QR ไม่ได้: " + e.getMessage());
         }
     }
 
@@ -689,13 +684,13 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private void importFromClipboard() {
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null) {
-            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "Clipboard ว่างเปล่า");
             return;
         }
 
         CharSequence text = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
         if (text == null || text.length() == 0) {
-            Toast.makeText(this, "Clipboard ว่างเปล่า", Toast.LENGTH_SHORT).show();
+            StyledToast.warning(this, "Clipboard ว่างเปล่า");
             return;
         }
 

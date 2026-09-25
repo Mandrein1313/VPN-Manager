@@ -7,12 +7,12 @@ import android.os.Bundle;
 import android.text.SpannableStringBuilder;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.vpn.R;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.LogColors;
 import com.example.vpn.util.VpnLogger;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -48,7 +48,7 @@ public class LogViewerActivity extends AppCompatActivity
             ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             if (cm != null) {
                 cm.setPrimaryClip(ClipData.newPlainText("VPN Log", log));
-                Toast.makeText(this, "คัดลอก log แล้ว", Toast.LENGTH_SHORT).show();
+                StyledToast.success(this, "คัดลอก log แล้ว");
             }
         });
 

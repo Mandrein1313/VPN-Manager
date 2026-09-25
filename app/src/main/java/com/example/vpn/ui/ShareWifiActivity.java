@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -14,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.vpn.ProxyVpnService;
 import com.example.vpn.R;
 import com.example.vpn.tunnel.Socks5Server;
+import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.NetworkShareHelper;
 import com.example.vpn.util.VpnPrefs;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -126,21 +126,19 @@ public class ShareWifiActivity extends AppCompatActivity {
     private void copyAddress() {
         CharSequence t = txtAddress.getText();
         if (t == null || t.toString().contains("—")) {
-            Toast.makeText(this, "ยังไม่มีที่อยู่ให้คัดลอก", Toast.LENGTH_SHORT).show();
+            StyledToast.success(this, "ยังไม่มีที่อยู่ให้คัดลอก");
             return;
         }
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm != null) {
             cm.setPrimaryClip(ClipData.newPlainText("socks5", t));
-            Toast.makeText(this, "คัดลอก " + t + " แล้ว", Toast.LENGTH_SHORT).show();
+            StyledToast.success(this, "คัดลอก " + t + " แล้ว");
         }
     }
 
     private void hintReconnect() {
         if (ProxyVpnService.isServiceRunning(this)) {
-            Toast.makeText(this,
-                    "กด Reconnect VPN เพื่อให้โหมดแชร์มีผล",
-                    Toast.LENGTH_LONG).show();
+            StyledToast.info(this, "กด Reconnect VPN เพื่อให้โหมดแชร์มีผล");
         }
     }
 }
