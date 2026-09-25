@@ -46,7 +46,7 @@
             <ImageView
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:src="@android:drawable/ic_menu_cloud"
+                android:src="@android:drawable/ic_menu_manage"
                 app:tint="#37474F"
                 android:contentDescription="empty" />
 
