@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vpn.R;
 import com.example.vpn.model.Profile;
+import com.example.vpn.util.CountryFlag;
 import com.example.vpn.util.LatencyProbe;
 
 import java.util.ArrayList;
@@ -103,11 +104,12 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     // ViewHolder
     // ============================================================
     static class VH extends RecyclerView.ViewHolder {
-        TextView name, host, protocol, ping;
+        TextView flag, name, host, protocol, ping;
         ImageButton btnQr, btnFav, btnEdit, btnDelete;
 
         VH(@NonNull View v) {
             super(v);
+            flag = v.findViewById(R.id.txtFlag);
             name = v.findViewById(R.id.txtName);
             host = v.findViewById(R.id.txtHost);
             protocol = v.findViewById(R.id.txtProtocol);
@@ -119,6 +121,9 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         }
 
         void bind(Profile p, Integer latencyMs, Listener l) {
+            if (flag != null) {
+                flag.setText(CountryFlag.flagFor(p.name, p.host));
+            }
             name.setText(p.name != null ? p.name : "");
             host.setText(p.host + ":" + p.port);
 
