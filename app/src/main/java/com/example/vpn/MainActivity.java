@@ -4,6 +4,10 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import java.io.FileOutputStream;
+import java.io.File;
+import androidx.core.content.FileProvider;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
@@ -219,26 +223,79 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         viewModel.toggleFavorite(p);
     }
 
-    // ⭐ แชร์/สแกน QR เมื่อกดค้างที่รายการโปรไฟล์
+    // ⭐ แชร์โปรไฟล์ (แสดง QR / Clipboard / ไฟล์)
     @Override
     public void onShareQr(Profile p) {
-        String[] options = {
+        if (p == null) return;
+        final String[] options = {
                 "📱  แสดง QR",
-                "📷  สแกน QR"
+                "📋  คัดลอกไป Clipboard",
+                "📄  ส่งออกเป็นไฟล์ config"
         };
 
         new MaterialAlertDialogBuilder(this)
-                .setTitle(p.name)
+                .setTitle(p.name != null ? p.name : "แชร์")
                 .setItems(options, (d, which) -> {
-                    if (which == 0) {
-                        Intent i = new Intent(this, QrShareActivity.class);
-                        i.putExtra(QrShareActivity.EXTRA_PROFILE_ID, p.id);
-                        startActivity(i);
-                    } else {
-                        startQrScan();
+                    switch (which) {
+                        case 0:
+                            Intent i = new Intent(this, QrShareActivity.class);
+                            i.putExtra(QrShareActivity.EXTRA_PROFILE_ID, p.id);
+                            startActivity(i);
+                            break;
+                        case 1:
+                            copyProfileToClipboard(p);
+                            break;
+                        case 2:
+                            exportProfileAsFile(p);
+                            break;
                     }
                 })
                 .show();
+    }
+
+    private void copyProfileToClipboard(Profile p) {
+        String text = ProfileExporter.toClipboardText(p);
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm == null) {
+            Toast.makeText(this, "Clipboard ไม่พร้อม", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        cm.setPrimaryClip(ClipData.newPlainText("VPN Config", text));
+        Toast.makeText(this, "คัดลอก config แล้ว", Toast.LENGTH_SHORT).show();
+    }
+
+    private void exportProfileAsFile(Profile p) {
+        try {
+            String json = ProfileExporter.exportOne(p);
+            String fileName = ProfileExporter.safeFileName(p);
+
+            File dir = new File(getCacheDir(), "export");
+            if (!dir.exists() && !dir.mkdirs()) {
+                Toast.makeText(this, "สร้างโฟลเดอร์ไม่สำเร็จ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            File out = new File(dir, fileName);
+            FileOutputStream fos = new FileOutputStream(out);
+            fos.write(json.getBytes("UTF-8"));
+            fos.close();
+
+            Uri uri = FileProvider.getUriForFile(
+                    this,
+                    getPackageName() + ".fileprovider",
+                    out
+            );
+
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("application/json");
+            share.putExtra(Intent.EXTRA_STREAM, uri);
+            share.putExtra(Intent.EXTRA_SUBJECT, fileName);
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(share, "ส่งออก config"));
+        } catch (Exception e) {
+            Toast.makeText(this, "ส่งออกไม่สำเร็จ: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     // ============================================================

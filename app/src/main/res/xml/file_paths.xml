@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="qr" path="qr/" />
+    <cache-path name="export" path="export/" />
     <files-path name="files" path="." />
     <external-files-path name="ext_files" path="." />
 </paths>
