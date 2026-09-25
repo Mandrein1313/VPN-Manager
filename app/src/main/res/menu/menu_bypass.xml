@@ -3,8 +3,25 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_bypass_ai"
+        android:title="Bypass แอป AI ทั้งหมด"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_remove_ai_bypass"
+        android:title="ยกเลิก Bypass แอป AI"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_show_bypassed_only"
+        android:checkable="true"
+        android:title="แสดงเฉพาะที่ Bypass"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_hide_system"
         android:checkable="true"
+        android:checked="true"
         android:title="ซ่อนแอประบบ"
         app:showAsAction="never" />
 

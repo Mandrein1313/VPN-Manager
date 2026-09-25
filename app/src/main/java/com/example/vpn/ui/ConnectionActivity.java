@@ -382,29 +382,46 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
     if (id == R.id.nav_home) {
         viewPager.setCurrentItem(0, true);
+
     } else if (id == R.id.nav_profiles) {
         openProfilePicker();
+
     } else if (id == R.id.nav_chart) {
         // ⭐ ไปหน้า CHART
         viewPager.setCurrentItem(1, true);
+
     } else if (id == R.id.nav_log) {
         // ⭐ ไปหน้า LOG
         viewPager.setCurrentItem(2, true);
+
     } else if (id == R.id.nav_crash) {
         startActivity(new Intent(this, CrashLogActivity.class));
+
     } else if (id == R.id.nav_bypass) {
         startActivity(new Intent(this, BypassActivity.class));
+
     } else if (id == R.id.nav_backup) {
         // ⭐ หน้า Backup/Restore
         startActivity(new Intent(this, BackupActivity.class));
+
+    } else if (id == R.id.nav_share_wifi) {
+        // ⭐ หน้า Share WiFi
+        startActivity(new Intent(this, ShareWifiActivity.class));
+
     } else if (id == R.id.nav_theme) {
         showThemeDialog();
+
     } else if (id == R.id.nav_import) {
-        Toast.makeText(this, "เปิดหน้า Profile เพื่อ Import",
-                Toast.LENGTH_SHORT).show();
+        Toast.makeText(
+                this,
+                "เปิดหน้า Profile เพื่อ Import",
+                Toast.LENGTH_SHORT
+        ).show();
         openProfilePicker();
+
     } else if (id == R.id.nav_about) {
         showAboutDialog();
+
     } else if (id == R.id.nav_exit) {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("ออกจากแอป?")

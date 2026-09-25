@@ -446,12 +446,18 @@ public class ProxyVpnService extends VpnService
             updateNotification("SSH เชื่อมต่อแล้ว กำลังเปิด SOCKS...");
 
             VpnLogger.i(TAG, "Starting SOCKS5 server...");
-            socks5Server = new Socks5Server(sshTunnel);
+            boolean shareWifi = prefs != null && prefs.isShareWifi();
+            // shareWifi=true → bind 0.0.0.0 ให้เครื่องอื่นใน Hotspot/LAN ใช้ได้
+            socks5Server = new Socks5Server(sshTunnel, !shareWifi);
             socks5Server.start();
 
+            String socksBind = shareWifi ? "0.0.0.0 (แชร์ LAN/Hotspot)" : "127.0.0.1";
             StatusBus.post(StatusBus.State.SOCKS_READY,
-                    "SOCKS5 พร้อม: 127.0.0.1:" + Socks5Server.LOCAL_PORT);
-            VpnLogger.i(TAG, "SOCKS5 ready on 127.0.0.1:" + Socks5Server.LOCAL_PORT);
+                    "SOCKS5 พร้อม: " + socksBind + ":" + Socks5Server.LOCAL_PORT);
+            VpnLogger.i(TAG, "SOCKS5 ready on " + socksBind + ":" + Socks5Server.LOCAL_PORT);
+            if (shareWifi) {
+                updateNotification("VPN แชร์ Proxy :" + Socks5Server.LOCAL_PORT);
+            }
 
             try { Thread.sleep(500); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "Waiting 500ms for SOCKS5 to be fully ready...");

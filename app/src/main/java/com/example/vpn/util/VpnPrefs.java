@@ -11,7 +11,8 @@ public class VpnPrefs {
     private static final String KEY_LAST_PROFILE_ID = "last_profile_id";
     private static final String KEY_WAS_CONNECTED = "was_connected";
     private static final String KEY_AUTO_CONNECT_BOOT = "auto_connect_boot";
-    private static final String KEY_BYPASS_DISABLED = "bypass_disabled";   // ⭐ ใหม่
+    private static final String KEY_BYPASS_DISABLED = "bypass_disabled";
+    private static final String KEY_SHARE_WIFI = "share_wifi_proxy";
 
     private final SharedPreferences prefs;
 
@@ -44,13 +45,21 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_AUTO_CONNECT_BOOT, value).apply();
     }
 
-    // ⭐ Bypass toggle
     public boolean isBypassDisabled() {
         return prefs.getBoolean(KEY_BYPASS_DISABLED, false);
     }
 
     public void setBypassDisabled(boolean value) {
         prefs.edit().putBoolean(KEY_BYPASS_DISABLED, value).apply();
+    }
+
+    /** แชร์ SOCKS5 ไปยังเครื่องอื่นใน Wi‑Fi / Hotspot */
+    public boolean isShareWifi() {
+        return prefs.getBoolean(KEY_SHARE_WIFI, false);
+    }
+
+    public void setShareWifi(boolean value) {
+        prefs.edit().putBoolean(KEY_SHARE_WIFI, value).apply();
     }
 
     public long getLastProfileId() {

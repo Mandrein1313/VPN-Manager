@@ -9,12 +9,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * SOCKS5 ผ่าน SSH tunnel
+ * - bindLocalOnly=true  → 127.0.0.1 (ค่าเริ่มต้น, ใช้กับ Tun2Socks)
+ * - bindLocalOnly=false → 0.0.0.0 (แชร์ให้เครื่องอื่นใน Wi‑Fi/Hotspot)
+ */
 public class Socks5Server {
 
     private static final String TAG = "Socks5Server";
@@ -30,25 +36,52 @@ public class Socks5Server {
     private static final int REP_CMD_NOT_SUPPORTED = 0x07;
 
     private final SshTunnel ssh;
+    private final boolean bindLocalOnly;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private ServerSocket server;
     private Thread acceptThread;
     private final ExecutorService pool = Executors.newCachedThreadPool();
+    private String listenAddress = "127.0.0.1";
 
     public Socks5Server(SshTunnel ssh) {
+        this(ssh, true);
+    }
+
+    public Socks5Server(SshTunnel ssh, boolean bindLocalOnly) {
         this.ssh = ssh;
+        this.bindLocalOnly = bindLocalOnly;
     }
 
     public void start() throws IOException {
-        server = new ServerSocket(LOCAL_PORT, 50,
-                InetAddress.getByName("127.0.0.1"));
+        String host = bindLocalOnly ? "127.0.0.1" : "0.0.0.0";
+        server = new ServerSocket();
+        server.setReuseAddress(true);
+        server.bind(new InetSocketAddress(InetAddress.getByName(host), LOCAL_PORT), 50);
         running.set(true);
+        listenAddress = host;
 
         acceptThread = new Thread(this::acceptLoop, "socks5-accept");
         acceptThread.setDaemon(true);
         acceptThread.start();
 
-        Log.i(TAG, "SOCKS5 server listening on 127.0.0.1:" + LOCAL_PORT);
+        Log.i(TAG, "SOCKS5 listening on " + host + ":" + LOCAL_PORT
+                + (bindLocalOnly ? " (local)" : " (shared / LAN)"));
+    }
+
+    public boolean isBindLocalOnly() {
+        return bindLocalOnly;
+    }
+
+    public String getListenAddress() {
+        return listenAddress;
+    }
+
+    public int getPort() {
+        return LOCAL_PORT;
+    }
+
+    public boolean isRunning() {
+        return running.get();
     }
 
     private void acceptLoop() {
@@ -66,24 +99,22 @@ public class Socks5Server {
         ChannelDirectTCPIP channel = null;
         try {
             client.setTcpNoDelay(true);
+            client.setSoTimeout(0);
             DataInputStream in = new DataInputStream(client.getInputStream());
             OutputStream out = client.getOutputStream();
 
-            // ---- Handshake: [VER, NMETHODS, METHODS...] ----
             int ver = in.readUnsignedByte();
             if (ver != VER) { client.close(); return; }
 
             int nMethods = in.readUnsignedByte();
             for (int i = 0; i < nMethods; i++) in.readUnsignedByte();
 
-            // Reply: [VER, METHOD=0x00 (no auth)]
             out.write(new byte[]{(byte) VER, 0x00});
             out.flush();
 
-            // ---- Request: [VER, CMD, RSV, ATYP, DST.ADDR, DST.PORT] ----
-            in.readUnsignedByte();           // VER
-            int cmd = in.readUnsignedByte(); // CMD
-            in.readUnsignedByte();           // RSV
+            in.readUnsignedByte();
+            int cmd = in.readUnsignedByte();
+            in.readUnsignedByte();
             int atyp = in.readUnsignedByte();
 
             String destHost;
@@ -121,20 +152,23 @@ public class Socks5Server {
                 return;
             }
 
-            // ---- เปิด SSH channel ไปปลายทาง ----
+            if (ssh == null || !ssh.isConnected()) {
+                sendReply(out, REP_GENERAL_FAIL);
+                client.close();
+                return;
+            }
+
             channel = ssh.openTcp(destHost, destPort);
 
-            // ตอบสำเร็จ
             out.write(new byte[]{
                     (byte) VER, (byte) REP_SUCCESS, 0x00, (byte) ATYP_IPV4,
                     0, 0, 0, 0, 0, 0
             });
             out.flush();
 
-            // ---- Pipe bytes 2 ทาง ----
             final ChannelDirectTCPIP ch = channel;
-            Thread t1 = new Thread(() -> pipe(client, ch));
-            Thread t2 = new Thread(() -> pipe(ch, client));
+            Thread t1 = new Thread(() -> pipe(client, ch), "socks-up");
+            Thread t2 = new Thread(() -> pipe(ch, client), "socks-down");
             t1.start();
             t2.start();
             t1.join();
@@ -158,30 +192,26 @@ public class Socks5Server {
 
     private static void pipe(Socket client, ChannelDirectTCPIP ch) {
         try {
-            InputStream in = client.getInputStream();
-            OutputStream out = ch.getOutputStream();
-            copy(in, out);
+            copy(client.getInputStream(), ch.getOutputStream());
         } catch (Exception ignored) {
         } finally {
             try { client.shutdownOutput(); } catch (IOException ignored) {}
-            try { ch.getOutputStream().close(); } catch (IOException ignored) {}
+            try { ch.getOutputStream().close(); } catch (Exception ignored) {}
         }
     }
 
     private static void pipe(ChannelDirectTCPIP ch, Socket client) {
         try {
-            InputStream in = ch.getInputStream();
-            OutputStream out = client.getOutputStream();
-            copy(in, out);
+            copy(ch.getInputStream(), client.getOutputStream());
         } catch (Exception ignored) {
         } finally {
-            try { ch.getInputStream().close(); } catch (IOException ignored) {}
+            try { ch.getInputStream().close(); } catch (Exception ignored) {}
             try { client.shutdownOutput(); } catch (IOException ignored) {}
         }
     }
 
     private static void copy(InputStream in, OutputStream out) throws IOException {
-        byte[] buf = new byte[8 * 1024];
+        byte[] buf = new byte[16 * 1024];
         int n;
         while ((n = in.read(buf)) > 0) {
             out.write(buf, 0, n);
