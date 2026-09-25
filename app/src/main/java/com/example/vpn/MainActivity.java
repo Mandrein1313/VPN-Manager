@@ -60,6 +60,13 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
     private View navHome, navLogs, navMore;
 
+    // FAB Speed Dial
+    private com.google.android.material.floatingactionbutton.FloatingActionButton fabMain;
+    private View fabOptionAdd, fabOptionImport, fabOptionQr;
+    private com.google.android.material.floatingactionbutton.FloatingActionButton fabAdd, fabImport, fabQr;
+    private boolean fabMenuOpen = false;
+
+
     private List<Profile> cachedProfiles = new ArrayList<>();
 
     private final ActivityResultLauncher<String> notifPermissionLauncher =
@@ -129,13 +136,12 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         recycler = findViewById(R.id.recyclerProfiles);
         btnAddConfig = findViewById(R.id.btnAddConfig);
         btnImportClipboard = findViewById(R.id.btnImportClipboard);
+        // Bottom nav ถูกลบออกจาก layout แล้ว
         navHome = findViewById(R.id.navHome);
         navLogs = findViewById(R.id.navLogs);
         navMore = findViewById(R.id.navMore);
 
-        // ⭐ ซ่อน fabConfirm ถ้ามี
-        View fabConfirm = findViewById(R.id.fabConfirm);
-        if (fabConfirm != null) fabConfirm.setVisibility(View.GONE);
+        setupFabMenu();
 
         // ===== Toolbar =====
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -161,13 +167,17 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         btnImportClipboard.setOnClickListener(v -> importFromClipboard());
 
-        // ===== Bottom nav =====
-        navHome.setOnClickListener(v -> finish());
-
-        navLogs.setOnClickListener(v ->
-                startActivity(new Intent(this, LogViewerActivity.class)));
-
-        navMore.setOnClickListener(v -> showMoreMenu());
+        // ===== Bottom nav (ถ้ามีใน layout) =====
+        if (navHome != null) {
+            navHome.setOnClickListener(v -> finish());
+        }
+        if (navLogs != null) {
+            navLogs.setOnClickListener(v ->
+                    startActivity(new Intent(this, LogViewerActivity.class)));
+        }
+        if (navMore != null) {
+            navMore.setOnClickListener(v -> showMoreMenu());
+        }
 
         // ===== Observe profiles =====
         viewModel.getProfiles().observe(this, list -> {
@@ -474,6 +484,109 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
+    }
+
+
+    // ============================================================
+    // ⭐ FAB Speed Dial (เหมือน Fab Options)
+    // ============================================================
+    private void setupFabMenu() {
+        fabMain = findViewById(R.id.fabMain);
+        fabOptionAdd = findViewById(R.id.fabOptionAdd);
+        fabOptionImport = findViewById(R.id.fabOptionImport);
+        fabOptionQr = findViewById(R.id.fabOptionQr);
+        fabAdd = findViewById(R.id.fabAdd);
+        fabImport = findViewById(R.id.fabImport);
+        fabQr = findViewById(R.id.fabQr);
+
+        if (fabMain == null) return;
+
+        fabMain.setOnClickListener(v -> toggleFabMenu());
+
+        if (fabAdd != null) {
+            fabAdd.setOnClickListener(v -> {
+                closeFabMenu();
+                openManualAdd();
+            });
+        }
+        if (fabOptionAdd != null) {
+            fabOptionAdd.setOnClickListener(v -> {
+                closeFabMenu();
+                openManualAdd();
+            });
+        }
+        if (fabImport != null) {
+            fabImport.setOnClickListener(v -> {
+                closeFabMenu();
+                importFromClipboard();
+            });
+        }
+        if (fabOptionImport != null) {
+            fabOptionImport.setOnClickListener(v -> {
+                closeFabMenu();
+                importFromClipboard();
+            });
+        }
+        if (fabQr != null) {
+            fabQr.setOnClickListener(v -> {
+                closeFabMenu();
+                startQrScan();
+            });
+        }
+        if (fabOptionQr != null) {
+            fabOptionQr.setOnClickListener(v -> {
+                closeFabMenu();
+                startQrScan();
+            });
+        }
+    }
+
+    private void toggleFabMenu() {
+        if (fabMenuOpen) closeFabMenu();
+        else openFabMenu();
+    }
+
+    private void openFabMenu() {
+        fabMenuOpen = true;
+        if (fabMain != null) {
+            fabMain.animate().rotation(45f).setDuration(200).start();
+        }
+        showFabOption(fabOptionQr, 0);
+        showFabOption(fabOptionImport, 40);
+        showFabOption(fabOptionAdd, 80);
+    }
+
+    private void closeFabMenu() {
+        fabMenuOpen = false;
+        if (fabMain != null) {
+            fabMain.animate().rotation(0f).setDuration(200).start();
+        }
+        hideFabOption(fabOptionAdd);
+        hideFabOption(fabOptionImport);
+        hideFabOption(fabOptionQr);
+    }
+
+    private void showFabOption(View option, long delayMs) {
+        if (option == null) return;
+        option.setVisibility(View.VISIBLE);
+        option.setAlpha(0f);
+        option.setTranslationY(40f);
+        option.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(delayMs)
+                .setDuration(180)
+                .start();
+    }
+
+    private void hideFabOption(View option) {
+        if (option == null) return;
+        option.animate()
+                .alpha(0f)
+                .translationY(40f)
+                .setDuration(150)
+                .withEndAction(() -> option.setVisibility(View.GONE))
+                .start();
     }
 
     // ============================================================
