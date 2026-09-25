@@ -28,6 +28,7 @@ import com.example.vpn.util.BypassPrefs;
 import com.example.vpn.util.ConnectivityChecker;
 import com.example.vpn.util.NetworkBinder;
 import com.example.vpn.util.NetworkMonitor;
+import com.example.vpn.util.ConnectFeedback;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.VpnLogger;
 import com.example.vpn.util.VpnPrefs;
@@ -395,6 +396,7 @@ public class ProxyVpnService extends VpnService
             VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
             try {
                 StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
+                ConnectFeedback.onError(ProxyVpnService.this);
                 updateNotification("ผิดพลาด: " + e.getMessage());
             } catch (Exception ignored) {}
 
@@ -486,6 +488,7 @@ public class ProxyVpnService extends VpnService
                 connected = true;
                 StatusBus.post(StatusBus.State.CONNECTED,
                         "เชื่อมต่อ (SSH เท่านั้น): " + profile.name);
+                ConnectFeedback.onConnected(ProxyVpnService.this);
                 updateNotification("SSH พร้อม — Tun2Socks ไม่ทำงาน");
                 startNetworkMonitor();
                 startHeartbeat();
@@ -521,6 +524,7 @@ public class ProxyVpnService extends VpnService
                     VpnLogger.i(TAG, "[Fix] ✅ Connectivity verified — VPN ready!");
                     StatusBus.post(StatusBus.State.CONNECTED,
                             "เชื่อมต่อแล้ว: " + profile.name);
+                ConnectFeedback.onConnected(ProxyVpnService.this);
                     updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                     startNetworkMonitor();
                     startHeartbeat();
@@ -532,6 +536,7 @@ public class ProxyVpnService extends VpnService
                     VpnLogger.w(TAG, "[Fix] ⚠️ Verification failed: " + reason);
                     StatusBus.post(StatusBus.State.CONNECTED,
                             "เชื่อมต่อแล้ว (อาจต้องรอสักครู่): " + profile.name);
+                ConnectFeedback.onConnected(ProxyVpnService.this);
                     updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                     startNetworkMonitor();
                     startHeartbeat();
@@ -542,6 +547,7 @@ public class ProxyVpnService extends VpnService
             VpnLogger.e(TAG, "connectSshAndSocks error: " + e.getMessage(), e);
             try {
                 StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
+                ConnectFeedback.onError(ProxyVpnService.this);
                 updateNotification("ผิดพลาด: " + e.getMessage());
             } catch (Exception ignored) {}
 
@@ -623,6 +629,7 @@ public class ProxyVpnService extends VpnService
 
         StatusBus.post(StatusBus.State.CONNECTED,
                 "เชื่อมต่อแล้ว: " + profile.name);
+                ConnectFeedback.onConnected(ProxyVpnService.this);
         updateNotification("เชื่อมต่อแล้ว: " + profile.name);
         startNetworkMonitor();
         startHeartbeat();
@@ -834,6 +841,7 @@ public class ProxyVpnService extends VpnService
                 updateNotification("Network lost — กำลังรอ...");
             }
             StatusBus.post(StatusBus.State.ERROR, "Network lost");
+                ConnectFeedback.onError(ProxyVpnService.this);
         }
     }
 
@@ -953,7 +961,8 @@ public class ProxyVpnService extends VpnService
             try { prefs.setWasConnected(false); } catch (Exception ignored) {}
 
             setServiceRunning(false);
-            try { StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว"); } catch (Exception ignored) {}
+            try { StatusBus.post(StatusBus.State.STOPPED, "หยุดแล้ว");
+        ConnectFeedback.onDisconnected(this); } catch (Exception ignored) {}
 
             // ลบ notification + foreground ทันที
             try {
