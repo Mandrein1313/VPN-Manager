@@ -232,34 +232,31 @@ public class ConnectionActivity extends AppCompatActivity
             }
         });
 
-        View actionEdit = findViewById(R.id.actionEdit);
+        View actionHome = findViewById(R.id.actionHome);
         View actionLog = findViewById(R.id.actionLog);
-        View actionDelete = findViewById(R.id.actionDelete);
+        View actionShareWifi = findViewById(R.id.actionShareWifi);
         View actionAdd = findViewById(R.id.actionAdd);
 
-        if (actionEdit != null) {
-            actionEdit.setOnClickListener(v -> {
-                if (targetProfile == null) {
-                    Toast.makeText(this, "ยังไม่มีโปรไฟล์",
-                            Toast.LENGTH_SHORT).show();
-                    return;
+        // ⭐ Home → กลับแท็บ MAIN (index 0)
+        if (actionHome != null) {
+            actionHome.setOnClickListener(v -> {
+                if (viewPager != null) {
+                    viewPager.setCurrentItem(0, true);
                 }
-                openEditForCurrent();
+                if (drawerLayout != null && drawerLayout.isDrawerOpen(
+                        androidx.core.view.GravityCompat.START)) {
+                    drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
+                }
             });
         }
         // ⭐ กด Log → ไปแท็บ LOG (index 2)
         if (actionLog != null) {
             actionLog.setOnClickListener(v -> viewPager.setCurrentItem(2, true));
         }
-        if (actionDelete != null) {
-            actionDelete.setOnClickListener(v -> {
-                if (targetProfile == null) {
-                    Toast.makeText(this, "ไม่มีโปรไฟล์ให้ลบ",
-                            Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                confirmDeleteCurrent();
-            });
+        // ⭐ แชร์ VPN (Wi‑Fi) — แทนปุ่มลบ
+        if (actionShareWifi != null) {
+            actionShareWifi.setOnClickListener(v ->
+                    startActivity(new Intent(this, ShareWifiActivity.class)));
         }
         if (actionAdd != null) {
             actionAdd.setOnClickListener(v -> {

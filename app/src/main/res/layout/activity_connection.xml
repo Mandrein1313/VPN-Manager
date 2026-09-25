@@ -68,8 +68,9 @@
             android:orientation="horizontal"
             android:paddingVertical="8dp">
 
+            <!-- ⭐ Home — กลับแท็บ MAIN -->
             <LinearLayout
-                android:id="@+id/actionEdit"
+                android:id="@+id/actionHome"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -82,14 +83,14 @@
                 <ImageView
                     android:layout_width="22dp"
                     android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_edit"
+                    android:src="@android:drawable/ic_menu_compass"
                     app:tint="#B0BEC5" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="แก้ไข"
+                    android:text="Home"
                     android:textColor="#B0BEC5"
                     android:textSize="10sp" />
             </LinearLayout>
@@ -120,8 +121,9 @@
                     android:textSize="10sp" />
             </LinearLayout>
 
+            <!-- ⭐ แชร์ VPN (Wi‑Fi) แทนปุ่มลบ -->
             <LinearLayout
-                android:id="@+id/actionDelete"
+                android:id="@+id/actionShareWifi"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -134,15 +136,15 @@
                 <ImageView
                     android:layout_width="22dp"
                     android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_delete"
-                    app:tint="#EF5350" />
+                    android:src="@android:drawable/ic_menu_share"
+                    app:tint="#00E676" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="ลบ"
-                    android:textColor="#EF5350"
+                    android:text="แชร์"
+                    android:textColor="#00E676"
                     android:textSize="10sp" />
             </LinearLayout>
 
