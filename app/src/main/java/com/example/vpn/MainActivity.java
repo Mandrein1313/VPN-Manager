@@ -34,6 +34,9 @@ import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.ui.ConnectionActivity;
 import com.example.vpn.ui.CrashLogActivity;
+import com.example.vpn.ui.ShareWifiActivity;
+import com.example.vpn.ui.BypassActivity;
+import com.example.vpn.ui.BackupActivity;
 import com.example.vpn.ui.LogViewerActivity;
 import com.example.vpn.ui.ProfileAdapter;
 import com.example.vpn.ui.ProfileEditActivity;
@@ -775,11 +778,6 @@ public class MainActivity extends AppCompatActivity
                 })
                 .setNeutralButton("ยกเลิก", null)
                 .show();
-    }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
     }
 
     @Override
