@@ -1,5 +1,6 @@
 package com.example.vpn.ui;
 
+import android.app.ActivityManager;
 import android.content.Intent;
 import android.net.TrafficStats;
 import android.net.VpnService;
@@ -542,46 +543,54 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     /**
-     * ⭐ เคลียร์ VPN ที่ค้าง (แอปตาย / crash แล้วกุญแจยังโชว์)
-     * เรียกตอน onResume เมื่อสถานะ UI ไม่สอดคล้องกับ service
+     * เคลียร์เฉพาะกรณี "flag บอกว่า running แต่ service ไม่อยู่จริง"
+     * (แอปถูกฆ่า / crash แล้วกุญแจค้าง)
+     *
+     * สำคัญ: ห้ามใช้ข้อความ UI ตัดสิน — กด X กลับจาก CONFIGS แล้ว onResume
+     * จะเจอ UI ยังเป็น NOT CONNECTED ชั่วคราว แล้วไป STOP VPN ผิด → เน็ตค้าง
      */
     private void tryCleanupOrphanVpn() {
         try {
             boolean flagRunning = ProxyVpnService.isServiceRunning(this);
-            // ถ้า flag บอกว่า running แต่เราอยู่หน้าจอ NOT CONNECTED หลัง process เกิดใหม่
-            // หรือ service ตายแล้ว flag ค้าง — ส่ง STOP ให้แน่ใจ
-            if (flagRunning) {
-                // ไม่ force ทุกครั้งถ้ากำลังเชื่อมจริง — ดูจาก StatusBus / ปุ่ม
-                // ถ้า mainFragment บอกว่ายังไม่ connected ให้หยุด
-                boolean uiConnected = false;
-                try {
-                    if (mainFragment != null && mainFragment.getTxtStatus() != null) {
-                        CharSequence st = mainFragment.getTxtStatus().getText();
-                        if (st != null) {
-                            String s = st.toString().toLowerCase();
-                            uiConnected = s.contains("connected") && !s.contains("not");
-                        }
-                    }
-                } catch (Exception ignored) {}
+            if (!flagRunning) return;
 
-                if (!uiConnected) {
-                    android.util.Log.w("ConnectionActivity",
-                            "Orphan VPN flag detected — sending STOP");
-                    Intent stop = new Intent(this, ProxyVpnService.class);
-                    stop.setAction(ProxyVpnService.ACTION_STOP);
-                    try {
-                        startService(stop);
-                    } catch (Exception e) {
-                        // fallback ล้าง flag อย่างเดียว
-                        getSharedPreferences("vpn_state", MODE_PRIVATE)
-                                .edit().putBoolean("running", false).apply();
-                    }
-                }
+            boolean serviceAlive = isProxyVpnServiceAlive();
+            if (serviceAlive) {
+                // VPN กำลังทำงานจริง — อย่าหยุด แค่ sync ปุ่ม
+                return;
             }
+
+            // flag = true แต่ process/service ไม่อยู่ = orphan จริง
+            android.util.Log.w("ConnectionActivity",
+                    "Orphan VPN flag (service not alive) — clearing");
+            getSharedPreferences("vpn_state", MODE_PRIVATE)
+                    .edit().putBoolean("running", false).apply();
+            try {
+                Intent stop = new Intent(this, ProxyVpnService.class);
+                stop.setAction(ProxyVpnService.ACTION_STOP);
+                startService(stop);
+            } catch (Exception ignored) {}
         } catch (Exception e) {
             android.util.Log.w("ConnectionActivity",
                     "tryCleanupOrphanVpn: " + e.getMessage());
         }
+    }
+
+    /** ตรวจจาก ActivityManager ว่า ProxyVpnService ยังรันอยู่หรือไม่ */
+    private boolean isProxyVpnServiceAlive() {
+        try {
+            ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+            if (am == null) return false;
+            for (ActivityManager.RunningServiceInfo info
+                    : am.getRunningServices(Integer.MAX_VALUE)) {
+                if (info == null || info.service == null) continue;
+                if (ProxyVpnService.class.getName()
+                        .equals(info.service.getClassName())) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 
     private void bindProfile(Profile p) {

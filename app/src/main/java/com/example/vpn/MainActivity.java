@@ -21,6 +21,10 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.navigation.NavigationView;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.core.view.GravityCompat;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -49,7 +53,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements ProfileAdapter.Listener {
+public class MainActivity extends AppCompatActivity
+        implements ProfileAdapter.Listener,
+        NavigationView.OnNavigationItemSelectedListener {
 
     public static final String EXTRA_PROFILE_ID = "profile_id";
     public static final int REQ_EDIT = 100;
@@ -68,6 +74,8 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private boolean fabMenuOpen = false;
 
     private View navHome, navLogs, navMore;
+    private DrawerLayout drawerLayout;
+    private NavigationView navView;
 
 
     private List<Profile> cachedProfiles = new ArrayList<>();
@@ -155,10 +163,23 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         }
 
         // ===== Toolbar =====
+        drawerLayout = findViewById(R.id.drawerLayout);
+        navView = findViewById(R.id.navView);
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
-            toolbar.setNavigationOnClickListener(v -> finish());
             setSupportActionBar(toolbar);
+            if (drawerLayout != null) {
+                ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                        this, drawerLayout, toolbar,
+                        R.string.app_name, R.string.app_name);
+                drawerLayout.addDrawerListener(toggle);
+                toggle.syncState();
+                // ใช้ไอคอนเบอร์เกอร์ (ไม่ใช้กากบาท)
+                // ActionBarDrawerToggle ใส่ไอคอนเบอร์เกอร์ให้อัตโนมัติ
+            }
+            if (navView != null) {
+                navView.setNavigationItemSelectedListener(this);
+            }
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setDisplayShowTitleEnabled(false);
             }
@@ -760,4 +781,52 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     public void onBackPressed() {
         super.onBackPressed();
     }
+
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.nav_home) {
+            finish(); // กลับหน้าหลัก
+        } else if (id == R.id.nav_profiles) {
+            // อยู่หน้า CONFIGS อยู่แล้ว
+        } else if (id == R.id.nav_backup) {
+            startActivity(new Intent(this, BackupActivity.class));
+        } else if (id == R.id.nav_log) {
+            startActivity(new Intent(this, LogViewerActivity.class));
+        } else if (id == R.id.nav_crash) {
+            startActivity(new Intent(this, CrashLogActivity.class));
+        } else if (id == R.id.nav_bypass) {
+            startActivity(new Intent(this, BypassActivity.class));
+        } else if (id == R.id.nav_share_wifi) {
+            startActivity(new Intent(this, ShareWifiActivity.class));
+        } else if (id == R.id.nav_import) {
+            showAddConfigurationMenu();
+        } else if (id == R.id.nav_theme) {
+            // เปิด theme จากหน้าหลักถ้ามี — ตอนนี้แค่ปิด drawer
+            StyledToast.info(this, "เปลี่ยนธีมได้จากหน้าแรก");
+        } else if (id == R.id.nav_about) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("เกี่ยวกับ VPN Manager")
+                    .setMessage("VPN Manager v1.0")
+                    .setPositiveButton("ตกลง", null)
+                    .show();
+        } else if (id == R.id.nav_exit) {
+            finishAffinity();
+        }
+        if (drawerLayout != null) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        }
+        return true;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout != null && drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+
 }
