@@ -58,13 +58,13 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     private View btnImportClipboard;
     private View btnBack;
 
-    private View navHome, navLogs, navMore;
-
     // FAB Speed Dial
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabMain;
     private View fabOptionAdd, fabOptionImport, fabOptionQr;
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabAdd, fabImport, fabQr;
     private boolean fabMenuOpen = false;
+
+    private View navHome, navLogs, navMore;
 
 
     private List<Profile> cachedProfiles = new ArrayList<>();
@@ -136,12 +136,22 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
         recycler = findViewById(R.id.recyclerProfiles);
         btnAddConfig = findViewById(R.id.btnAddConfig);
         btnImportClipboard = findViewById(R.id.btnImportClipboard);
-        // Bottom nav ถูกลบออกจาก layout แล้ว
+        setupFabMenu();
+
         navHome = findViewById(R.id.navHome);
         navLogs = findViewById(R.id.navLogs);
         navMore = findViewById(R.id.navMore);
 
-        setupFabMenu();
+        if (navHome != null) {
+            navHome.setOnClickListener(v -> finish());
+        }
+        if (navLogs != null) {
+            navLogs.setOnClickListener(v ->
+                    startActivity(new Intent(this, LogViewerActivity.class)));
+        }
+        if (navMore != null) {
+            navMore.setOnClickListener(v -> showMoreMenu());
+        }
 
         // ===== Toolbar =====
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -167,17 +177,6 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
 
         btnImportClipboard.setOnClickListener(v -> importFromClipboard());
 
-        // ===== Bottom nav (ถ้ามีใน layout) =====
-        if (navHome != null) {
-            navHome.setOnClickListener(v -> finish());
-        }
-        if (navLogs != null) {
-            navLogs.setOnClickListener(v ->
-                    startActivity(new Intent(this, LogViewerActivity.class)));
-        }
-        if (navMore != null) {
-            navMore.setOnClickListener(v -> showMoreMenu());
-        }
 
         // ===== Observe profiles =====
         viewModel.getProfiles().observe(this, list -> {
