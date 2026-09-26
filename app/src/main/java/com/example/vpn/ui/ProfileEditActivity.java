@@ -289,7 +289,6 @@ public class ProfileEditActivity extends AppCompatActivity {
                 AutofillManager afm = getSystemService(AutofillManager.class);
                 if (afm != null) {
                     afm.cancel();
-                    afm.disableOwnedAutofillServices();
                 }
             } catch (Exception ignored) {}
         }
