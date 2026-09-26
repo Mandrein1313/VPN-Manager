@@ -11,6 +11,10 @@
             android:id="@+id/nav_profiles"
             android:icon="@android:drawable/ic_menu_sort_by_size"
             android:title="จัดการโปรไฟล์" />
+        <item
+            android:id="@+id/nav_auto_select"
+            android:icon="@android:drawable/ic_menu_compass"
+            android:title="Auto Select (ping ต่ำสุด)" />
     </group>
 
     <item android:title="เครื่องมือ">

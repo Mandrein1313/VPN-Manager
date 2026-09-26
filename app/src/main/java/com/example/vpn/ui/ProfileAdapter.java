@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
@@ -50,20 +51,62 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     /** วัด latency ทุกโปรไฟล์ (TCP connect) */
     public void pingAll() {
+        pingAll(null);
+    }
+
+    /**
+     * วัด latency ทุกโปรไฟล์ แล้วเรียก onComplete บน main thread เมื่อครบ
+     * (ใช้กับ Auto Select)
+     */
+    public void pingAll(Runnable onComplete) {
+        final List<Profile> targets = new ArrayList<>();
         for (Profile p : items) {
             if (p == null || p.host == null || p.host.isEmpty()) continue;
+            targets.add(p);
+            latencyMap.put(p.id, null); // กำลังวัด
+        }
+        notifyDataSetChanged();
+
+        if (targets.isEmpty()) {
+            if (onComplete != null) main.post(onComplete);
+            return;
+        }
+
+        final AtomicInteger left = new AtomicInteger(targets.size());
+        for (Profile p : targets) {
             final long id = p.id;
-            // แสดง ... ระหว่างวัด
-            if (!latencyMap.containsKey(id)) {
-                latencyMap.put(id, null);
-            }
             LatencyProbe.measure(id, p.host, p.port, (profileId, ms) ->
                     main.post(() -> {
                         latencyMap.put(profileId, ms);
                         notifyLatencyChanged(profileId);
+                        if (left.decrementAndGet() == 0 && onComplete != null) {
+                            onComplete.run();
+                        }
                     }));
         }
-        notifyDataSetChanged();
+    }
+
+    /**
+     * โปรไฟล์ที่ latency ต่ำสุด (ms > 0)
+     * @return null ถ้ายังไม่วัด หรือวัดไม่สำเร็จทั้งหมด
+     */
+    public Profile getLowestLatencyProfile() {
+        Profile best = null;
+        int bestMs = Integer.MAX_VALUE;
+        for (Profile p : items) {
+            if (p == null) continue;
+            Integer ms = latencyMap.get(p.id);
+            if (ms != null && ms > 0 && ms < bestMs) {
+                bestMs = ms;
+                best = p;
+            }
+        }
+        return best;
+    }
+
+    /** latency ของโปรไฟล์ (null = ยังไม่รู้, -1 = ล้มเหลว) */
+    public Integer getLatencyMs(long profileId) {
+        return latencyMap.get(profileId);
     }
 
     private void notifyLatencyChanged(long profileId) {

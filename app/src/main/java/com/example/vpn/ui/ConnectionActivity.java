@@ -38,6 +38,7 @@ import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
+import java.util.List;
 import java.util.Locale;
 
 public class ConnectionActivity extends AppCompatActivity
@@ -381,7 +382,9 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     } else if (id == R.id.nav_profiles) {
         openProfilePicker();
 
-    } else if (id == R.id.nav_chart) {
+    } else if (id == R.id.nav_auto_select) {
+            autoSelectLowestPing();
+        } else if (id == R.id.nav_chart) {
         // ⭐ ไปหน้า CHART
         viewPager.setCurrentItem(1, true);
 
@@ -591,6 +594,64 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             }
         } catch (Exception ignored) {}
         return false;
+    }
+
+
+    /**
+     * Auto Select โปรไฟล์ที่ ping ต่ำสุด แล้วตั้งเป็น target
+     */
+    private void autoSelectLowestPing() {
+        List<Profile> list = viewModel.getProfiles().getValue();
+        if (list == null || list.isEmpty()) {
+            // ยังไม่มี cache — โหลดครั้งเดียว
+            viewModel.getProfiles().observe(this, profiles -> {
+                viewModel.getProfiles().removeObservers(this);
+                runAutoSelectOnList(profiles);
+            });
+            return;
+        }
+        runAutoSelectOnList(list);
+    }
+
+    private void runAutoSelectOnList(List<Profile> list) {
+        if (list == null || list.isEmpty()) {
+            StyledToast.warning(this, "ยังไม่มีโปรไฟล์");
+            return;
+        }
+        StyledToast.info(this, "กำลังวัด latency...");
+        final java.util.concurrent.atomic.AtomicInteger left =
+                new java.util.concurrent.atomic.AtomicInteger(list.size());
+        final Profile[] best = {null};
+        final int[] bestMs = {Integer.MAX_VALUE};
+        final android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
+
+        for (Profile p : list) {
+            if (p.host == null || p.host.isEmpty()) {
+                if (left.decrementAndGet() == 0) finishAutoSelect(best[0], bestMs[0]);
+                continue;
+            }
+            com.example.vpn.util.LatencyProbe.measure(p.id, p.host, p.port, (id, ms) ->
+                    h.post(() -> {
+                        if (ms > 0 && ms < bestMs[0]) {
+                            bestMs[0] = ms;
+                            best[0] = p;
+                        }
+                        if (left.decrementAndGet() == 0) {
+                            finishAutoSelect(best[0], bestMs[0]);
+                        }
+                    }));
+        }
+    }
+
+    private void finishAutoSelect(Profile best, int ms) {
+        if (best == null) {
+            StyledToast.error(this, "วัด ping ไม่สำเร็จ — ลองใหม่");
+            return;
+        }
+        bindProfile(best);
+        StyledToast.success(this,
+                "Auto Select: " + (best.name != null ? best.name : best.host)
+                        + " (" + ms + "ms)");
     }
 
     private void bindProfile(Profile p) {

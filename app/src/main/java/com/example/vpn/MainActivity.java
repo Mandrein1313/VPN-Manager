@@ -333,6 +333,10 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
+        if (id == R.id.action_auto_select) {
+            autoSelectLowestPing();
+            return true;
+        }
         if (id == R.id.action_export_all) {
             exportAllProfiles();
             return true;
@@ -467,6 +471,41 @@ public class MainActivity extends AppCompatActivity
     // ============================================================
     // 📤 Export
     // ============================================================
+
+    /**
+     * Auto Select: วัด ping ทุกโปรไฟล์ แล้วเลือกตัวที่ latency ต่ำสุด
+     */
+    private void autoSelectLowestPing() {
+        if (adapter == null || adapter.getItemCount() == 0) {
+            StyledToast.warning(this, "ยังไม่มีโปรไฟล์");
+            return;
+        }
+        StyledToast.info(this, "กำลังวัด latency...");
+        if (fabMenuOpen) closeFabMenu();
+
+        adapter.pingAll(() -> {
+            Profile best = adapter.getLowestLatencyProfile();
+            if (best == null) {
+                StyledToast.error(this, "วัด ping ไม่สำเร็จ — ลองใหม่");
+                return;
+            }
+            Integer ms = adapter.getLatencyMs(best.id);
+            String label = best.name != null ? best.name : best.host;
+            StyledToast.success(this,
+                    "Auto Select: " + label + (ms != null ? " (" + ms + "ms)" : ""));
+
+            // เลือกโปรไฟล์นี้ (กลับหน้าหลัก + ตั้งเป็นตัวเชื่อมต่อ)
+            Intent result = new Intent();
+            result.putExtra(EXTRA_PROFILE_ID, best.id);
+            setResult(RESULT_OK, result);
+
+            // ถ้าเปิดจาก ConnectionActivity ด้วย launcher จะได้ profile กลับ
+            // ถ้าอยู่หน้า CONFIGS เฉย ๆ ก็ highlight โดย set favorite ชั่วคราวไม่ได้บังคับ
+            // เชื่อมต่อทันทีเมื่อผู้ใช้กดการ์ด — หรือเรียก onConnect
+            onConnect(best);
+        });
+    }
+
     private void exportAllProfiles() {
         List<Profile> all = cachedProfiles;
         if (all == null || all.isEmpty()) {

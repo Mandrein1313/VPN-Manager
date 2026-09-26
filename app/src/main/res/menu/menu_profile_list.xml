@@ -3,6 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_auto_select"
+        android:title="Auto Select (ping ต่ำสุด)"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_export_all"
         android:title="ส่งออกทั้งหมด"
         app:showAsAction="never" />
