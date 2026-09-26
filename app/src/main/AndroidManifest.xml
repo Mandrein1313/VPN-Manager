@@ -66,6 +66,7 @@
         <!-- Profile Edit -->
         <activity
             android:name=".ui.ProfileEditActivity"
+            android:importantForAutofill="noExcludeDescendants"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 

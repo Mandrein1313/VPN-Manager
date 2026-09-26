@@ -57,6 +57,11 @@ public class ProfileEditActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile_edit);
+        // ปิด Google Password Manager / Autofill
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            getWindow().getDecorView().setImportantForAutofill(
+                    android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
 
         prefs = new VpnPrefs(this);
 
@@ -310,3 +315,4 @@ private void doSave(Profile p) {
         return super.onOptionsItemSelected(item);
     }
 }
+ 

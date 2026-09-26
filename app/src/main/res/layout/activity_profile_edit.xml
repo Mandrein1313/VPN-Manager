@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:importantForAutofill="noExcludeDescendants">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
@@ -30,6 +31,7 @@
                 android:hint="ชื่อโปรไฟล์ *">
 
                 <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                     android:id="@+id/edtName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -66,6 +68,7 @@
                 android:hint="Host / IP *">
 
                 <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                     android:id="@+id/edtHost"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -80,6 +83,7 @@
                 android:hint="Port *">
 
                 <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                     android:id="@+id/edtPort"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -108,6 +112,7 @@
                     android:hint="Username">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtUser"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -123,6 +128,7 @@
                     app:endIconMode="password_toggle">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtPass"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -152,6 +158,7 @@
                     android:hint="HTTP Proxy (host:port)">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtHttpProxy"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -166,6 +173,7 @@
                     android:hint="Payload">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtPayload"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -182,6 +190,7 @@
                     android:hint="SNI">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtSni"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content" />
@@ -204,6 +213,7 @@
                 android:hint="DNS 1">
 
                 <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                     android:id="@+id/edtDns1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -218,6 +228,7 @@
                 android:hint="DNS 2">
 
                 <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                     android:id="@+id/edtDns2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -326,6 +337,7 @@
                     android:hint="UUID / Password">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtV2rayUuid"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -354,6 +366,7 @@
                     android:hint="Path (สำหรับ ws/h2)">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtV2rayPath"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -368,6 +381,7 @@
                     android:hint="Host Header (สำหรับ ws)">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtV2rayHost"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -382,6 +396,7 @@
                     android:hint="Service Name (สำหรับ gRPC)">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtV2rayServiceName"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -396,6 +411,7 @@
                     android:hint="Flow (VLESS เท่านั้น เช่น xtls-rprx-vision)">
 
                     <com.google.android.material.textfield.TextInputEditText
+                    android:importantForAutofill="no"
                         android:id="@+id/edtV2rayFlow"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
