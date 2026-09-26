@@ -2,6 +2,10 @@ package com.example.vpn.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.autofill.AutofillManager;
+import android.view.inputmethod.InputMethodManager;
+import android.text.method.PasswordTransformationMethod;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.MenuItem;
 import android.view.View;
@@ -86,6 +90,8 @@ public class ProfileEditActivity extends AppCompatActivity {
         groupCredentials = findViewById(R.id.groupCredentials);
         groupSsh = findViewById(R.id.groupSsh);
         btnSave = findViewById(R.id.btnSave);
+
+        disablePasswordAutofill();
 
         // ⭐ V2Ray UI binding
         edtV2rayUuid = findViewById(R.id.edtV2rayUuid);
@@ -247,7 +253,72 @@ public class ProfileEditActivity extends AppCompatActivity {
         return Protocol.SSH;
     }
 
+
+    /**
+     * กัน Google Password Manager / Autofill จับช่อง user/pass
+     * (inputType=textPassword จะโดน save password เสมอ)
+     */
+    private void disablePasswordAutofill() {
+        View[] fields = new View[]{
+                edtUser, edtPass, edtHost, edtPort, edtName,
+                edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2
+        };
+        for (View v : fields) {
+            if (v == null) continue;
+            v.setSaveEnabled(false);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                v.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+            }
+        }
+        if (edtPass != null) {
+            // ไม่ใช้ TYPE_TEXT_VARIATION_PASSWORD — แต่ยังบังคับแสดงเป็นจุด
+            edtPass.setInputType(InputType.TYPE_CLASS_TEXT
+                    | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+            edtPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                edtPass.setAutofillHints((String[]) null);
+            }
+        }
+        if (edtUser != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            edtUser.setAutofillHints((String[]) null);
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            getWindow().getDecorView().setImportantForAutofill(
+                    View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+            try {
+                AutofillManager afm = getSystemService(AutofillManager.class);
+                if (afm != null) {
+                    afm.cancel();
+                    afm.disableOwnedAutofillServices();
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void hideKeyboardAndClearFocus() {
+        try {
+            View focus = getCurrentFocus();
+            if (focus != null) {
+                focus.clearFocus();
+                InputMethodManager imm = (InputMethodManager)
+                        getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+                }
+            }
+            if (edtPass != null) edtPass.setText(edtPass.getText()); // re-apply transform
+        } catch (Exception ignored) {}
+    }
+
     private void save() {
+        hideKeyboardAndClearFocus();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                AutofillManager afm = getSystemService(AutofillManager.class);
+                if (afm != null) afm.cancel();
+            } catch (Exception ignored) {}
+        }
+
     String name = text(edtName);
     String host = text(edtHost);
     String portStr = text(edtPort);
@@ -314,5 +385,17 @@ private void doSave(Profile p) {
         if (item.getItemId() == android.R.id.home) { finish(); return true; }
         return super.onOptionsItemSelected(item);
     }
+
+    @Override
+    protected void onPause() {
+        hideKeyboardAndClearFocus();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                AutofillManager afm = getSystemService(AutofillManager.class);
+                if (afm != null) afm.cancel();
+            } catch (Exception ignored) {}
+        }
+        super.onPause();
+    }
+
 }
- 
