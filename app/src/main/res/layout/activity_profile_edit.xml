@@ -120,18 +120,23 @@
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilPass"
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:hint="Password"
-                    app:endIconMode="none">
+                    app:endIconMode="custom"
+                    app:endIconDrawable="@android:drawable/ic_menu_view"
+                    app:endIconContentDescription="แสดง/ซ่อนรหัสผ่าน"
+                    app:endIconTint="#B0BEC5">
 
                     <com.google.android.material.textfield.TextInputEditText
-                    android:importantForAutofill="no"
                         android:id="@+id/edtPass"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:importantForAutofill="no"
+                        android:saveEnabled="false"
                         android:inputType="text|textNoSuggestions" />
                 </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>

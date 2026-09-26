@@ -29,6 +29,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class ProfileEditActivity extends AppCompatActivity {
@@ -41,6 +42,8 @@ public class ProfileEditActivity extends AppCompatActivity {
     private ProfileViewModel viewModel;
     private Profile existing;
 
+    private TextInputLayout tilPass;
+    private boolean passwordVisible = false;
     private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
             edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2;
     private TextInputEditText edtV2rayUuid, edtV2rayPath, edtV2rayHost,
@@ -81,6 +84,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtPort = findViewById(R.id.edtPort);
         edtUser = findViewById(R.id.edtUser);
         edtPass = findViewById(R.id.edtPass);
+        tilPass = findViewById(R.id.tilPass);
         edtHttpProxy = findViewById(R.id.edtHttpProxy);
         edtPayload = findViewById(R.id.edtPayload);
         edtSni = findViewById(R.id.edtSni);
@@ -92,6 +96,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btnSave);
 
         disablePasswordAutofill();
+        setupPasswordVisibilityToggle();
 
         // ⭐ V2Ray UI binding
         edtV2rayUuid = findViewById(R.id.edtV2rayUuid);
@@ -258,6 +263,28 @@ public class ProfileEditActivity extends AppCompatActivity {
      * กัน Google Password Manager / Autofill จับช่อง user/pass
      * (inputType=textPassword จะโดน save password เสมอ)
      */
+
+    /** กดไอคอนตา เพื่อแสดง/ซ่อนรหัสผ่าน (ไม่ใช้ textPassword) */
+    private void setupPasswordVisibilityToggle() {
+        if (tilPass == null || edtPass == null) return;
+        tilPass.setEndIconOnClickListener(v -> {
+            passwordVisible = !passwordVisible;
+            int start = edtPass.getSelectionStart();
+            int end = edtPass.getSelectionEnd();
+            if (passwordVisible) {
+                edtPass.setTransformationMethod(null);
+                tilPass.setEndIconContentDescription("ซ่อนรหัสผ่าน");
+            } else {
+                edtPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
+                tilPass.setEndIconContentDescription("แสดงรหัสผ่าน");
+            }
+            // คงตำแหน่งเคอร์เซอร์
+            try {
+                if (start >= 0) edtPass.setSelection(start, Math.max(start, end));
+            } catch (Exception ignored) {}
+        });
+    }
+
     private void disablePasswordAutofill() {
         View[] fields = new View[]{
                 edtUser, edtPass, edtHost, edtPort, edtName,
