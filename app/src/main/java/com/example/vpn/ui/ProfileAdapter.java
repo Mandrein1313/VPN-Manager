@@ -49,21 +49,16 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         pingAll();
     }
 
-    /** วัด latency ทุกโปรไฟล์ (TCP connect) */
     public void pingAll() {
         pingAll(null);
     }
 
-    /**
-     * วัด latency ทุกโปรไฟล์ แล้วเรียก onComplete บน main thread เมื่อครบ
-     * (ใช้กับ Auto Select)
-     */
     public void pingAll(Runnable onComplete) {
         final List<Profile> targets = new ArrayList<>();
         for (Profile p : items) {
             if (p == null || p.host == null || p.host.isEmpty()) continue;
             targets.add(p);
-            latencyMap.put(p.id, null); // กำลังวัด
+            latencyMap.put(p.id, null);
         }
         notifyDataSetChanged();
 
@@ -86,10 +81,6 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         }
     }
 
-    /**
-     * โปรไฟล์ที่ latency ต่ำสุด (ms > 0)
-     * @return null ถ้ายังไม่วัด หรือวัดไม่สำเร็จทั้งหมด
-     */
     public Profile getLowestLatencyProfile() {
         Profile best = null;
         int bestMs = Integer.MAX_VALUE;
@@ -104,7 +95,6 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         return best;
     }
 
-    /** latency ของโปรไฟล์ (null = ยังไม่รู้, -1 = ล้มเหลว) */
     public Integer getLatencyMs(long profileId) {
         return latencyMap.get(profileId);
     }
@@ -135,7 +125,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     public void onBindViewHolder(@NonNull VH h, int position) {
         Profile p = items.get(position);
         Integer lat = latencyMap.get(p.id);
-        h.bind(p, lat, listener);
+        h.bind(p, lat);
     }
 
     @Override
@@ -143,10 +133,41 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         return items.size();
     }
 
-    // ============================================================
-    // ViewHolder
-    // ============================================================
-    static class VH extends RecyclerView.ViewHolder {
+    static int signalIconFor(Integer ms) {
+        if (ms == null) return R.drawable.ic_signal_0;
+        if (ms < 0) return R.drawable.ic_signal_0;
+        if (ms < 80) return R.drawable.ic_signal_4;
+        if (ms < 150) return R.drawable.ic_signal_3;
+        if (ms < 300) return R.drawable.ic_signal_2;
+        return R.drawable.ic_signal_1;
+    }
+
+    static void applyLatency(TextView tv, Integer ms) {
+        if (tv == null) return;
+        if (ms == null) {
+            tv.setText("…");
+            tv.setTextColor(0xFF888888);
+            return;
+        }
+        if (ms < 0) {
+            tv.setText("—");
+            tv.setTextColor(0xFFEF5350);
+            return;
+        }
+        tv.setText(ms + "ms");
+        if (ms < 80) {
+            tv.setTextColor(0xFF00E676);
+        } else if (ms < 150) {
+            tv.setTextColor(0xFF69F0AE);
+        } else if (ms < 300) {
+            tv.setTextColor(0xFFFFC107);
+        } else {
+            tv.setTextColor(0xFFFF7043);
+        }
+    }
+
+    // non-static เพื่อเข้าถึง latencyMap / main / notify ของ adapter ได้
+    class VH extends RecyclerView.ViewHolder {
         TextView flag, name, host, protocol, ping;
         ImageButton btnQr, btnSignal, btnEdit, btnDelete;
 
@@ -159,12 +180,14 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             ping = v.findViewById(R.id.txtPing);
             btnQr = v.findViewById(R.id.btnQr);
             btnSignal = v.findViewById(R.id.btnSignal);
-            if (btnSignal == null) btnSignal = v.findViewById(R.id.btnFavorite);
+            if (btnSignal == null) {
+                btnSignal = v.findViewById(R.id.btnFavorite); // รองรับ layout เก่า
+            }
             btnEdit = v.findViewById(R.id.btnEdit);
             btnDelete = v.findViewById(R.id.btnDelete);
         }
 
-        void bind(Profile p, Integer latencyMs, Listener l) {
+        void bind(Profile p, Integer latencyMs) {
             if (flag != null) {
                 flag.setText(CountryFlag.flagFor(p.name, p.host));
             }
@@ -181,9 +204,11 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             if (btnSignal != null) {
                 btnSignal.setImageResource(signalIconFor(latencyMs));
                 btnSignal.setOnClickListener(v -> {
-                    // วัด ping โปรไฟล์นี้ใหม่
                     latencyMap.put(p.id, null);
-                    notifyItemChanged(getBindingAdapterPosition());
+                    int pos = getBindingAdapterPosition();
+                    if (pos != RecyclerView.NO_POSITION) {
+                        notifyItemChanged(pos);
+                    }
                     LatencyProbe.measure(p.id, p.host, p.port, (profileId, ms) ->
                             main.post(() -> {
                                 latencyMap.put(profileId, ms);
@@ -192,48 +217,20 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
                 });
             }
 
-            itemView.setOnClickListener(v -> l.onConnect(p));
+            itemView.setOnClickListener(v -> listener.onConnect(p));
             itemView.setOnLongClickListener(v -> {
-                l.onEdit(p);
+                listener.onEdit(p);
                 return true;
             });
 
             if (btnQr != null) {
-                btnQr.setOnClickListener(v -> l.onShareQr(p));
+                btnQr.setOnClickListener(v -> listener.onShareQr(p));
             }
             if (btnEdit != null) {
-                btnEdit.setOnClickListener(v -> l.onEdit(p));
+                btnEdit.setOnClickListener(v -> listener.onEdit(p));
             }
             if (btnDelete != null) {
-                btnDelete.setOnClickListener(v -> l.onDelete(p));
-            }
-        }
-
-        /**
-         * แสดง latency แบบแอป VPN ทั่วไป
-         * เขียว = ดี, ส้ม = ปานกลาง, แดง = ช้า / ล้มเหลว
-         */
-        static void applyLatency(TextView tv, Integer ms) {
-            if (tv == null) return;
-            if (ms == null) {
-                tv.setText("…");
-                tv.setTextColor(0xFF888888);
-                return;
-            }
-            if (ms < 0) {
-                tv.setText("—");
-                tv.setTextColor(0xFFEF5350);
-                return;
-            }
-            tv.setText(ms + "ms");
-            if (ms < 80) {
-                tv.setTextColor(0xFF00E676);      // ดีมาก
-            } else if (ms < 150) {
-                tv.setTextColor(0xFF69F0AE);      // ดี
-            } else if (ms < 300) {
-                tv.setTextColor(0xFFFFC107);      // ปานกลาง
-            } else {
-                tv.setTextColor(0xFFFF7043);      // ช้า
+                btnDelete.setOnClickListener(v -> listener.onDelete(p));
             }
         }
     }
