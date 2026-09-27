@@ -114,17 +114,16 @@
                 android:src="@android:drawable/ic_menu_share"
                 app:tint="#00BCD4" />
 
-            <!-- Star (Favorite) -->
+            <!-- สัญญาณ (ระดับตาม ping) กดเพื่อวัดใหม่ -->
             <ImageButton
-                android:id="@+id/btnFavorite"
+                android:id="@+id/btnSignal"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Favorite"
-                android:padding="6dp"
+                android:contentDescription="สัญญาณ / วัด ping"
+                android:padding="4dp"
                 android:scaleType="fitCenter"
-                android:src="@android:drawable/btn_star_big_off"
-                app:tint="#FFC107" />
+                android:src="@drawable/ic_signal_0" />
 
             <!-- Edit -->
             <ImageButton

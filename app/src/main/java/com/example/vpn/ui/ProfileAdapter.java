@@ -148,7 +148,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     // ============================================================
     static class VH extends RecyclerView.ViewHolder {
         TextView flag, name, host, protocol, ping;
-        ImageButton btnQr, btnFav, btnEdit, btnDelete;
+        ImageButton btnQr, btnSignal, btnEdit, btnDelete;
 
         VH(@NonNull View v) {
             super(v);
@@ -158,7 +158,8 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             protocol = v.findViewById(R.id.txtProtocol);
             ping = v.findViewById(R.id.txtPing);
             btnQr = v.findViewById(R.id.btnQr);
-            btnFav = v.findViewById(R.id.btnFavorite);
+            btnSignal = v.findViewById(R.id.btnSignal);
+            if (btnSignal == null) btnSignal = v.findViewById(R.id.btnFavorite);
             btnEdit = v.findViewById(R.id.btnEdit);
             btnDelete = v.findViewById(R.id.btnDelete);
         }
@@ -177,11 +178,18 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
             applyLatency(ping, latencyMs);
 
-            if (btnFav != null) {
-                btnFav.setImageResource(p.isFavorite
-                        ? android.R.drawable.btn_star_big_on
-                        : android.R.drawable.btn_star_big_off);
-                btnFav.setOnClickListener(v -> l.onToggleFavorite(p));
+            if (btnSignal != null) {
+                btnSignal.setImageResource(signalIconFor(latencyMs));
+                btnSignal.setOnClickListener(v -> {
+                    // วัด ping โปรไฟล์นี้ใหม่
+                    latencyMap.put(p.id, null);
+                    notifyItemChanged(getBindingAdapterPosition());
+                    LatencyProbe.measure(p.id, p.host, p.port, (profileId, ms) ->
+                            main.post(() -> {
+                                latencyMap.put(profileId, ms);
+                                notifyLatencyChanged(profileId);
+                            }));
+                });
             }
 
             itemView.setOnClickListener(v -> l.onConnect(p));
