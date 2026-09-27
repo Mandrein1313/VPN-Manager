@@ -180,9 +180,6 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             ping = v.findViewById(R.id.txtPing);
             btnQr = v.findViewById(R.id.btnQr);
             btnSignal = v.findViewById(R.id.btnSignal);
-            if (btnSignal == null) {
-                btnSignal = v.findViewById(R.id.btnFavorite); // รองรับ layout เก่า
-            }
             btnEdit = v.findViewById(R.id.btnEdit);
             btnDelete = v.findViewById(R.id.btnDelete);
         }
