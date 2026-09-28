@@ -42,22 +42,39 @@ public class SshTunnel {
         boolean protect(Socket socket);
     }
 
+
     public SshTunnel(String host, int port, String user, String pass,
                      SocketProtector protector) throws Exception {
-        this(host, port, user, pass, null, null, null, ConnectionMode.DIRECT, protector);
+        this(host, port, user, pass, null, 0, null, null, 0,
+                ConnectionMode.DIRECT, null, null, protector);
     }
-
 
     public SshTunnel(String host, int port, String user, String pass,
                      String httpProxy, String payload, String sni,
                      SocketProtector protector) throws Exception {
-        this(host, port, user, pass, httpProxy, payload, sni,
-                ConnectionMode.infer(httpProxy, payload, sni), protector);
+        this(host, port, user, pass, httpProxy, 0, payload, sni, 0,
+                ConnectionMode.infer(httpProxy, payload, sni), null, null, protector);
     }
 
     public SshTunnel(String host, int port, String user, String pass,
                      String httpProxy, String payload, String sni,
                      ConnectionMode mode,
+                     SocketProtector protector) throws Exception {
+        this(host, port, user, pass, httpProxy, 0, payload, sni, 0,
+                mode, null, null, protector);
+    }
+
+    /**
+     * @param proxyPort 0 = เดาจาก httpProxy
+     * @param sslPort   0 = ใช้ port หลัก
+     * @param privateKey PEM หรือ null
+     * @param keyPassphrase passphrase หรือ null
+     */
+    public SshTunnel(String host, int port, String user, String pass,
+                     String httpProxy, int proxyPort,
+                     String payload, String sni, int sslPort,
+                     ConnectionMode mode,
+                     String privateKey, String keyPassphrase,
                      SocketProtector protector) throws Exception {
 
         if (mode == null) {
@@ -66,20 +83,40 @@ public class SshTunnel {
         VpnLogger.i(TAG, "ConnectionMode = " + mode.name() + " (" + mode.label + ")");
 
         JSch jsch = new JSch();
+
+        boolean useKey = privateKey != null && privateKey.trim().length() > 40;
+        if (useKey) {
+            byte[] keyBytes = privateKey.getBytes(StandardCharsets.UTF_8);
+            byte[] pp = (keyPassphrase != null && !keyPassphrase.isEmpty())
+                    ? keyPassphrase.getBytes(StandardCharsets.UTF_8) : null;
+            jsch.addIdentity("vpn-key", keyBytes, null, pp);
+            VpnLogger.i(TAG, "SSH auth = private key");
+        } else {
+            VpnLogger.i(TAG, "SSH auth = password");
+        }
+
         session = jsch.getSession(user, host, port);
-        session.setPassword(pass);
+        if (!useKey) {
+            session.setPassword(pass != null ? pass : "");
+        }
 
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
-        config.put("PreferredAuthentications", "password,keyboard-interactive");
+        if (useKey) {
+            config.put("PreferredAuthentications", "publickey,password,keyboard-interactive");
+        } else {
+            config.put("PreferredAuthentications", "password,keyboard-interactive");
+        }
         config.put("MaxAuthTries", "3");
         session.setConfig(config);
 
         final String fSshHost = host;
         final int fSshPort = port;
         final String fProxy = httpProxy;
+        final int fProxyPort = proxyPort;
         final String fPayload = payload;
         final String fSni = (sni != null && !sni.isEmpty()) ? sni : host;
+        final int fSslPort = (sslPort > 0) ? sslPort : port;
         final ConnectionMode fMode = mode;
 
         session.setSocketFactory(new com.jcraft.jsch.SocketFactory() {
@@ -89,9 +126,6 @@ public class SshTunnel {
                 try {
                     s.setKeepAlive(true);
                     s.setTcpNoDelay(true);
-                    try {
-                        s.setSoLinger(false, 0);
-                    } catch (Exception ignored) {}
                 } catch (Exception e) {
                     VpnLogger.w(TAG, "Socket option error: " + e.getMessage());
                 }
@@ -108,32 +142,53 @@ public class SshTunnel {
                         s.connect(new InetSocketAddress(h, p), 20_000);
                         break;
 
-                    case HTTP_PROXY_PAYLOAD:
-                        if (fProxy != null && !fProxy.isEmpty()) {
-                            return createProxyTunnel(s, fSshHost, fSshPort, fProxy,
+                    case HTTP_PROXY_PAYLOAD: {
+                        String ph = fProxy;
+                        int pp = fProxyPort;
+                        if (ph != null && !ph.isEmpty()) {
+                            int colon = ph.lastIndexOf(':');
+                            if (colon > 0) {
+                                String after = ph.substring(colon + 1).trim();
+                                if (after.matches("\\d+")) {
+                                    if (pp <= 0) {
+                                        try { pp = Integer.parseInt(after); } catch (Exception ignored) { pp = 80; }
+                                    }
+                                    ph = ph.substring(0, colon);
+                                }
+                            }
+                            if (pp <= 0) pp = 80;
+                            String proxySpec = ph + ":" + pp;
+                            return createProxyTunnel(s, fSshHost, fSshPort, proxySpec,
                                     fPayload != null ? fPayload : "");
                         }
-                        // มี payload แต่ไม่มี proxy → direct + payload
                         if (fPayload != null && !fPayload.isEmpty()) {
                             return createDirectPayload(s, h, p, fPayload);
                         }
                         s.connect(new InetSocketAddress(h, p), 20_000);
                         break;
+                    }
 
                     case SSL_TLS:
-                        return createSslTunnel(s, h, p, fSni, protector);
+                        return createSslTunnel(s, h, fSslPort, fSni, protector);
 
-                    case WEBSOCKET:
-                        if (fProxy != null && !fProxy.isEmpty()) {
-                            String pl = (fPayload != null && !fPayload.isEmpty())
-                                    ? fPayload
-                                    : defaultWsPayload();
-                            return createProxyTunnel(s, fSshHost, fSshPort, fProxy, pl);
-                        }
+                    case WEBSOCKET: {
                         String pl = (fPayload != null && !fPayload.isEmpty())
-                                ? fPayload
-                                : defaultWsPayload();
+                                ? fPayload : defaultWsPayload();
+                        if (fProxy != null && !fProxy.isEmpty()) {
+                            String ph = fProxy;
+                            int pp = fProxyPort > 0 ? fProxyPort : 80;
+                            int colon = ph.lastIndexOf(':');
+                            if (colon > 0 && ph.substring(colon + 1).trim().matches("\\d+")) {
+                                if (fProxyPort <= 0) {
+                                    try { pp = Integer.parseInt(ph.substring(colon + 1).trim()); }
+                                    catch (Exception ignored) {}
+                                }
+                                ph = ph.substring(0, colon);
+                            }
+                            return createProxyTunnel(s, fSshHost, fSshPort, ph + ":" + pp, pl);
+                        }
                         return createDirectPayload(s, h, p, pl);
+                    }
 
                     default:
                         s.connect(new InetSocketAddress(h, p), 20_000);

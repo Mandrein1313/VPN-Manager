@@ -35,6 +35,11 @@ public class ProfileEntity {
     public String dns2;
 
     public int udpgwPort;
+    public int proxyPort;
+    public int sslPort;
+    public String authMethod;
+    public String privateKey;
+    public String keyPassphrase;
 
     // ⭐ V2Ray Fields
     public String v2rayType;
@@ -69,6 +74,11 @@ public class ProfileEntity {
         e.dns1 = p.dns1;
         e.dns2 = p.dns2;
         e.udpgwPort = p.udpgwPort;
+        e.proxyPort = p.proxyPort;
+        e.sslPort = p.sslPort;
+        e.authMethod = p.authMethod != null ? p.authMethod : "password";
+        e.privateKey = p.privateKey;
+        e.keyPassphrase = p.keyPassphrase;
 
         // ⭐ V2Ray
         e.v2rayType = p.v2rayType;
@@ -104,6 +114,11 @@ public class ProfileEntity {
         p.dns1 = dns1;
         p.dns2 = dns2;
         p.udpgwPort = udpgwPort > 0 ? udpgwPort : 7300;
+        p.proxyPort = proxyPort;
+        p.sslPort = sslPort;
+        p.authMethod = authMethod != null ? authMethod : "password";
+        p.privateKey = privateKey != null ? privateKey : "";
+        p.keyPassphrase = keyPassphrase != null ? keyPassphrase : "";
 
         // ⭐ V2Ray
         p.v2rayType = v2rayType != null ? v2rayType : "vless";

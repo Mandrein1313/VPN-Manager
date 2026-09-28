@@ -368,8 +368,22 @@ public class ProxyVpnService extends VpnService
                 VpnLogger.i(TAG, "Bypass Mode: DISABLED (user toggled)");
             }
 
-            addDnsIfValid(builder, profile.dns1);
-            addDnsIfValid(builder, profile.dns2);
+            // ⭐ DNS leak guard: บังคับ DNS ของ VPN + route เฉพาะทาง
+            String d1 = (profile.dns1 != null && !profile.dns1.trim().isEmpty())
+                    ? profile.dns1.trim() : "8.8.8.8";
+            String d2 = (profile.dns2 != null && !profile.dns2.trim().isEmpty())
+                    ? profile.dns2.trim() : "1.1.1.1";
+            addDnsIfValid(builder, d1);
+            addDnsIfValid(builder, d2);
+            addHostRoute(builder, d1);
+            addHostRoute(builder, d2);
+            // กัน IPv6 เลี่ยง tunnel (บางเครื่อง DNS รั่วทาง v6)
+            try {
+                builder.addRoute("::", 0);
+            } catch (Exception e) {
+                VpnLogger.w(TAG, "IPv6 route skip: " + e.getMessage());
+            }
+            VpnLogger.i(TAG, "DNS leak guard: " + d1 + " / " + d2);
 
             tunFd = builder.establish();
             if (tunFd == null) {
@@ -436,9 +450,13 @@ public class ProxyVpnService extends VpnService
                     profile.user,
                     profile.pass,
                     emptyToNull(profile.httpProxy),
+                    profile.proxyPort,
                     emptyToNull(profile.payload),
                     emptyToNull(profile.sni),
+                    profile.sslPort,
                     profile.getConnectionMode(),
+                    profile.usePrivateKey() ? profile.privateKey : null,
+                    emptyToNull(profile.keyPassphrase),
                     socket -> protect(socket)
             );
 

@@ -46,12 +46,15 @@ public class ProfileEditActivity extends AppCompatActivity {
     private TextInputLayout tilPass;
     private boolean passwordVisible = false;
     private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
-            edtHttpProxy, edtPayload, edtSni, edtUdpgwPort, edtDns1, edtDns2;
+            edtHttpProxy, edtProxyPort, edtPayload, edtSni, edtSslPort,
+            edtUdpgwPort, edtDns1, edtDns2, edtPrivateKey, edtKeyPassphrase;
     private TextInputEditText edtV2rayUuid, edtV2rayPath, edtV2rayHost,
             edtV2rayServiceName, edtV2rayFlow;
-    private MaterialAutoCompleteTextView ddProtocol, ddConnectionMode, ddV2rayType, ddV2rayNetwork;
+    private MaterialAutoCompleteTextView ddProtocol, ddConnectionMode, ddAuthMethod,
+            ddV2rayType, ddV2rayNetwork;
     private LinearLayout groupCredentials, groupSsh, groupV2Ray;
-    private View tilHttpProxy, tilPayload, tilSni;
+    private View tilHttpProxy, tilProxyPort, tilPayload, tilSni, tilSslPort,
+            tilPrivateKey, tilKeyPassphrase, tilPassField;
     private MaterialSwitch switchV2rayTls;
     private MaterialButton btnSave;
 
@@ -88,6 +91,16 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtPass = findViewById(R.id.edtPass);
         tilPass = findViewById(R.id.tilPass);
         edtHttpProxy = findViewById(R.id.edtHttpProxy);
+        edtProxyPort = findViewById(R.id.edtProxyPort);
+        edtSslPort = findViewById(R.id.edtSslPort);
+        edtPrivateKey = findViewById(R.id.edtPrivateKey);
+        edtKeyPassphrase = findViewById(R.id.edtKeyPassphrase);
+        ddAuthMethod = findViewById(R.id.ddAuthMethod);
+        tilProxyPort = findViewById(R.id.tilProxyPort);
+        tilSslPort = findViewById(R.id.tilSslPort);
+        tilPrivateKey = findViewById(R.id.tilPrivateKey);
+        tilKeyPassphrase = findViewById(R.id.tilKeyPassphrase);
+        setupAuthMethodDropdown();
         edtPayload = findViewById(R.id.edtPayload);
         edtSni = findViewById(R.id.edtSni);
         edtUdpgwPort = findViewById(R.id.edtUdpgwPort);
@@ -231,6 +244,19 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (edtUdpgwPort != null) {
             edtUdpgwPort.setText(p.udpgwPort > 0 ? String.valueOf(p.udpgwPort) : "7300");
         }
+        if (edtProxyPort != null) {
+            edtProxyPort.setText(p.proxyPort > 0 ? String.valueOf(p.proxyPort) : "");
+        }
+        if (edtSslPort != null) {
+            edtSslPort.setText(p.sslPort > 0 ? String.valueOf(p.sslPort) : "");
+        }
+        if (ddAuthMethod != null) {
+            boolean key = p.usePrivateKey() || "private_key".equalsIgnoreCase(p.authMethod);
+            ddAuthMethod.setText(key ? "Private Key" : "Password", false);
+            applyAuthMethodUi(key);
+        }
+        if (edtPrivateKey != null) edtPrivateKey.setText(p.privateKey != null ? p.privateKey : "");
+        if (edtKeyPassphrase != null) edtKeyPassphrase.setText(p.keyPassphrase != null ? p.keyPassphrase : "");
         edtDns1.setText(p.dns1);
         edtDns2.setText(p.dns2);
 
@@ -284,8 +310,10 @@ public class ProfileEditActivity extends AppCompatActivity {
                 break;
         }
         if (tilHttpProxy != null) tilHttpProxy.setVisibility(visProxy);
+        if (tilProxyPort != null) tilProxyPort.setVisibility(visProxy);
         if (tilPayload != null) tilPayload.setVisibility(visPayload);
         if (tilSni != null) tilSni.setVisibility(visSni);
+        if (tilSslPort != null) tilSslPort.setVisibility(visSni);
     }
 
     private ConnectionMode selectedConnectionMode() {

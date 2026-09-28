@@ -20,10 +20,25 @@ public class Profile {
     /** badvpn-udpgw port บน SSH server (0 = ปิด) */
     public int udpgwPort = 7300;
 
-    /** โหมดการเชื่อมต่อ SSH — ดู ConnectionMode */
+    /** พอร์ต HTTP Proxy แยก (0 = ใช้จาก httpProxy host:port) */
+    public int proxyPort = 0;
+
+    /** พอร์ต SSL/TLS แยก (0 = ใช้พอร์ต SSH หลัก) */
+    public int sslPort = 0;
+
+    /** password | private_key */
+    public String authMethod = "password";
+
+    /** เนื้อหา private key (PEM) */
+    public String privateKey = "";
+
+    /** passphrase ของ key (ถ้ามี) */
+    public String keyPassphrase = "";
+
+    /** โหมดการเชื่อมต่อ SSH */
     public String connectionMode = ConnectionMode.DIRECT.name();
 
-    // V2Ray fields
+    // V2Ray
     public String v2rayType = "vless";
     public String v2rayUuid = "";
     public String v2rayNetwork = "tcp";
@@ -45,12 +60,46 @@ public class Profile {
             return ConnectionMode.infer(httpProxy, payload, sni);
         }
         ConnectionMode m = ConnectionMode.fromId(connectionMode);
-        // ถ้ายังเป็น DIRECT แต่มี proxy → เดาใหม่ (โปรไฟล์เก่า)
         if (m == ConnectionMode.DIRECT) {
             ConnectionMode inferred = ConnectionMode.infer(httpProxy, payload, sni);
             if (inferred != ConnectionMode.DIRECT) return inferred;
         }
         return m;
+    }
+
+    public boolean usePrivateKey() {
+        return "private_key".equalsIgnoreCase(authMethod)
+                && privateKey != null && privateKey.trim().length() > 40;
+    }
+
+    /** host ของ proxy จากช่อง httpProxy (ตัด :port ออก) */
+    public String proxyHostOnly() {
+        if (httpProxy == null || httpProxy.isEmpty()) return "";
+        String s = httpProxy.trim();
+        int c = s.lastIndexOf(':');
+        if (c > 0 && c < s.length() - 1) {
+            String after = s.substring(c + 1);
+            if (after.matches("\\d+")) return s.substring(0, c);
+        }
+        return s;
+    }
+
+    /** พอร์ต proxy จริง */
+    public int effectiveProxyPort() {
+        if (proxyPort > 0 && proxyPort <= 65535) return proxyPort;
+        if (httpProxy == null || httpProxy.isEmpty()) return 80;
+        int c = httpProxy.lastIndexOf(':');
+        if (c > 0) {
+            try {
+                return Integer.parseInt(httpProxy.substring(c + 1).trim());
+            } catch (Exception ignored) {}
+        }
+        return 80;
+    }
+
+    public int effectiveSslPort() {
+        if (sslPort > 0 && sslPort <= 65535) return sslPort;
+        return port > 0 ? port : 443;
     }
 
     public Profile copy() {
@@ -68,6 +117,11 @@ public class Profile {
         p.dns1 = dns1;
         p.dns2 = dns2;
         p.udpgwPort = udpgwPort;
+        p.proxyPort = proxyPort;
+        p.sslPort = sslPort;
+        p.authMethod = authMethod;
+        p.privateKey = privateKey;
+        p.keyPassphrase = keyPassphrase;
         p.connectionMode = connectionMode;
         p.v2rayType = v2rayType;
         p.v2rayUuid = v2rayUuid;
