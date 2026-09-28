@@ -752,6 +752,199 @@ public class MainActivity extends AppCompatActivity
     // ============================================================
     // Import config ปกติ (ไม่ใช่ JSON)
     // ============================================================
+
+    // ============================================================
+    // Subscription (เฟส V2)
+    // ============================================================
+    private void showAddSubscriptionDialog() {
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad, pad, pad, 0);
+
+        final com.google.android.material.textfield.TextInputLayout tilName =
+                new com.google.android.material.textfield.TextInputLayout(this);
+        tilName.setHint("ชื่อ (เช่น My Sub)");
+        final com.google.android.material.textfield.TextInputEditText edtName =
+                new com.google.android.material.textfield.TextInputEditText(this);
+        tilName.addView(edtName);
+
+        final com.google.android.material.textfield.TextInputLayout tilUrl =
+                new com.google.android.material.textfield.TextInputLayout(this);
+        tilUrl.setHint("Subscription URL");
+        final com.google.android.material.textfield.TextInputEditText edtUrl =
+                new com.google.android.material.textfield.TextInputEditText(this);
+        edtUrl.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        tilUrl.addView(edtUrl);
+
+        layout.addView(tilName);
+        layout.addView(tilUrl);
+
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip() != null) {
+                CharSequence t = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
+                if (t != null) {
+                    String s = t.toString().trim();
+                    if (s.startsWith("http://") || s.startsWith("https://")) {
+                        edtUrl.setText(s);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("เพิ่ม Subscription")
+                .setView(layout)
+                .setPositiveButton("ดึงและบันทึก", (d, w) -> {
+                    String name = edtName.getText() != null
+                            ? edtName.getText().toString().trim() : "";
+                    String url = edtUrl.getText() != null
+                            ? edtUrl.getText().toString().trim() : "";
+                    if (url.isEmpty()) {
+                        StyledToast.warning(this, "กรุณาใส่ URL");
+                        return;
+                    }
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                        StyledToast.warning(this, "URL ต้องขึ้นต้นด้วย http:// หรือ https://");
+                        return;
+                    }
+                    SubscriptionPrefs prefs = new SubscriptionPrefs(this);
+                    String subName = name.isEmpty() ? "Subscription" : name;
+                    prefs.add(subName, url);
+                    updateOneSubscription(url, subName, true);
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    private void updateAllSubscriptions() {
+        SubscriptionPrefs prefs = new SubscriptionPrefs(this);
+        java.util.List<SubscriptionPrefs.Item> items = prefs.getAll();
+        if (items.isEmpty()) {
+            StyledToast.info(this, "ยังไม่มี Subscription — เพิ่มจากเมนูก่อน");
+            return;
+        }
+        StyledToast.info(this, "กำลังอัปเดต " + items.size() + " subscription...");
+        for (SubscriptionPrefs.Item it : items) {
+            updateOneSubscription(it.url, it.name, false);
+        }
+    }
+
+    private void updateOneSubscription(String url, String subName, boolean showDialog) {
+        new Thread(() -> {
+            SubscriptionFetcher.Result result = SubscriptionFetcher.fetch(url);
+            runOnUiThread(() -> {
+                if (!result.isSuccess()) {
+                    if (showDialog) {
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle("Subscription ไม่สำเร็จ")
+                                .setMessage(result.error != null ? result.error : "ไม่ทราบสาเหตุ")
+                                .setPositiveButton("ตกลง", null)
+                                .show();
+                    } else {
+                        StyledToast.error(this, "Sub ล้มเหลว: " + result.error);
+                    }
+                    return;
+                }
+                applySubscriptionProfiles(url, subName, result.profiles, showDialog);
+            });
+        }, "sub-fetch").start();
+    }
+
+    private void applySubscriptionProfiles(String url, String subName,
+                                           java.util.List<Profile> incoming,
+                                           boolean showDialog) {
+        viewModel.getRepo().getAllSync(all -> {
+            int deleted = 0;
+            if (all != null) {
+                for (Profile p : all) {
+                    String su = p.extras != null ? p.extras.get("subscription_url") : null;
+                    if (url.equals(su)) {
+                        viewModel.delete(p);
+                        deleted++;
+                    }
+                }
+            }
+            final int delCount = deleted;
+            int saved = 0;
+            for (Profile p : incoming) {
+                if (p.extras == null) p.extras = new java.util.HashMap<>();
+                p.extras.put("subscription_url", url);
+                if (subName != null) p.extras.put("subscription_name", subName);
+                viewModel.save(p, id -> {});
+                saved++;
+            }
+            final int saveCount = saved;
+
+            SubscriptionPrefs prefs = new SubscriptionPrefs(this);
+            for (SubscriptionPrefs.Item it : prefs.getAll()) {
+                if (url.equals(it.url)) {
+                    prefs.touch(it.id);
+                    break;
+                }
+            }
+
+            String msg = "Subscription: " + (subName != null ? subName : "")
+                    + "\nนำเข้า " + saveCount + " โหนด"
+                    + (delCount > 0 ? "\nลบของเก่า " + delCount + " รายการ" : "");
+            if (showDialog) {
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle("อัปเดตสำเร็จ")
+                        .setMessage(msg)
+                        .setPositiveButton("ตกลง", null)
+                        .show();
+            } else {
+                StyledToast.success(this, "นำเข้า " + saveCount + " โหนด");
+            }
+        });
+    }
+
+    private void showManageSubscriptions() {
+        SubscriptionPrefs prefs = new SubscriptionPrefs(this);
+        java.util.List<SubscriptionPrefs.Item> items = prefs.getAll();
+        if (items.isEmpty()) {
+            StyledToast.info(this, "ยังไม่มี Subscription");
+            return;
+        }
+        String[] labels = new String[items.size()];
+        for (int i = 0; i < items.size(); i++) {
+            SubscriptionPrefs.Item it = items.get(i);
+            labels[i] = it.name + "\n" + it.url;
+        }
+        final java.util.List<SubscriptionPrefs.Item> list = items;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("จัดการ Subscription")
+                .setItems(labels, (d, which) -> {
+                    SubscriptionPrefs.Item it = list.get(which);
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(it.name)
+                            .setMessage(it.url)
+                            .setPositiveButton("อัปเดต", (d2, w2) ->
+                                    updateOneSubscription(it.url, it.name, true))
+                            .setNegativeButton("ลบ", (d2, w2) -> {
+                                prefs.remove(it.id);
+                                viewModel.getRepo().getAllSync(all -> {
+                                    if (all != null) {
+                                        for (Profile p : all) {
+                                            String su = p.extras != null
+                                                    ? p.extras.get("subscription_url") : null;
+                                            if (it.url.equals(su)) {
+                                                viewModel.delete(p);
+                                            }
+                                        }
+                                    }
+                                    StyledToast.delete(this, "ลบ subscription แล้ว");
+                                });
+                            })
+                            .setNeutralButton("ปิด", null)
+                            .show();
+                })
+                .setNegativeButton("ปิด", null)
+                .show();
+    }
+
     private void importFromClipboard() {
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null) {
