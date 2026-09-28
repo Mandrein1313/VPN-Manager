@@ -5,7 +5,7 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-@Database(entities = {ProfileEntity.class}, version = 4, exportSchema = false)   // ⭐ version 4 — connectionMode
+@Database(entities = {ProfileEntity.class}, version = 5, exportSchema = false)   // ⭐ version 5 — udpgwPort
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract ProfileDao profileDao();
