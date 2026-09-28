@@ -1,6 +1,13 @@
 package com.example.vpn.tunnel;
 
 import com.example.vpn.util.VpnLogger;
+import com.example.vpn.model.ConnectionMode;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SSLParameters;
+
 
 import com.jcraft.jsch.ChannelDirectTCPIP;
 import com.jcraft.jsch.JSch;
@@ -37,12 +44,26 @@ public class SshTunnel {
 
     public SshTunnel(String host, int port, String user, String pass,
                      SocketProtector protector) throws Exception {
-        this(host, port, user, pass, null, null, null, protector);
+        this(host, port, user, pass, null, null, null, ConnectionMode.DIRECT, protector);
     }
+
 
     public SshTunnel(String host, int port, String user, String pass,
                      String httpProxy, String payload, String sni,
                      SocketProtector protector) throws Exception {
+        this(host, port, user, pass, httpProxy, payload, sni,
+                ConnectionMode.infer(httpProxy, payload, sni), protector);
+    }
+
+    public SshTunnel(String host, int port, String user, String pass,
+                     String httpProxy, String payload, String sni,
+                     ConnectionMode mode,
+                     SocketProtector protector) throws Exception {
+
+        if (mode == null) {
+            mode = ConnectionMode.infer(httpProxy, payload, sni);
+        }
+        VpnLogger.i(TAG, "ConnectionMode = " + mode.name() + " (" + mode.label + ")");
 
         JSch jsch = new JSch();
         session = jsch.getSession(user, host, port);
@@ -51,7 +72,6 @@ public class SshTunnel {
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
         config.put("PreferredAuthentications", "password,keyboard-interactive");
-        // ช่วยให้ JSch ไม่ตัด session เร็วเกินไป
         config.put("MaxAuthTries", "3");
         session.setConfig(config);
 
@@ -59,45 +79,72 @@ public class SshTunnel {
         final int fSshPort = port;
         final String fProxy = httpProxy;
         final String fPayload = payload;
+        final String fSni = (sni != null && !sni.isEmpty()) ? sni : host;
+        final ConnectionMode fMode = mode;
 
         session.setSocketFactory(new com.jcraft.jsch.SocketFactory() {
             @Override
             public Socket createSocket(String h, int p) throws IOException {
                 Socket s = new Socket();
-
-                // ⭐ เปิด TCP Keep-Alive + ปิด Nagle ตั้งแต่สร้าง socket
                 try {
                     s.setKeepAlive(true);
                     s.setTcpNoDelay(true);
-                    s.setSoTimeout(0); // ไม่ timeout ตอนอ่าน (idle ได้)
+                    try {
+                        s.setSoLinger(false, 0);
+                    } catch (Exception ignored) {}
                 } catch (Exception e) {
                     VpnLogger.w(TAG, "Socket option error: " + e.getMessage());
                 }
 
                 if (protector != null) {
-                    try { protector.protect(s); }
-                    catch (Exception ignored) {}
+                    if (!protector.protect(s)) {
+                        VpnLogger.w(TAG, "protect() failed — continue anyway");
+                    }
+                }
+
+                switch (fMode) {
+                    case DIRECT:
+                        VpnLogger.i(TAG, "DIRECT → " + h + ":" + p);
+                        s.connect(new InetSocketAddress(h, p), 20_000);
+                        break;
+
+                    case HTTP_PROXY_PAYLOAD:
+                        if (fProxy != null && !fProxy.isEmpty()) {
+                            return createProxyTunnel(s, fSshHost, fSshPort, fProxy,
+                                    fPayload != null ? fPayload : "");
+                        }
+                        // มี payload แต่ไม่มี proxy → direct + payload
+                        if (fPayload != null && !fPayload.isEmpty()) {
+                            return createDirectPayload(s, h, p, fPayload);
+                        }
+                        s.connect(new InetSocketAddress(h, p), 20_000);
+                        break;
+
+                    case SSL_TLS:
+                        return createSslTunnel(s, h, p, fSni, protector);
+
+                    case WEBSOCKET:
+                        if (fProxy != null && !fProxy.isEmpty()) {
+                            String pl = (fPayload != null && !fPayload.isEmpty())
+                                    ? fPayload
+                                    : defaultWsPayload();
+                            return createProxyTunnel(s, fSshHost, fSshPort, fProxy, pl);
+                        }
+                        String pl = (fPayload != null && !fPayload.isEmpty())
+                                ? fPayload
+                                : defaultWsPayload();
+                        return createDirectPayload(s, h, p, pl);
+
+                    default:
+                        s.connect(new InetSocketAddress(h, p), 20_000);
+                        break;
                 }
 
                 try {
-                    if (fProxy != null && !fProxy.isEmpty()) {
-                        return createProxyTunnel(s, fSshHost, fSshPort, fProxy, fPayload);
-                    } else if (fPayload != null && !fPayload.isEmpty()) {
-                        return createDirectPayload(s, h, p, fPayload);
-                    } else {
-                        s.connect(new InetSocketAddress(h, p), 20_000);
-                        // ยืนยัน keep-alive อีกครั้งหลัง connect
-                        try {
-                            s.setKeepAlive(true);
-                            s.setTcpNoDelay(true);
-                            s.setSoTimeout(0);
-                        } catch (Exception ignored) {}
-                        return s;
-                    }
-                } catch (IOException e) {
-                    try { s.close(); } catch (IOException ignored) {}
-                    throw e;
-                }
+                    s.setKeepAlive(true);
+                    s.setTcpNoDelay(true);
+                } catch (Exception ignored) {}
+                return s;
             }
 
             @Override
@@ -111,19 +158,63 @@ public class SshTunnel {
             }
         });
 
-        // ⭐ SSH application-level keep-alive (สำคัญมากบนมือถือ)
         session.setServerAliveInterval(SERVER_ALIVE_INTERVAL_MS);
         session.setServerAliveCountMax(SERVER_ALIVE_COUNT_MAX);
 
         VpnLogger.i(TAG, "Connecting SSH to " + host + ":" + port
-                + " (alive=" + SERVER_ALIVE_INTERVAL_MS + "ms x" + SERVER_ALIVE_COUNT_MAX + ")");
+                + " (alive=" + SERVER_ALIVE_INTERVAL_MS + "ms x"
+                + SERVER_ALIVE_COUNT_MAX + ")");
         session.connect(25_000);
         VpnLogger.i(TAG, "SSH connected successfully");
     }
 
-    // ============================================================
-    // ⭐ Proxy Tunnel — ส่ง 2 parts + อ่าน response ครบ
-    // ============================================================
+    private static String defaultWsPayload() {
+        return "GET / HTTP/1.1[crlf]"
+                + "Host: [host][crlf]"
+                + "Upgrade: websocket[crlf]"
+                + "Connection: Upgrade[crlf]"
+                + "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==[crlf]"
+                + "Sec-WebSocket-Version: 13[crlf]"
+                + "User-Agent: [ua][crlf][crlf]";
+    }
+
+    /**
+     * TCP → TLS handshake (SNI) → คืน SSLSocket ให้ JSch ใช้ต่อ
+     */
+    private static Socket createSslTunnel(Socket plain, String host, int port,
+                                          String sni,
+                                          SocketProtector protector) throws IOException {
+        VpnLogger.i(TAG, "SSL/TLS connect to " + host + ":" + port + " SNI=" + sni);
+        plain.connect(new InetSocketAddress(host, port), 20_000);
+        plain.setKeepAlive(true);
+        plain.setTcpNoDelay(true);
+
+        try {
+            SSLContext ctx = SSLContext.getInstance("TLS");
+            ctx.init(null, null, null);
+            SSLSocketFactory factory = ctx.getSocketFactory();
+            SSLSocket ssl = (SSLSocket) factory.createSocket(plain, sni, port, true);
+            try {
+                SSLParameters params = ssl.getSSLParameters();
+                params.setServerNames(java.util.Collections.singletonList(new SNIHostName(sni)));
+                ssl.setSSLParameters(params);
+            } catch (Exception e) {
+                VpnLogger.w(TAG, "SNI set failed: " + e.getMessage());
+            }
+            ssl.setUseClientMode(true);
+            ssl.startHandshake();
+            VpnLogger.i(TAG, "TLS handshake OK");
+            try {
+                ssl.setKeepAlive(true);
+                ssl.setTcpNoDelay(true);
+            } catch (Exception ignored) {}
+            return ssl;
+        } catch (Exception e) {
+            try { plain.close(); } catch (Exception ignored) {}
+            throw new IOException("SSL/TLS failed: " + e.getMessage(), e);
+        }
+    }
+
     private static Socket createProxyTunnel(Socket s, String sshHost, int sshPort,
                                             String httpProxy, String payload)
             throws IOException {

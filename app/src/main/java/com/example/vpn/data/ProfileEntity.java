@@ -28,6 +28,9 @@ public class ProfileEntity {
     public String httpProxy;      // ⭐ ใหม่
     public String payload;
     public String sni;
+
+    /** ConnectionMode.name() e.g. HTTP_PROXY_PAYLOAD */
+    public String connectionMode;
     public String dns1;
     public String dns2;
 
@@ -60,6 +63,7 @@ public class ProfileEntity {
         e.httpProxy = p.httpProxy;      // ⭐ ใหม่
         e.payload = p.payload;
         e.sni = p.sni;
+        e.connectionMode = p.connectionMode != null ? p.connectionMode : "DIRECT";
         e.dns1 = p.dns1;
         e.dns2 = p.dns2;
 
@@ -92,6 +96,8 @@ public class ProfileEntity {
         p.httpProxy = httpProxy != null ? httpProxy : "";   // ⭐ ใหม่
         p.payload = payload;
         p.sni = sni;
+        p.connectionMode = (connectionMode != null && !connectionMode.isEmpty())
+                ? connectionMode : "";
         p.dns1 = dns1;
         p.dns2 = dns2;
 

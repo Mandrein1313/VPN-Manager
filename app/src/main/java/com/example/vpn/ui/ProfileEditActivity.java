@@ -21,6 +21,7 @@ import com.example.vpn.MainActivity;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
+import com.example.vpn.model.ConnectionMode;
 import com.example.vpn.model.Protocol;
 import com.example.vpn.util.StyledToast;
 import com.example.vpn.util.VpnPrefs;
@@ -48,8 +49,9 @@ public class ProfileEditActivity extends AppCompatActivity {
             edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2;
     private TextInputEditText edtV2rayUuid, edtV2rayPath, edtV2rayHost,
             edtV2rayServiceName, edtV2rayFlow;
-    private MaterialAutoCompleteTextView ddProtocol, ddV2rayType, ddV2rayNetwork;
+    private MaterialAutoCompleteTextView ddProtocol, ddConnectionMode, ddV2rayType, ddV2rayNetwork;
     private LinearLayout groupCredentials, groupSsh, groupV2Ray;
+    private View tilHttpProxy, tilPayload, tilSni;
     private MaterialSwitch switchV2rayTls;
     private MaterialButton btnSave;
 
@@ -93,6 +95,11 @@ public class ProfileEditActivity extends AppCompatActivity {
         ddProtocol = findViewById(R.id.ddProtocol);
         groupCredentials = findViewById(R.id.groupCredentials);
         groupSsh = findViewById(R.id.groupSsh);
+        ddConnectionMode = findViewById(R.id.ddConnectionMode);
+        tilHttpProxy = findViewById(R.id.tilHttpProxy);
+        tilPayload = findViewById(R.id.tilPayload);
+        tilSni = findViewById(R.id.tilSni);
+        setupConnectionModeDropdown();
         btnSave = findViewById(R.id.btnSave);
 
         disablePasswordAutofill();
@@ -215,6 +222,11 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtHttpProxy.setText(p.httpProxy);
         edtPayload.setText(p.payload);
         edtSni.setText(p.sni);
+        ConnectionMode cm = p.getConnectionMode();
+        if (ddConnectionMode != null) {
+            ddConnectionMode.setText(cm.label, false);
+            applyConnectionModeUi(cm);
+        }
         edtDns1.setText(p.dns1);
         edtDns2.setText(p.dns2);
 
@@ -367,6 +379,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     p.httpProxy = text(edtHttpProxy);
     p.payload = text(edtPayload);
     p.sni = text(edtSni);
+    p.connectionMode = selectedConnectionMode().name();
     p.dns1 = text(edtDns1);
     p.dns2 = text(edtDns2);
 

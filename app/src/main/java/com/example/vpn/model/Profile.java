@@ -17,22 +17,38 @@ public class Profile {
     public String dns1 = "8.8.8.8";
     public String dns2 = "8.8.4.4";
 
-    // ⭐ V2Ray fields
-    public String v2rayType = "vless";     // vless, vmess, trojan, ss
+    /** โหมดการเชื่อมต่อ SSH — ดู ConnectionMode */
+    public String connectionMode = ConnectionMode.DIRECT.name();
+
+    // V2Ray fields
+    public String v2rayType = "vless";
     public String v2rayUuid = "";
-    public String v2rayNetwork = "tcp";    // tcp, ws, grpc, http
+    public String v2rayNetwork = "tcp";
     public String v2rayPath = "/";
     public String v2rayHost = "";
     public String v2rayServiceName = "";
     public boolean v2rayTls = false;
     public String v2rayFlow = "";
-    public String v2rayMethod = "aes-256-gcm";  // สำหรับ SS
+    public String v2rayMethod = "aes-256-gcm";
 
     public Map<String, String> extras = new HashMap<>();
     public boolean isFavorite = false;
     public long lastUsedAt = 0L;
 
     public Profile() {}
+
+    public ConnectionMode getConnectionMode() {
+        if (connectionMode == null || connectionMode.isEmpty()) {
+            return ConnectionMode.infer(httpProxy, payload, sni);
+        }
+        ConnectionMode m = ConnectionMode.fromId(connectionMode);
+        // ถ้ายังเป็น DIRECT แต่มี proxy → เดาใหม่ (โปรไฟล์เก่า)
+        if (m == ConnectionMode.DIRECT) {
+            ConnectionMode inferred = ConnectionMode.infer(httpProxy, payload, sni);
+            if (inferred != ConnectionMode.DIRECT) return inferred;
+        }
+        return m;
+    }
 
     public Profile copy() {
         Profile p = new Profile();
@@ -48,6 +64,7 @@ public class Profile {
         p.sni = sni;
         p.dns1 = dns1;
         p.dns2 = dns2;
+        p.connectionMode = connectionMode;
         p.v2rayType = v2rayType;
         p.v2rayUuid = v2rayUuid;
         p.v2rayNetwork = v2rayNetwork;

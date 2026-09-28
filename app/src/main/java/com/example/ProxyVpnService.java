@@ -437,6 +437,7 @@ public class ProxyVpnService extends VpnService
                     emptyToNull(profile.httpProxy),
                     emptyToNull(profile.payload),
                     emptyToNull(profile.sni),
+                    profile.getConnectionMode(),
                     socket -> protect(socket)
             );
 

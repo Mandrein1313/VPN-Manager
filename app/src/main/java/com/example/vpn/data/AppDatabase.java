@@ -5,7 +5,7 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-@Database(entities = {ProfileEntity.class}, version = 3, exportSchema = false)   // ⭐ เพิ่มเวอร์ชันเป็น 3 รองรับ V2Ray
+@Database(entities = {ProfileEntity.class}, version = 4, exportSchema = false)   // ⭐ version 4 — connectionMode
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract ProfileDao profileDao();
