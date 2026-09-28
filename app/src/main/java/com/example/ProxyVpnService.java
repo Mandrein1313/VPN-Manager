@@ -1022,6 +1022,26 @@ public class ProxyVpnService extends VpnService
         super.onRevoke();
     }
 
+    private static void addHostRoute(Builder builder, String hostOrIp) {
+        if (hostOrIp == null || hostOrIp.trim().isEmpty()) return;
+        String v = hostOrIp.trim();
+        String[] parts = v.split("\.");
+        if (parts.length != 4) return;
+        for (String part : parts) {
+            try {
+                int n = Integer.parseInt(part);
+                if (n < 0 || n > 255) return;
+            } catch (NumberFormatException e) {
+                return;
+            }
+        }
+        try {
+            builder.addRoute(v, 32);
+        } catch (Exception e) {
+            VpnLogger.w(TAG, "addRoute DNS " + v + ": " + e.getMessage());
+        }
+    }
+
     private static void addDnsIfValid(Builder builder, String dns) {
         if (dns == null || dns.trim().isEmpty()) return;
         String value = dns.trim();

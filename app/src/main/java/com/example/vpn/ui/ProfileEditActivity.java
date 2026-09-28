@@ -274,6 +274,36 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
 
 
+
+    private void setupAuthMethodDropdown() {
+        if (ddAuthMethod == null) return;
+        String[] labels = new String[]{"Password", "Private Key"};
+        ddAuthMethod.setAdapter(new ArrayAdapter<>(
+                this, android.R.layout.simple_dropdown_item_1line, labels));
+        ddAuthMethod.setText("Password", false);
+        ddAuthMethod.setOnItemClickListener((parent, view, position, id) ->
+                applyAuthMethodUi(position == 1));
+        applyAuthMethodUi(false);
+    }
+
+    private void applyAuthMethodUi(boolean useKey) {
+        if (tilPrivateKey != null) {
+            tilPrivateKey.setVisibility(useKey ? View.VISIBLE : View.GONE);
+        }
+        if (tilKeyPassphrase != null) {
+            tilKeyPassphrase.setVisibility(useKey ? View.VISIBLE : View.GONE);
+        }
+        if (edtPass != null) {
+            edtPass.setEnabled(true);
+        }
+    }
+
+    private boolean isPrivateKeyAuth() {
+        if (ddAuthMethod == null) return false;
+        String t = ddAuthMethod.getText().toString();
+        return t != null && t.toLowerCase().contains("key");
+    }
+
     private void setupConnectionModeDropdown() {
         if (ddConnectionMode == null) return;
         String[] labels = ConnectionMode.labels();
