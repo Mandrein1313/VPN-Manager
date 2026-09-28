@@ -76,61 +76,25 @@ jobs:
         
         find ../app/src/main/jniLibs -name "*.so" -exec ls -lh {} \;
 
-    # ⭐ ดาวน์โหลด AndroidLibXrayLite AAR (libv2ray.aar)
-    # แก้: API rate-limit / parse พลาด → ใช้ python + fallback URL ตรง
+    # Download AndroidLibXrayLite AAR
     - name: Download AndroidLibXrayLite AAR
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -e
         mkdir -p app/libs
 
-        FALLBACK_URL="https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.9.9/libv2ray.aar"
+        # Pin ชัดเจน — ไม่พึ่ง GitHub API (กัน rate-limit + YAML แตก)
+        AAR_URL="https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.9.9/libv2ray.aar"
 
-        echo "===== Getting latest release ====="
-        AUTH_HDR=()
-        if [ -n "$GH_TOKEN" ]; then
-          AUTH_HDR=(-H "Authorization: Bearer $GH_TOKEN")
-        fi
-        LATEST_JSON=$(curl -sL "${AUTH_HDR[@]}" \
-          -H "Accept: application/vnd.github+json" \
-          "https://api.github.com/repos/2dust/AndroidLibXrayLite/releases/latest" || true)
-
-        AAR_URL=$(printf '%s' "$LATEST_JSON" | python3 -c '
-import json, sys
-try:
-    d = json.load(sys.stdin)
-    print("Latest tag:", d.get("tag_name", ""), file=sys.stderr)
-    for a in d.get("assets") or []:
-        name = (a.get("name") or "")
-        if name == "libv2ray.aar":
-            print(a.get("browser_download_url", ""))
-            break
-except Exception as e:
-    print("API parse failed:", e, file=sys.stderr)
-' || true)
-
-        if [ -z "$AAR_URL" ]; then
-          echo "API ไม่พบ libv2ray.aar — ใช้ fallback"
-          AAR_URL="$FALLBACK_URL"
-        fi
-
-        echo "AAR URL: $AAR_URL"
-        echo "===== Downloading ====="
+        echo "Downloading: $AAR_URL"
         curl -fSL -o app/libs/libv2ray.aar "$AAR_URL"
 
         SIZE=$(stat -c%s app/libs/libv2ray.aar)
+        echo "Size: $SIZE bytes"
         if [ "$SIZE" -lt 10000 ]; then
-          echo "ไฟล์เล็กเกินไป ($SIZE bytes) ลอง fallback อีกครั้ง"
-          curl -fSL -o app/libs/libv2ray.aar "$FALLBACK_URL"
-          SIZE=$(stat -c%s app/libs/libv2ray.aar)
-        fi
-        if [ "$SIZE" -lt 10000 ]; then
-          echo "Cannot download libv2ray.aar"
+          echo "Download failed or file too small"
           exit 1
         fi
 
-        echo "Downloaded libv2ray.aar ($SIZE bytes)"
         ls -lh app/libs/
         unzip -l app/libs/libv2ray.aar | head -30
 
