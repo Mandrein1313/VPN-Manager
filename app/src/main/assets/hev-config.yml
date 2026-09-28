@@ -6,14 +6,14 @@ tunnel:
 socks5:
   port: 1080
   address: 127.0.0.1
-  udp: 'tcp'
+  # UDP ผ่าน TCP ไป SOCKS5 → แอปจะใช้ UDP ASSOCIATE แล้วส่งต่อ udpgw
+  udp: 'udp'
 
 misc:
   log-file: stderr
   log-level: warn
   task-stack-size: 65536
   connect-timeout: 15000
-  # ⭐ เพิ่มเป็น 5 นาที — ลดการตัด connection ตอน idle (เดิม 120000 = 2 นาที)
   read-write-timeout: 300000
   tcp-buffer-size: 131072
   udp-recv-buffer-size: 65536

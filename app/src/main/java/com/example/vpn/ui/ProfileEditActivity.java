@@ -46,7 +46,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private TextInputLayout tilPass;
     private boolean passwordVisible = false;
     private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
-            edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2;
+            edtHttpProxy, edtPayload, edtSni, edtUdpgwPort, edtDns1, edtDns2;
     private TextInputEditText edtV2rayUuid, edtV2rayPath, edtV2rayHost,
             edtV2rayServiceName, edtV2rayFlow;
     private MaterialAutoCompleteTextView ddProtocol, ddConnectionMode, ddV2rayType, ddV2rayNetwork;
@@ -90,6 +90,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtHttpProxy = findViewById(R.id.edtHttpProxy);
         edtPayload = findViewById(R.id.edtPayload);
         edtSni = findViewById(R.id.edtSni);
+        edtUdpgwPort = findViewById(R.id.edtUdpgwPort);
         edtDns1 = findViewById(R.id.edtDns1);
         edtDns2 = findViewById(R.id.edtDns2);
         ddProtocol = findViewById(R.id.ddProtocol);
@@ -227,6 +228,9 @@ public class ProfileEditActivity extends AppCompatActivity {
             ddConnectionMode.setText(cm.label, false);
             applyConnectionModeUi(cm);
         }
+        if (edtUdpgwPort != null) {
+            edtUdpgwPort.setText(p.udpgwPort > 0 ? String.valueOf(p.udpgwPort) : "7300");
+        }
         edtDns1.setText(p.dns1);
         edtDns2.setText(p.dns2);
 
@@ -346,7 +350,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private void disablePasswordAutofill() {
         View[] fields = new View[]{
                 edtUser, edtPass, edtHost, edtPort, edtName,
-                edtHttpProxy, edtPayload, edtSni, edtDns1, edtDns2
+                edtHttpProxy, edtPayload, edtSni, edtUdpgwPort, edtDns1, edtDns2
         };
         for (View v : fields) {
             if (v == null) continue;
@@ -426,6 +430,12 @@ public class ProfileEditActivity extends AppCompatActivity {
     p.payload = text(edtPayload);
     p.sni = text(edtSni);
     p.connectionMode = selectedConnectionMode().name();
+    try {
+        String ug = text(edtUdpgwPort);
+        p.udpgwPort = ug.isEmpty() ? 0 : Integer.parseInt(ug);
+    } catch (NumberFormatException e) {
+        p.udpgwPort = 7300;
+    }
     p.dns1 = text(edtDns1);
     p.dns2 = text(edtDns2);
 

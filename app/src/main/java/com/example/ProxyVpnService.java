@@ -427,7 +427,8 @@ public class ProxyVpnService extends VpnService
             StatusBus.post(StatusBus.State.CONNECTING_SSH,
                     "กำลังเชื่อมต่อ SSH: " + profile.host + ":" + profile.port);
             updateNotification("กำลังเชื่อมต่อ SSH...");
-            VpnLogger.i(TAG, "Connecting SSH to " + profile.host + ":" + profile.port);
+            VpnLogger.i(TAG, "Connecting SSH to " + profile.host + ":" + profile.port
+                    + " udpgw=" + profile.udpgwPort);
 
             sshTunnel = new SshTunnel(
                     profile.host,
@@ -451,7 +452,7 @@ public class ProxyVpnService extends VpnService
             VpnLogger.i(TAG, "Starting SOCKS5 server...");
             boolean shareWifi = prefs != null && prefs.isShareWifi();
             // shareWifi=true → bind 0.0.0.0 ให้เครื่องอื่นใน Hotspot/LAN ใช้ได้
-            socks5Server = new Socks5Server(sshTunnel, !shareWifi);
+            socks5Server = new Socks5Server(sshTunnel, !shareWifi, profile.udpgwPort);
             socks5Server.start();
 
             String socksBind = shareWifi ? "0.0.0.0 (แชร์ LAN/Hotspot)" : "127.0.0.1";

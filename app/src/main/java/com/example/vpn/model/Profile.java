@@ -17,6 +17,9 @@ public class Profile {
     public String dns1 = "8.8.8.8";
     public String dns2 = "8.8.4.4";
 
+    /** badvpn-udpgw port บน SSH server (0 = ปิด) */
+    public int udpgwPort = 7300;
+
     /** โหมดการเชื่อมต่อ SSH — ดู ConnectionMode */
     public String connectionMode = ConnectionMode.DIRECT.name();
 
@@ -64,6 +67,7 @@ public class Profile {
         p.sni = sni;
         p.dns1 = dns1;
         p.dns2 = dns2;
+        p.udpgwPort = udpgwPort;
         p.connectionMode = connectionMode;
         p.v2rayType = v2rayType;
         p.v2rayUuid = v2rayUuid;
