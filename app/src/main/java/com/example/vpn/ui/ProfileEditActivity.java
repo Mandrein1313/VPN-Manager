@@ -243,6 +243,52 @@ public class ProfileEditActivity extends AppCompatActivity {
         onProtocolChanged(p.protocol);
     }
 
+
+    private void setupConnectionModeDropdown() {
+        if (ddConnectionMode == null) return;
+        String[] labels = ConnectionMode.labels();
+        ddConnectionMode.setAdapter(new ArrayAdapter<>(
+                this, android.R.layout.simple_dropdown_item_1line, labels));
+        ddConnectionMode.setText(ConnectionMode.HTTP_PROXY_PAYLOAD.label, false);
+        ddConnectionMode.setOnItemClickListener((parent, view, position, id) -> {
+            if (position >= 0 && position < ConnectionMode.values().length) {
+                applyConnectionModeUi(ConnectionMode.values()[position]);
+            }
+        });
+        applyConnectionModeUi(ConnectionMode.HTTP_PROXY_PAYLOAD);
+    }
+
+    private void applyConnectionModeUi(ConnectionMode mode) {
+        if (mode == null) mode = ConnectionMode.DIRECT;
+        int visProxy = View.GONE;
+        int visPayload = View.GONE;
+        int visSni = View.GONE;
+        switch (mode) {
+            case DIRECT:
+                break;
+            case HTTP_PROXY_PAYLOAD:
+                visProxy = View.VISIBLE;
+                visPayload = View.VISIBLE;
+                break;
+            case SSL_TLS:
+                visSni = View.VISIBLE;
+                break;
+            case WEBSOCKET:
+                visProxy = View.VISIBLE;
+                visPayload = View.VISIBLE;
+                visSni = View.VISIBLE;
+                break;
+        }
+        if (tilHttpProxy != null) tilHttpProxy.setVisibility(visProxy);
+        if (tilPayload != null) tilPayload.setVisibility(visPayload);
+        if (tilSni != null) tilSni.setVisibility(visSni);
+    }
+
+    private ConnectionMode selectedConnectionMode() {
+        if (ddConnectionMode == null) return ConnectionMode.DIRECT;
+        return ConnectionMode.fromLabel(ddConnectionMode.getText().toString());
+    }
+
     private void onProtocolChanged(Protocol proto) {
         if (existing == null) {
             String currentPort = text(edtPort);
