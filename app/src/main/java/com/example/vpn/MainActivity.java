@@ -769,12 +769,23 @@ public class MainActivity extends AppCompatActivity
         }
 
         final Profile profile = result.profile;
-        String msg = "ชื่อ: " + profile.name + "\n"
+        String proto = profile.protocol != null ? profile.protocol.displayName : "?";
+        String msg = "โปรโตคอล: " + proto + "\n"
+                + "ชื่อ: " + profile.name + "\n"
                 + "Host: " + profile.host + "\n"
-                + "Port: " + profile.port + "\n"
-                + "User: " + (profile.user.isEmpty() ? "(ว่าง)" : profile.user) + "\n"
-                + "Pass: " + (profile.pass.isEmpty() ? "(ว่าง)" : "••••••") + "\n\n"
-                + "ต้องการบันทึกเป็นโปรไฟล์ใหม่หรือไม่?";
+                + "Port: " + profile.port + "\n";
+        if (profile.protocol == com.example.vpn.model.Protocol.V2RAY
+                || profile.protocol == com.example.vpn.model.Protocol.TROJAN
+                || profile.protocol == com.example.vpn.model.Protocol.SHADOWSOCKS) {
+            msg += "Type: " + (profile.v2rayType != null ? profile.v2rayType : "") + "\n"
+                    + "Network: " + (profile.v2rayNetwork != null ? profile.v2rayNetwork : "") + "\n"
+                    + "TLS: " + (profile.v2rayTls ? "ใช่" : "ไม่") + "\n";
+        } else {
+            String u = profile.user == null || profile.user.isEmpty() ? "(ว่าง)" : profile.user;
+            String pw = profile.pass == null || profile.pass.isEmpty() ? "(ว่าง)" : "••••••";
+            msg += "User: " + u + "\n" + "Pass: " + pw + "\n";
+        }
+        msg += "\nต้องการบันทึกเป็นโปรไฟล์ใหม่หรือไม่?";
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("ยืนยันการ Import")

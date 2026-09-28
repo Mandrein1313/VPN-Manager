@@ -3,6 +3,7 @@ package com.example.vpn.util;
 import android.net.Uri;
 
 import com.example.vpn.model.Profile;
+import com.example.vpn.model.V2RayConfig;
 import com.example.vpn.model.Protocol;
 
 import java.util.regex.Matcher;
@@ -35,6 +36,20 @@ public class ConfigParser {
         }
 
         String text = input.trim();
+        // ตัดช่องว่าง / หลายบรรทัด — ใช้บรรทัดแรกที่เป็นลิงก์
+        String firstLink = firstShareLink(text);
+        if (firstLink != null) {
+            text = firstLink;
+        }
+
+        // ⭐ V2Ray / v2rayNG share links
+        String lower = text.toLowerCase();
+        if (lower.startsWith("vless://")
+                || lower.startsWith("vmess://")
+                || lower.startsWith("trojan://")
+                || lower.startsWith("ss://")) {
+            return parseV2RayShare(text);
+        }
 
         // ลองแบบ ssh:// URI ก่อน
         if (text.startsWith("ssh://")) {
@@ -58,7 +73,7 @@ public class ConfigParser {
             return parseSimple(text);
         }
 
-        return Result.fail("รูปแบบไม่ถูกต้อง — รองรับ ssh://, user:pass@host:port, host:port@user:pass");
+        return Result.fail("รูปแบบไม่ถูกต้อง — รองรับ vless/vmess/trojan/ss://, ssh://, user:pass@host:port");
     }
 
     // ============================================================
@@ -207,4 +222,44 @@ public class ConfigParser {
             return Result.fail("Parse ไม่สำเร็จ: " + e.getMessage());
         }
     }
+
+    private static String firstShareLink(String text) {
+        if (text == null) return null;
+        String[] lines = text.split("\\r?\\n");
+        for (String line : lines) {
+            String t = line.trim();
+            if (t.isEmpty()) continue;
+            String l = t.toLowerCase();
+            if (l.startsWith("vless://") || l.startsWith("vmess://")
+                    || l.startsWith("trojan://") || l.startsWith("ss://")
+                    || l.startsWith("ssh://")) {
+                return t;
+            }
+        }
+        // ทั้งก้อนเป็นลิงก์เดียว
+        String t = text.trim();
+        String l = t.toLowerCase();
+        if (l.startsWith("vless://") || l.startsWith("vmess://")
+                || l.startsWith("trojan://") || l.startsWith("ss://")) {
+            return t;
+        }
+        return null;
+    }
+
+    private static Result parseV2RayShare(String text) {
+        try {
+            V2RayConfig cfg = V2RayConfig.parse(text);
+            if (cfg == null) {
+                return Result.fail("แปลงลิงก์ V2Ray ไม่สำเร็จ — ตรวจรูปแบบ vmess/vless/trojan/ss");
+            }
+            Profile p = cfg.toProfile();
+            if (p.host == null || p.host.isEmpty()) {
+                return Result.fail("ไม่พบ address ในลิงก์");
+            }
+            return Result.ok(p);
+        } catch (Exception e) {
+            return Result.fail("Parse V2Ray ไม่สำเร็จ: " + e.getMessage());
+        }
+    }
+
 }

@@ -240,4 +240,42 @@ public class V2RayConfig {
             return s;
         }
     }
+
+    /** แปลงเป็น Profile ของแอป */
+    public Profile toProfile() {
+        Profile p = new Profile();
+        p.name = (name != null && !name.isEmpty()) ? name : (type + "-" + address);
+        p.host = address != null ? address : "";
+        p.port = port > 0 ? port : 443;
+        p.v2rayType = type != null ? type : "vless";
+        p.v2rayUuid = uuid != null ? uuid : "";
+        p.v2rayNetwork = network != null ? network : "tcp";
+        p.v2rayPath = path != null ? path : "/";
+        p.v2rayHost = host != null ? host : "";
+        p.v2rayServiceName = serviceName != null ? serviceName : "";
+        p.v2rayTls = tls;
+        p.v2rayFlow = flow != null ? flow : "";
+        p.v2rayMethod = method != null ? method : "aes-256-gcm";
+        p.sni = sni != null ? sni : "";
+
+        if ("trojan".equalsIgnoreCase(type)) {
+            p.protocol = Protocol.TROJAN;
+            p.pass = password != null ? password : "";
+            if (p.v2rayUuid.isEmpty() && password != null) {
+                p.v2rayUuid = password;
+            }
+        } else if ("ss".equalsIgnoreCase(type) || "shadowsocks".equalsIgnoreCase(type)) {
+            p.protocol = Protocol.SHADOWSOCKS;
+            p.pass = password != null ? password : "";
+            if (p.v2rayUuid.isEmpty() && password != null) {
+                p.v2rayUuid = password;
+            }
+        } else {
+            p.protocol = Protocol.V2RAY;
+            // VMess/VLESS ใช้ uuid เป็น user แสดงผล
+            p.user = uuid != null ? uuid : "";
+        }
+        return p;
+    }
+
 }
