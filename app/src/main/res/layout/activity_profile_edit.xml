@@ -229,7 +229,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:hint="HTTP Proxy (host:port)">
+                    android:hint="HTTP Proxy (host หรือ host:port)">
 
                     <com.google.android.material.textfield.TextInputEditText
                     android:importantForAutofill="no"
@@ -244,15 +244,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:hint="Proxy Port">
+                    android:hint="Proxy Port (ว่าง = จาก host:port)"
+                    app:helperText="เช่น 80 หรือ 8080 — ว่างได้ถ้าใส่ host:port ด้านบน"
+                    app:helperTextEnabled="true">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edtProxyPort"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:importantForAutofill="no"
-                        android:inputType="number"
-                        android:hint="ว่าง = ใช้จาก host:port" />
+                        android:inputType="number" />
                 </com.google.android.material.textfield.TextInputLayout>
 
 
@@ -294,15 +295,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:hint="SSL Port">
+                    android:hint="SSL Port (ว่าง = พอร์ต SSH)"
+                    app:helperText="ใช้เมื่อ Connection Mode = SSH over SSL/TLS"
+                    app:helperTextEnabled="true">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edtSslPort"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:importantForAutofill="no"
-                        android:inputType="number"
-                        android:hint="ว่าง = ใช้พอร์ต SSH" />
+                        android:inputType="number" />
                 </com.google.android.material.textfield.TextInputLayout>
 
 
