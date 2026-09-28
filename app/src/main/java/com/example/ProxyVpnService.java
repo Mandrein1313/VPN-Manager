@@ -1,5 +1,7 @@
 package com.example.vpn;
 
+import java.util.regex.Pattern;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -1025,7 +1027,7 @@ public class ProxyVpnService extends VpnService
     private static void addHostRoute(Builder builder, String hostOrIp) {
         if (hostOrIp == null || hostOrIp.trim().isEmpty()) return;
         String v = hostOrIp.trim();
-        String[] parts = v.split("\.");
+        String[] parts = v.split(Pattern.quote("."));
         if (parts.length != 4) return;
         for (String part : parts) {
             try {
