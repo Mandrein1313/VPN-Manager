@@ -45,6 +45,8 @@ import com.example.vpn.ui.ProfileViewModelFactory;
 import com.example.vpn.ui.QrScanActivity;
 import com.example.vpn.ui.QrShareActivity;
 import com.example.vpn.util.ConfigParser;
+import com.example.vpn.util.SubscriptionFetcher;
+import com.example.vpn.util.SubscriptionPrefs;
 import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.ProfileExporter;
 import com.example.vpn.util.ProfileImporter;
@@ -355,8 +357,11 @@ public class MainActivity extends AppCompatActivity
         String[] options = {
                 "📤 ส่งออกทั้งหมด",
                 "📥 นำเข้าจาก Clipboard",
-                "📷 สแกน QR Code",     // ⭐ ตัวเลือกสแกน QR
-                "🧹 ลบโปรไฟล์ชื่อซ้ำ",  // ⭐ ตัวเลือกลบโปรไฟล์ชื่อซ้ำ
+                "📷 สแกน QR Code",
+                "🔗 เพิ่ม Subscription",
+                "🔄 อัปเดต Subscription ทั้งหมด",
+                "📋 จัดการ Subscription",
+                "🧹 ลบโปรไฟล์ชื่อซ้ำ",
                 "🎨 เปลี่ยนธีม",
                 "🐛 Crash Log",
                 "ℹ️ เกี่ยวกับ"
@@ -369,10 +374,13 @@ public class MainActivity extends AppCompatActivity
                         case 0: exportAllProfiles(); break;
                         case 1: importFromClipboardDialog(); break;
                         case 2: startQrScan(); break;
-                        case 3: removeDuplicateNames(); break; // ⭐ เรียกใช้งานฟังก์ชันลบชื่อซ้ำ
-                        case 4: showThemeDialog(); break;
-                        case 5: startActivity(new Intent(this, CrashLogActivity.class)); break;
-                        case 6: showAboutDialog(); break;
+                        case 3: showAddSubscriptionDialog(); break;
+                        case 4: updateAllSubscriptions(); break;
+                        case 5: showManageSubscriptions(); break;
+                        case 6: removeDuplicateNames(); break;
+                        case 7: showThemeDialog(); break;
+                        case 8: startActivity(new Intent(this, CrashLogActivity.class)); break;
+                        case 9: showAboutDialog(); break;
                     }
                 })
                 .show();

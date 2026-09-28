@@ -106,6 +106,21 @@ public class ProfileRepository {
         });
     }
 
+
+    /** โหลดโปรไฟล์ทั้งหมด (callback บน main) — ใช้กับ Subscription */
+    public void getAllSync(Callback<List<Profile>> cb) {
+        io.execute(() -> {
+            List<ProfileEntity> entities = dao.getAllSync();
+            List<Profile> out = new ArrayList<>();
+            if (entities != null) {
+                for (ProfileEntity e : entities) {
+                    out.add(e.toDomain());
+                }
+            }
+            main.post(() -> cb.onResult(out));
+        });
+    }
+
     /** ลบโปรไฟล์ */
     public void delete(Profile p) {
         io.execute(() -> dao.delete(ProfileEntity.fromDomain(p)));
