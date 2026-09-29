@@ -55,7 +55,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private LinearLayout groupCredentials, groupSsh, groupV2Ray;
     private View tilHttpProxy, tilProxyPort, tilPayload, tilSni, tilSslPort,
             tilPrivateKey, tilKeyPassphrase, tilPassField, tilAuthMethod;
-    private MaterialSwitch switchV2rayTls;
+    private MaterialSwitch switchV2rayTls, switchV2rayFragment;
     private MaterialButton btnSave;
 
     // ⭐ Options switches
@@ -130,6 +130,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         ddV2rayNetwork = findViewById(R.id.ddV2rayNetwork);
         groupV2Ray = findViewById(R.id.groupV2Ray);
         switchV2rayTls = findViewById(R.id.switchV2rayTls);
+        switchV2rayFragment = findViewById(R.id.switchV2rayFragment);
 
         if (ddV2rayType != null) {
             String[] v2Types = {"vless", "vmess", "trojan", "ss"};
@@ -270,6 +271,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (ddV2rayType != null) ddV2rayType.setText(p.v2rayType, false);
         if (ddV2rayNetwork != null) ddV2rayNetwork.setText(p.v2rayNetwork, false);
         if (switchV2rayTls != null) switchV2rayTls.setChecked(p.v2rayTls);
+        if (switchV2rayFragment != null) switchV2rayFragment.setChecked(p.v2rayFragment);
 
         onProtocolChanged(p.protocol);
     }
@@ -517,7 +519,26 @@ public class ProfileEditActivity extends AppCompatActivity {
     p.dns1 = text(edtDns1);
     p.dns2 = text(edtDns2);
 
-    // ... ถ้ามี field V2Ray ให้อ่านเหมือนเดิม ...
+    // ⭐ V2Ray fields
+    if (ddV2rayType != null) {
+        String t = ddV2rayType.getText() != null ? ddV2rayType.getText().toString().trim() : "";
+        if (!t.isEmpty()) p.v2rayType = t;
+    }
+    p.v2rayUuid = text(edtV2rayUuid);
+    if (ddV2rayNetwork != null) {
+        String n = ddV2rayNetwork.getText() != null ? ddV2rayNetwork.getText().toString().trim() : "";
+        if (!n.isEmpty()) p.v2rayNetwork = n;
+    }
+    p.v2rayPath = text(edtV2rayPath);
+    p.v2rayHost = text(edtV2rayHost);
+    p.v2rayServiceName = text(edtV2rayServiceName);
+    p.v2rayFlow = text(edtV2rayFlow);
+    p.v2rayTls = switchV2rayTls != null && switchV2rayTls.isChecked();
+    p.v2rayFragment = switchV2rayFragment != null && switchV2rayFragment.isChecked();
+    // Fragment มักใช้คู่ TLS
+    if (p.v2rayFragment && !p.v2rayTls) {
+        p.v2rayTls = true;
+    }
 
     long excludeId = (existing != null) ? existing.id : 0L;
 

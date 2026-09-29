@@ -133,8 +133,23 @@ public class V2RayEngine {
         out.put("tag", "proxy");
         out.put("protocol", config.type);
         out.put("settings", buildOutboundSettings());
-        out.put("streamSettings", buildStreamSettings());
+        JSONObject stream = buildStreamSettings();
+        // Fragment: ให้ proxy ออกผ่าน outbound "fragment"
+        if (config.fragment) {
+            JSONObject sockopt = stream.optJSONObject("sockopt");
+            if (sockopt == null) sockopt = new JSONObject();
+            sockopt.put("dialerProxy", "fragment");
+            sockopt.put("tcpNoDelay", true);
+            stream.put("sockopt", sockopt);
+            VpnLogger.i(TAG, "Fragment enabled → dialerProxy=fragment");
+        }
+        out.put("streamSettings", stream);
         outbounds.put(out);
+
+        // Fragment outbound (ต้องอยู่หลัง proxy ใน list ก็ได้ แต่ tag ต้องตรง)
+        if (config.fragment) {
+            outbounds.put(buildFragmentOutbound());
+        }
 
         // Direct
         JSONObject direct = new JSONObject();
@@ -219,10 +234,22 @@ public class V2RayEngine {
 
     private JSONObject buildStreamSettings() throws Exception {
         JSONObject stream = new JSONObject();
-        stream.put("network", config.network);
+        stream.put("network", config.network == null || config.network.isEmpty()
+                ? "tcp" : config.network);
+
+        // Xray ห้าม VLESS ไปโดเมนสาธารณะโดยไม่มี TLS
+        boolean useTls = config.tls;
+        if (config.fragment && !useTls) {
+            useTls = true;
+            VpnLogger.w(TAG, "Fragment เปิด → บังคับ TLS");
+        }
+        if (!useTls && isVlessFamily() && isPublicServer(config.address)) {
+            useTls = true;
+            VpnLogger.w(TAG, "Force TLS for VLESS public host: " + config.address);
+        }
 
         // Security (Xray ใหม่ไม่มี allowInsecure แล้ว)
-        if (config.tls) {
+        if (useTls) {
             stream.put("security", "tls");
             JSONObject tls = new JSONObject();
             // serverName = SNI (ว่าง → ใช้ host header หรือ address)

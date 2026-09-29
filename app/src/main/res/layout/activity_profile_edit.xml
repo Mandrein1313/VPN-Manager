@@ -556,6 +556,15 @@
                     android:text="เปิด TLS"
                     android:textColor="#DDDDDD"
                     android:textSize="14sp" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switchV2rayFragment"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Fragment (เลี่ยง DPI / โปรค่าย)"
+                    android:checked="false" />
+
             </LinearLayout>
 
             <!-- ===== Save button ===== -->

@@ -49,6 +49,7 @@ public class ProfileEntity {
     public String v2rayHost;
     public String v2rayServiceName;
     public boolean v2rayTls;
+    public boolean v2rayFragment;
     public String v2rayFlow;
     public String v2rayMethod;
 
@@ -88,6 +89,7 @@ public class ProfileEntity {
         e.v2rayHost = p.v2rayHost;
         e.v2rayServiceName = p.v2rayServiceName;
         e.v2rayTls = p.v2rayTls;
+        e.v2rayFragment = p.v2rayFragment;
         e.v2rayFlow = p.v2rayFlow;
         e.v2rayMethod = p.v2rayMethod;
 
@@ -128,6 +130,7 @@ public class ProfileEntity {
         p.v2rayHost = v2rayHost != null ? v2rayHost : "";
         p.v2rayServiceName = v2rayServiceName != null ? v2rayServiceName : "";
         p.v2rayTls = v2rayTls;
+        p.v2rayFragment = v2rayFragment;
         p.v2rayFlow = v2rayFlow != null ? v2rayFlow : "";
         p.v2rayMethod = v2rayMethod != null ? v2rayMethod : "aes-256-gcm";
 

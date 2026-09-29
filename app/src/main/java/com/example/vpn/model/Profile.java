@@ -46,6 +46,8 @@ public class Profile {
     public String v2rayHost = "";
     public String v2rayServiceName = "";
     public boolean v2rayTls = false;
+    /** Xray TLS fragment (เลี่ยง DPI) */
+    public boolean v2rayFragment = false;
     public String v2rayFlow = "";
     public String v2rayMethod = "aes-256-gcm";
 
@@ -130,6 +132,7 @@ public class Profile {
         p.v2rayHost = v2rayHost;
         p.v2rayServiceName = v2rayServiceName;
         p.v2rayTls = v2rayTls;
+        p.v2rayFragment = v2rayFragment;
         p.v2rayFlow = v2rayFlow;
         p.v2rayMethod = v2rayMethod;
         p.extras = new HashMap<>(extras);
