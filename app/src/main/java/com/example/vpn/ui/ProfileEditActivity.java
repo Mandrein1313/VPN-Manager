@@ -54,7 +54,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             ddV2rayType, ddV2rayNetwork;
     private LinearLayout groupCredentials, groupSsh, groupV2Ray;
     private View tilHttpProxy, tilProxyPort, tilPayload, tilSni, tilSslPort,
-            tilPrivateKey, tilKeyPassphrase, tilPassField;
+            tilPrivateKey, tilKeyPassphrase, tilPassField, tilAuthMethod;
     private MaterialSwitch switchV2rayTls;
     private MaterialButton btnSave;
 
@@ -96,6 +96,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtPrivateKey = findViewById(R.id.edtPrivateKey);
         edtKeyPassphrase = findViewById(R.id.edtKeyPassphrase);
         ddAuthMethod = findViewById(R.id.ddAuthMethod);
+        tilAuthMethod = findViewById(R.id.tilAuthMethod);
         tilProxyPort = findViewById(R.id.tilProxyPort);
         tilSslPort = findViewById(R.id.tilSslPort);
         tilPrivateKey = findViewById(R.id.tilPrivateKey);
@@ -352,21 +353,40 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
 
     private void onProtocolChanged(Protocol proto) {
-        if (existing == null) {
-            String currentPort = text(edtPort);
-            if (currentPort.isEmpty()) {
-                edtPort.setText(String.valueOf(proto.defaultPort));
-            }
-        }
-        boolean showCredentials = (proto == Protocol.SSH || proto == Protocol.TROJAN);
-        groupCredentials.setVisibility(showCredentials ? View.VISIBLE : View.GONE);
-        groupSsh.setVisibility(proto == Protocol.SSH ? View.VISIBLE : View.GONE);
+        boolean isSsh = (proto == Protocol.SSH);
+        boolean isV2Style = (proto == Protocol.V2RAY
+                || proto == Protocol.SHADOWSOCKS
+                || proto == Protocol.TROJAN);
 
-        // ⭐ V2Ray group
-        boolean showV2Ray = (proto == Protocol.V2RAY
-                || proto == Protocol.SHADOWSOCKS);
+        // พอร์ตเริ่มต้นตามโปรโตคอล (โปรไฟล์ใหม่ หรือสลับโหมดตอนสร้าง)
+        if (existing == null && edtPort != null) {
+            edtPort.setText(String.valueOf(proto.defaultPort));
+        }
+
+        // SSH: user/pass + SSH options
+        if (groupCredentials != null) {
+            groupCredentials.setVisibility(isSsh ? View.VISIBLE : View.GONE);
+        }
+        if (groupSsh != null) {
+            groupSsh.setVisibility(isSsh ? View.VISIBLE : View.GONE);
+        }
+        // SSH Auth / Private Key อยู่นอก group บางครั้ง — บังคับซ่อนเมื่อไม่ใช่ SSH
+        if (tilAuthMethod != null) {
+            tilAuthMethod.setVisibility(isSsh ? View.VISIBLE : View.GONE);
+        }
+        if (tilPrivateKey != null) {
+            tilPrivateKey.setVisibility(View.GONE); // เปิดเมื่อเลือก Private Key เท่านั้น
+        }
+        if (tilKeyPassphrase != null) {
+            tilKeyPassphrase.setVisibility(View.GONE);
+        }
+        if (isSsh) {
+            applyAuthMethodUi(isPrivateKeyAuth());
+        }
+
+        // V2Ray / SS / Trojan
         if (groupV2Ray != null) {
-            groupV2Ray.setVisibility(showV2Ray ? View.VISIBLE : View.GONE);
+            groupV2Ray.setVisibility(isV2Style ? View.VISIBLE : View.GONE);
         }
     }
 
