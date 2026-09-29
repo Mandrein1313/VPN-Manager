@@ -177,7 +177,7 @@ public class BackupActivity extends AppCompatActivity {
 
         Intent share = new Intent(Intent.ACTION_SEND);
         share.setType("text/plain");
-        share.putExtra(Intent.EXTRA_SUBJECT, "VPN Manager Backup");
+        share.putExtra(Intent.EXTRA_SUBJECT, "Tunnel Mate Backup");
         share.putExtra(Intent.EXTRA_TEXT, json);
         startActivity(Intent.createChooser(share, "แชร์ Backup"));
     }

@@ -145,7 +145,7 @@ public class ConnectionActivity extends AppCompatActivity
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
-        toolbar.setTitle("VPN Manager");
+        toolbar.setTitle("Tunnel Mate");
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
@@ -175,7 +175,7 @@ public class ConnectionActivity extends AppCompatActivity
                 if (list == null || list.isEmpty()) {
                     updateStatusText("[ NO PROFILE ]", 0xFF00E676);
                     updateConfigCard("Not Set", "---", "---");
-                    toolbar.setTitle("VPN Manager");
+                    toolbar.setTitle("Tunnel Mate");
                     return;
                 }
                 Profile p = null;
@@ -359,7 +359,7 @@ public class ConnectionActivity extends AppCompatActivity
             if (list == null || list.isEmpty()) {
                 updateStatusText("[ NO PROFILE ]", 0xFF00E676);
                 updateConfigCard("Not Set", "---", "---");
-                toolbar.setTitle("VPN Manager");
+                toolbar.setTitle("Tunnel Mate");
                 return;
             }
             Profile p = null;
@@ -433,8 +433,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 }
     private void showAboutDialog() {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("เกี่ยวกับ VPN Manager")
-                .setMessage("VPN Manager v1.0\n\n" +
+                .setTitle("เกี่ยวกับ Tunnel Mate")
+                .setMessage("Tunnel Mate v1.0\n\n" +
                         "แอป VPN ที่รองรับ SSH Tunnel\n" +
                         "และหลาย protocol\n\n" +
                         "สร้างด้วย ❤️ ในประเทศไทย")
@@ -658,7 +658,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         targetProfile = p;
         // ⭐ ไม่ใส่ชื่อโปรไฟล์บน toolbar — กันตัวอักษรหลุด (เช่น "h" จากชื่อ "hT")
         // ชื่อโปรไฟล์แสดงที่การ์ด ACTIVE CONFIGURATION อยู่แล้ว
-        toolbar.setTitle("VPN Manager");
+        toolbar.setTitle("Tunnel Mate");
 
         updateConfigCard(p.name, p.host, String.valueOf(p.port));
 

@@ -150,7 +150,7 @@ public class QrScanActivity extends AppCompatActivity {
                 .setTitle("🔒 ต้องการสิทธิ์ใช้กล้อง")
                 .setMessage("แอปต้องใช้กล้องเพื่อสแกน QR Code\n\n"
                         + "คุณสามารถเปิดได้ที่:\n"
-                        + "Settings → Apps → VPN Manager → Permissions → Camera")
+                        + "Settings → Apps → Tunnel Mate → Permissions → Camera")
                 .setPositiveButton("เปิด Settings", (d, w) -> {
                     try {
                         Intent intent = new Intent(

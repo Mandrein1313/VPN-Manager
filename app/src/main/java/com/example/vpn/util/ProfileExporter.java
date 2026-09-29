@@ -23,7 +23,7 @@ public class ProfileExporter {
         try {
             JSONObject root = new JSONObject();
             root.put("version", FORMAT_VERSION);
-            root.put("app", "VPN Manager");
+            root.put("app", "Tunnel Mate");
             root.put("exported_at", new SimpleDateFormat(
                     "yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(new Date()));
 
@@ -42,7 +42,7 @@ public class ProfileExporter {
         try {
             JSONObject root = new JSONObject();
             root.put("version", FORMAT_VERSION);
-            root.put("app", "VPN Manager");
+            root.put("app", "Tunnel Mate");
             root.put("exported_at", new SimpleDateFormat(
                     "yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(new Date()));
             JSONArray arr = new JSONArray();

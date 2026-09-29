@@ -27,7 +27,7 @@
                 android:background="#0D1117"
                 app:navigationIcon="@android:drawable/ic_menu_sort_by_size"
                 app:navigationIconTint="#FFFFFF"
-                app:title="VPN Manager"
+                app:title="Tunnel Mate"
                 app:titleTextColor="#FFFFFF" />
 
             <com.google.android.material.tabs.TabLayout

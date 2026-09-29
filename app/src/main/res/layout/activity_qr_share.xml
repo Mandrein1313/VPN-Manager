@@ -129,7 +129,7 @@
                 android:layout_marginTop="24dp"
                 android:gravity="center"
                 android:lineSpacingExtra="4dp"
-                android:text="💡 เพื่อนเปิดแอป VPN Manager → สแกน QR → ได้โปรไฟล์ทันที"
+                android:text="💡 เพื่อนเปิดแอป Tunnel Mate → สแกน QR → ได้โปรไฟล์ทันที"
                 android:textColor="#666666"
                 android:textSize="11sp" />
         </LinearLayout>

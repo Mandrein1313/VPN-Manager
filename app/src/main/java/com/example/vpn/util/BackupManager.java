@@ -43,7 +43,7 @@ public class BackupManager {
         try {
             JSONObject root = new JSONObject();
 
-            root.put("app", "VPN Manager");
+            root.put("app", "Tunnel Mate");
             root.put("version", FORMAT_VERSION);
             root.put("exported_at", new SimpleDateFormat(
                     "yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(new Date()));

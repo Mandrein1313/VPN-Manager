@@ -247,7 +247,7 @@ public class QrShareActivity extends AppCompatActivity {
                 values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
                 values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
                 values.put(MediaStore.Images.Media.RELATIVE_PATH,
-                        "Pictures/VPN Manager");
+                        "Pictures/Tunnel Mate");
 
                 uri = getContentResolver().insert(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
@@ -259,7 +259,7 @@ public class QrShareActivity extends AppCompatActivity {
                 File picturesDir = new File(
                         android.os.Environment.getExternalStoragePublicDirectory(
                                 android.os.Environment.DIRECTORY_PICTURES),
-                        "VPN Manager");
+                        "Tunnel Mate");
                 if (!picturesDir.exists()) picturesDir.mkdirs();
 
                 File qrFile = new File(picturesDir, fileName);
@@ -274,7 +274,7 @@ public class QrShareActivity extends AppCompatActivity {
             os.flush();
             os.close();
 
-            StyledToast.success(this, "✅ บันทึกแล้ว: Pictures/VPN Manager");
+            StyledToast.success(this, "✅ บันทึกแล้ว: Pictures/Tunnel Mate");
 
         } catch (Exception e) {
             StyledToast.error(this, "❌ บันทึกไม่สำเร็จ: " + e.getMessage());
@@ -304,7 +304,7 @@ public class QrShareActivity extends AppCompatActivity {
                     "VPN Profile: " + p.name + "\n\n"
                             + "Host: " + p.host + ":" + p.port + "\n"
                             + "Protocol: " + p.protocol.displayName + "\n\n"
-                            + "Payload (paste ใน VPN Manager):\n"
+                            + "Payload (paste ใน Tunnel Mate):\n"
                             + payload);
             startActivity(Intent.createChooser(share, "แชร์ข้อมูล"));
         } catch (Exception e) {

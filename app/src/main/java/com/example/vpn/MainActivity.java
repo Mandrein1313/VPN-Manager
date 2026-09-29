@@ -429,8 +429,8 @@ public class MainActivity extends AppCompatActivity
 
     private void showAboutDialog() {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("เกี่ยวกับ VPN Manager")
-                .setMessage("VPN Manager v1.0\n\n" +
+                .setTitle("เกี่ยวกับ Tunnel Mate")
+                .setMessage("Tunnel Mate v1.0\n\n" +
                         "แอป VPN ที่รองรับ SSH Tunnel\n" +
                         "สร้างด้วย ❤️ ในประเทศไทย")
                 .setPositiveButton("ตกลง", null)
@@ -1055,8 +1055,8 @@ public class MainActivity extends AppCompatActivity
             StyledToast.info(this, "เปลี่ยนธีมได้จากหน้าแรก");
         } else if (id == R.id.nav_about) {
             new MaterialAlertDialogBuilder(this)
-                    .setTitle("เกี่ยวกับ VPN Manager")
-                    .setMessage("VPN Manager v1.0")
+                    .setTitle("เกี่ยวกับ Tunnel Mate")
+                    .setMessage("Tunnel Mate v1.0")
                     .setPositiveButton("ตกลง", null)
                     .show();
         } else if (id == R.id.nav_exit) {

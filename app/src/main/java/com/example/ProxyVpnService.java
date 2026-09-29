@@ -1113,7 +1113,7 @@ public class ProxyVpnService extends VpnService
                 : android.R.drawable.checkbox_on_background;
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("VPN Manager")
+                .setContentTitle("Tunnel Mate")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_vpn)
                 .setContentIntent(pi)
