@@ -30,6 +30,12 @@ public class V2RayConfig {
     public String fingerprint = "chrome";
     public boolean allowInsecure = false;
 
+    /** Xray fragment (tlshello) */
+    public boolean fragment = false;
+    public String fragmentPackets = "tlshello";
+    public String fragmentLength = "100-200";
+    public String fragmentInterval = "10-20";
+
     public String flow = "";
     public String name = "";
 
@@ -254,6 +260,7 @@ public class V2RayConfig {
         p.v2rayHost = host != null ? host : "";
         p.v2rayServiceName = serviceName != null ? serviceName : "";
         p.v2rayTls = tls;
+        p.v2rayFragment = fragment;
         p.v2rayFlow = flow != null ? flow : "";
         p.v2rayMethod = method != null ? method : "aes-256-gcm";
         p.sni = sni != null ? sni : "";

@@ -373,4 +373,60 @@ public class V2RayEngine {
             return false;
         }
     }
+
+    private JSONObject buildFragmentOutbound() throws Exception {
+        JSONObject frag = new JSONObject();
+        frag.put("tag", "fragment");
+        frag.put("protocol", "freedom");
+
+        JSONObject settings = new JSONObject();
+        settings.put("domainStrategy", "AsIs");
+        JSONObject fragment = new JSONObject();
+        String packets = (config.fragmentPackets != null && !config.fragmentPackets.isEmpty())
+                ? config.fragmentPackets : "tlshello";
+        String length = (config.fragmentLength != null && !config.fragmentLength.isEmpty())
+                ? config.fragmentLength : "100-200";
+        String interval = (config.fragmentInterval != null && !config.fragmentInterval.isEmpty())
+                ? config.fragmentInterval : "10-20";
+        fragment.put("packets", packets);
+        fragment.put("length", length);
+        fragment.put("interval", interval);
+        settings.put("fragment", fragment);
+        frag.put("settings", settings);
+
+        JSONObject stream = new JSONObject();
+        JSONObject sockopt = new JSONObject();
+        sockopt.put("tcpNoDelay", true);
+        stream.put("sockopt", sockopt);
+        frag.put("streamSettings", stream);
+
+        VpnLogger.i(TAG, "Fragment outbound: packets=" + packets
+                + " length=" + length + " interval=" + interval);
+        return frag;
+    }
+
+    private boolean isVlessFamily() {
+        String t = config.type == null ? "" : config.type.toLowerCase();
+        return "vless".equals(t) || "trojan".equals(t);
+    }
+
+    /** true ถ้าไม่ใช่ private IP / localhost */
+    private static boolean isPublicServer(String host) {
+        if (host == null || host.isEmpty()) return true;
+        String h = host.trim().toLowerCase();
+        if (h.equals("localhost") || h.equals("127.0.0.1") || h.equals("::1")) return false;
+        if (h.startsWith("10.") || h.startsWith("192.168.") || h.startsWith("169.254.")) return false;
+        if (h.startsWith("172.")) {
+            try {
+                String[] parts = h.split("\\.");
+                if (parts.length >= 2) {
+                    int second = Integer.parseInt(parts[1]);
+                    if (second >= 16 && second <= 31) return false;
+                }
+            } catch (Exception ignored) {}
+        }
+        return true;
+    }
+
+
 }
