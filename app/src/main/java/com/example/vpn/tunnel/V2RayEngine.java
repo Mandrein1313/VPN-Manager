@@ -221,20 +221,31 @@ public class V2RayEngine {
         JSONObject stream = new JSONObject();
         stream.put("network", config.network);
 
-        // Security
+        // Security (Xray ใหม่ไม่มี allowInsecure แล้ว)
         if (config.tls) {
             stream.put("security", "tls");
             JSONObject tls = new JSONObject();
-            if (!config.sni.isEmpty()) tls.put("serverName", config.sni);
-            if (!config.alpn.isEmpty()) {
+            // serverName = SNI (ว่าง → ใช้ host header หรือ address)
+            String serverName = config.sni;
+            if (serverName == null || serverName.isEmpty()) {
+                serverName = (config.host != null && !config.host.isEmpty())
+                        ? config.host : config.address;
+            }
+            if (serverName != null && !serverName.isEmpty()) {
+                tls.put("serverName", serverName);
+            }
+            if (config.alpn != null && !config.alpn.isEmpty()) {
                 JSONArray arr = new JSONArray();
-                for (String a : config.alpn.split(",")) arr.put(a.trim());
-                tls.put("alpn", arr);
+                for (String a : config.alpn.split(",")) {
+                    String t = a.trim();
+                    if (!t.isEmpty()) arr.put(t);
+                }
+                if (arr.length() > 0) tls.put("alpn", arr);
             }
-            if (!config.fingerprint.isEmpty()) {
-                tls.put("fingerprint", config.fingerprint);
-            }
-            tls.put("allowInsecure", config.allowInsecure);
+            String fp = (config.fingerprint != null && !config.fingerprint.isEmpty())
+                    ? config.fingerprint : "chrome";
+            tls.put("fingerprint", fp);
+            // ไม่ใส่ allowInsecure — ถูกลบจาก Xray แล้ว
             stream.put("tlsSettings", tls);
         } else {
             stream.put("security", "none");
