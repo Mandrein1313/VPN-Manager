@@ -238,21 +238,61 @@ public class V2RayEngine {
                 ? "tcp" : config.network);
 
         // Xray ห้าม VLESS ไปโดเมนสาธารณะโดยไม่มี TLS
-        boolean useTls = config.tls;
-        if (config.fragment && !useTls) {
-            useTls = true;
+        // กำหนด security: reality | tls | none
+        String sec = config.security != null ? config.security.toLowerCase() : "";
+        if (sec.isEmpty()) {
+            if (config.publicKey != null && !config.publicKey.isEmpty()) {
+                sec = "reality";
+            } else if (config.tls) {
+                sec = "tls";
+            } else {
+                sec = "none";
+            }
+        }
+
+        // Fragment ใช้ได้กับ TLS/REALITY
+        if (config.fragment && "none".equals(sec)) {
+            sec = "tls";
             VpnLogger.w(TAG, "Fragment เปิด → บังคับ TLS");
         }
-        if (!useTls && isVlessFamily() && isPublicServer(config.address)) {
-            useTls = true;
+        // VLESS ไปโดเมนสาธารณะ: บังคับ TLS เฉพาะเมื่อไม่ได้ตั้ง Reality และผู้ใช้ไม่ได้ปิดตั้งใจ
+        if ("none".equals(sec) && isVlessFamily() && isPublicServer(config.address)
+                && (config.publicKey == null || config.publicKey.isEmpty())) {
+            sec = "tls";
             VpnLogger.w(TAG, "Force TLS for VLESS public host: " + config.address);
         }
 
-        // Security (Xray ใหม่ไม่มี allowInsecure แล้ว)
-        if (useTls) {
+        if ("reality".equals(sec)) {
+            stream.put("security", "reality");
+            JSONObject reality = new JSONObject();
+            String serverName = config.sni;
+            if (serverName == null || serverName.isEmpty()) {
+                serverName = (config.host != null && !config.host.isEmpty())
+                        ? config.host : config.address;
+            }
+            if (serverName != null && !serverName.isEmpty()) {
+                reality.put("serverName", serverName);
+            }
+            String fp = (config.fingerprint != null && !config.fingerprint.isEmpty())
+                    ? config.fingerprint : "chrome";
+            reality.put("fingerprint", fp);
+            if (config.publicKey != null && !config.publicKey.isEmpty()) {
+                reality.put("publicKey", config.publicKey);
+            }
+            // shortId: Xray รับ string หรือ array — ใช้ string ว่างได้
+            reality.put("shortId", config.shortId != null ? config.shortId : "");
+            if (config.spiderX != null && !config.spiderX.isEmpty()) {
+                reality.put("spiderX", config.spiderX);
+            }
+            // show: false ปกติ
+            reality.put("show", false);
+            stream.put("realitySettings", reality);
+            VpnLogger.i(TAG, "REALITY: sni=" + serverName
+                    + " pbk=" + (config.publicKey != null ? config.publicKey.substring(0, Math.min(8, config.publicKey.length())) + "…" : "")
+                    + " sid=" + config.shortId);
+        } else if ("tls".equals(sec) || "xtls".equals(sec)) {
             stream.put("security", "tls");
             JSONObject tls = new JSONObject();
-            // serverName = SNI (ว่าง → ใช้ host header หรือ address)
             String serverName = config.sni;
             if (serverName == null || serverName.isEmpty()) {
                 serverName = (config.host != null && !config.host.isEmpty())
@@ -272,7 +312,6 @@ public class V2RayEngine {
             String fp = (config.fingerprint != null && !config.fingerprint.isEmpty())
                     ? config.fingerprint : "chrome";
             tls.put("fingerprint", fp);
-            // ไม่ใส่ allowInsecure — ถูกลบจาก Xray แล้ว
             stream.put("tlsSettings", tls);
         } else {
             stream.put("security", "none");

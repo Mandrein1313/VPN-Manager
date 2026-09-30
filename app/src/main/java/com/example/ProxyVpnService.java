@@ -609,7 +609,19 @@ public class ProxyVpnService extends VpnService
         cfg.sni = profile.sni;
         cfg.flow = profile.v2rayFlow;
         cfg.fingerprint = "chrome";
-        cfg.allowInsecure = true;
+        cfg.fragment = profile.v2rayFragment;
+        cfg.allowInsecure = false;
+        // REALITY
+        String sec = profile.v2raySecurity;
+        if (sec == null || sec.isEmpty()) {
+            if (profile.v2rayPublicKey != null && !profile.v2rayPublicKey.isEmpty()) sec = "reality";
+            else if (profile.v2rayTls) sec = "tls";
+            else sec = "none";
+        }
+        cfg.security = sec;
+        cfg.publicKey = profile.v2rayPublicKey != null ? profile.v2rayPublicKey : "";
+        cfg.shortId = profile.v2rayShortId != null ? profile.v2rayShortId : "";
+        cfg.spiderX = profile.v2raySpiderX != null ? profile.v2raySpiderX : "";
 
         // ⭐ สร้าง engine
         v2rayEngine = new V2RayEngine(this, cfg, fd -> protect(fd));
@@ -1113,7 +1125,7 @@ public class ProxyVpnService extends VpnService
                 : android.R.drawable.checkbox_on_background;
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Tunnel Mate")
+                .setContentTitle("VPN Manager")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_vpn)
                 .setContentIntent(pi)

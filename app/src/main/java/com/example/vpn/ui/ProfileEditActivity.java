@@ -56,6 +56,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private View tilHttpProxy, tilProxyPort, tilPayload, tilSni, tilSslPort,
             tilPrivateKey, tilKeyPassphrase, tilPassField, tilAuthMethod;
     private MaterialSwitch switchV2rayTls, switchV2rayFragment;
+    private TextInputEditText edtV2rayPublicKey, edtV2rayShortId;
     private MaterialButton btnSave;
 
     // ⭐ Options switches
@@ -131,6 +132,8 @@ public class ProfileEditActivity extends AppCompatActivity {
         groupV2Ray = findViewById(R.id.groupV2Ray);
         switchV2rayTls = findViewById(R.id.switchV2rayTls);
         switchV2rayFragment = findViewById(R.id.switchV2rayFragment);
+        edtV2rayPublicKey = findViewById(R.id.edtV2rayPublicKey);
+        edtV2rayShortId = findViewById(R.id.edtV2rayShortId);
 
         if (ddV2rayType != null) {
             String[] v2Types = {"vless", "vmess", "trojan", "ss"};
@@ -272,6 +275,8 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (ddV2rayNetwork != null) ddV2rayNetwork.setText(p.v2rayNetwork, false);
         if (switchV2rayTls != null) switchV2rayTls.setChecked(p.v2rayTls);
         if (switchV2rayFragment != null) switchV2rayFragment.setChecked(p.v2rayFragment);
+        if (edtV2rayPublicKey != null) edtV2rayPublicKey.setText(p.v2rayPublicKey);
+        if (edtV2rayShortId != null) edtV2rayShortId.setText(p.v2rayShortId);
 
         onProtocolChanged(p.protocol);
     }
@@ -535,9 +540,20 @@ public class ProfileEditActivity extends AppCompatActivity {
     p.v2rayFlow = text(edtV2rayFlow);
     p.v2rayTls = switchV2rayTls != null && switchV2rayTls.isChecked();
     p.v2rayFragment = switchV2rayFragment != null && switchV2rayFragment.isChecked();
+    p.v2rayPublicKey = text(edtV2rayPublicKey);
+    p.v2rayShortId = text(edtV2rayShortId);
+    if (p.v2rayPublicKey != null && !p.v2rayPublicKey.isEmpty()) {
+        p.v2raySecurity = "reality";
+        p.v2rayTls = true;
+    } else if (p.v2rayTls) {
+        p.v2raySecurity = "tls";
+    } else {
+        p.v2raySecurity = "none";
+    }
     // Fragment มักใช้คู่ TLS
     if (p.v2rayFragment && !p.v2rayTls) {
         p.v2rayTls = true;
+        if ("none".equals(p.v2raySecurity)) p.v2raySecurity = "tls";
     }
 
     long excludeId = (existing != null) ? existing.id : 0L;

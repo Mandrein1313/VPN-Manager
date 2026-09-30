@@ -25,10 +25,16 @@ public class V2RayConfig {
     public String serviceName = "";
 
     public boolean tls = false;
+    /** none | tls | reality */
+    public String security = "none";
     public String sni = "";
     public String alpn = "";
     public String fingerprint = "chrome";
     public boolean allowInsecure = false;
+    // REALITY
+    public String publicKey = "";
+    public String shortId = "";
+    public String spiderX = "";
 
     /** Xray fragment (tlshello) */
     public boolean fragment = false;
@@ -107,6 +113,7 @@ public class V2RayConfig {
             c.host = o.optString("host", "");
             c.path = o.optString("path", "/");
             c.tls = "tls".equalsIgnoreCase(o.optString("tls", ""));
+            c.security = c.tls ? "tls" : "none";
             c.sni = o.optString("sni", "");
             c.alpn = o.optString("alpn", "");
             c.headerType = o.optString("type", "none");
@@ -222,7 +229,11 @@ public class V2RayConfig {
             switch (key) {
                 case "type":
                 case "network": c.network = value; break;
-                case "security": c.tls = "tls".equals(value) || "xtls".equals(value); break;
+                case "security":
+                    c.security = value == null ? "none" : value.toLowerCase();
+                    c.tls = "tls".equalsIgnoreCase(value) || "xtls".equalsIgnoreCase(value)
+                            || "reality".equalsIgnoreCase(value);
+                    break;
                 case "sni": c.sni = value; break;
                 case "host": c.host = value; break;
                 case "path": c.path = value; break;
@@ -232,6 +243,12 @@ public class V2RayConfig {
                 case "fp":
                 case "fingerprint": c.fingerprint = value; break;
                 case "flow": c.flow = value; break;
+                case "pbk":
+                case "publicKey": c.publicKey = value; break;
+                case "sid":
+                case "shortId": c.shortId = value; break;
+                case "spx":
+                case "spiderX": c.spiderX = value; break;
                 case "allowInsecure":
                     c.allowInsecure = "1".equals(value) || "true".equals(value);
                     break;
@@ -264,6 +281,10 @@ public class V2RayConfig {
         p.v2rayFlow = flow != null ? flow : "";
         p.v2rayMethod = method != null ? method : "aes-256-gcm";
         p.sni = sni != null ? sni : "";
+        p.v2raySecurity = security != null ? security : (tls ? "tls" : "none");
+        p.v2rayPublicKey = publicKey != null ? publicKey : "";
+        p.v2rayShortId = shortId != null ? shortId : "";
+        p.v2raySpiderX = spiderX != null ? spiderX : "";
 
         if ("trojan".equalsIgnoreCase(type)) {
             p.protocol = Protocol.TROJAN;

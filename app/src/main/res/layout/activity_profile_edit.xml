@@ -565,6 +565,33 @@
                     android:text="Fragment (เลี่ยง DPI / โปรค่าย)"
                     android:checked="false" />
 
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Public Key (pbk) — REALITY">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtV2rayPublicKey"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:maxLines="2" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Short ID (sid) — REALITY">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtV2rayShortId"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:maxLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+
             </LinearLayout>
 
             <!-- ===== Save button ===== -->

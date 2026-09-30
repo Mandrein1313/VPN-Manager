@@ -50,6 +50,10 @@ public class ProfileEntity {
     public String v2rayServiceName;
     public boolean v2rayTls;
     public boolean v2rayFragment;
+    public String v2raySecurity;
+    public String v2rayPublicKey;
+    public String v2rayShortId;
+    public String v2raySpiderX;
     public String v2rayFlow;
     public String v2rayMethod;
 
@@ -90,6 +94,10 @@ public class ProfileEntity {
         e.v2rayServiceName = p.v2rayServiceName;
         e.v2rayTls = p.v2rayTls;
         e.v2rayFragment = p.v2rayFragment;
+        e.v2raySecurity = p.v2raySecurity;
+        e.v2rayPublicKey = p.v2rayPublicKey;
+        e.v2rayShortId = p.v2rayShortId;
+        e.v2raySpiderX = p.v2raySpiderX;
         e.v2rayFlow = p.v2rayFlow;
         e.v2rayMethod = p.v2rayMethod;
 
@@ -131,6 +139,10 @@ public class ProfileEntity {
         p.v2rayServiceName = v2rayServiceName != null ? v2rayServiceName : "";
         p.v2rayTls = v2rayTls;
         p.v2rayFragment = v2rayFragment;
+        p.v2raySecurity = v2raySecurity != null ? v2raySecurity : "none";
+        p.v2rayPublicKey = v2rayPublicKey != null ? v2rayPublicKey : "";
+        p.v2rayShortId = v2rayShortId != null ? v2rayShortId : "";
+        p.v2raySpiderX = v2raySpiderX != null ? v2raySpiderX : "";
         p.v2rayFlow = v2rayFlow != null ? v2rayFlow : "";
         p.v2rayMethod = v2rayMethod != null ? v2rayMethod : "aes-256-gcm";
 
