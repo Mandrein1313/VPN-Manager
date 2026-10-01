@@ -111,6 +111,15 @@ public class V2RayEngine {
         log.put("loglevel", "warning");
         root.put("log", log);
 
+        // DNS — ช่วย resolve ผ่าน proxy (ลดเคส Heartbeat OK แต่เว็บไม่ขึ้น)
+        JSONObject dns = new JSONObject();
+        JSONArray dnsServers = new JSONArray();
+        dnsServers.put("8.8.8.8");
+        dnsServers.put("1.1.1.1");
+        dns.put("servers", dnsServers);
+        dns.put("queryStrategy", "UseIPv4");
+        root.put("dns", dns);
+
         // Inbounds — SOCKS5
         JSONArray inbounds = new JSONArray();
         JSONObject socksIn = new JSONObject();
@@ -122,6 +131,15 @@ public class V2RayEngine {
         socksSettings.put("auth", "noauth");
         socksSettings.put("udp", true);
         socksIn.put("settings", socksSettings);
+        JSONObject sniffing = new JSONObject();
+        sniffing.put("enabled", true);
+        JSONArray destOverride = new JSONArray();
+        destOverride.put("http");
+        destOverride.put("tls");
+        destOverride.put("quic");
+        sniffing.put("destOverride", destOverride);
+        sniffing.put("routeOnly", false);
+        socksIn.put("sniffing", sniffing);
         inbounds.put(socksIn);
         root.put("inbounds", inbounds);
 
@@ -166,6 +184,19 @@ public class V2RayEngine {
         outbounds.put(block);
 
         root.put("outbounds", outbounds);
+
+        // Routing — ส่งทราฟฟิกทั้งหมดไป proxy เป็นค่าเริ่มต้น
+        JSONObject routing = new JSONObject();
+        routing.put("domainStrategy", "AsIs");
+        JSONArray rules = new JSONArray();
+        JSONObject dnsRule = new JSONObject();
+        dnsRule.put("type", "field");
+        dnsRule.put("port", "53");
+        dnsRule.put("network", "udp,tcp");
+        dnsRule.put("outboundTag", "proxy");
+        rules.put(dnsRule);
+        routing.put("rules", rules);
+        root.put("routing", routing);
 
         return root.toString(2);
     }

@@ -656,17 +656,49 @@ public class ProxyVpnService extends VpnService
         }
 
         tun2socksRunning = true;
-        connected = true;
         VpnLogger.i(TAG, "V2Ray + Tun2Socks ready");
 
         try { Thread.sleep(800); } catch (InterruptedException ignored) {}
 
-        StatusBus.post(StatusBus.State.CONNECTED,
-                "เชื่อมต่อแล้ว: " + profile.name);
+        // เหมือน SSH: ตรวจ connectivity จริงก่อนประกาศ CONNECTED
+        try {
+            NetworkBinder.forceReroute(this);
+            setUnderlyingNetworks(null);
+        } catch (Throwable t) {
+            VpnLogger.w(TAG, "V2Ray reroute: " + t.getMessage());
+        }
+
+        StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังตรวจสอบการเชื่อมต่อ...");
+        updateNotification("กำลังตรวจสอบการเชื่อมต่อ...");
+
+        connectivityChecker = new ConnectivityChecker(this);
+        connectivityChecker.check(new ConnectivityChecker.Callback() {
+            @Override
+            public void onReady() {
+                connected = true;
+                VpnLogger.i(TAG, "[V2Ray] ✅ Connectivity verified");
+                StatusBus.post(StatusBus.State.CONNECTED,
+                        "เชื่อมต่อแล้ว: " + profile.name);
                 ConnectFeedback.onConnected(ProxyVpnService.this);
-        updateNotification("เชื่อมต่อแล้ว: " + profile.name);
-        startNetworkMonitor();
-        startHeartbeat();
+                updateNotification("เชื่อมต่อแล้ว: " + profile.name);
+                startNetworkMonitor();
+                startHeartbeat();
+            }
+
+            @Override
+            public void onFailed(String reason) {
+                // ยังถือว่าเชื่อม (โหนดฟรีอาจช้า) แต่แจ้ง log ชัด
+                connected = true;
+                VpnLogger.w(TAG, "[V2Ray] ⚠️ Verify failed: " + reason
+                        + " — โหนดอาจตัน/เน็ตไม่ออกจริง");
+                StatusBus.post(StatusBus.State.CONNECTED,
+                        "เชื่อมต่อแล้ว (ตรวจสอบเน็ตไม่ผ่าน): " + profile.name);
+                ConnectFeedback.onConnected(ProxyVpnService.this);
+                updateNotification("เชื่อมต่อแล้ว: " + profile.name);
+                startNetworkMonitor();
+                startHeartbeat();
+            }
+        });
     }
 
     /** ⭐ แก้ port ใน config yml */
@@ -1125,7 +1157,7 @@ public class ProxyVpnService extends VpnService
                 : android.R.drawable.checkbox_on_background;
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Tunnel Mate")
+                .setContentTitle("VPN Manager")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_vpn)
                 .setContentIntent(pi)
