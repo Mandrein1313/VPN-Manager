@@ -261,7 +261,11 @@ public class ConnectionActivity extends AppCompatActivity
                     startActivity(new Intent(this, ShareWifiActivity.class)));
         }
         if (actionAdd != null) {
-            actionAdd.setOnClickListener(v -> showAddProminentDisclosure());
+            // ปุ่มเพิ่มโปรไฟล์ — ไม่ใช่ disclosure (disclosure อยู่ตอนกดเชื่อมต่อ)
+            actionAdd.setOnClickListener(v -> {
+                Intent i = new Intent(this, ProfileEditActivity.class);
+                addProfileLauncher.launch(i);
+            });
         }
     }
 
