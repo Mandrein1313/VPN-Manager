@@ -690,28 +690,25 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
      * ว่าแอปจะใช้ VPN เพื่อส่งทราฟฟิกผ่านเซิร์ฟเวอร์ที่ผู้ใช้เลือก
      */
     private void showVpnProminentDisclosure(VpnDisclosurePrefs disclosurePrefs) {
-        String appName = getString(getApplicationInfo().labelRes);
-        if (appName == null || appName.isEmpty() || appName.startsWith("com.")) {
-            appName = "Tunnel Mate";
-            try {
-                CharSequence label = getPackageManager()
-                        .getApplicationLabel(getApplicationInfo());
-                if (label != null) appName = label.toString();
-            } catch (Exception ignored) {}
-        }
+        String appName = "Tunnel Mate";
+        try {
+            CharSequence label = getPackageManager()
+                    .getApplicationLabel(getApplicationInfo());
+            if (label != null && label.length() > 0) {
+                appName = label.toString();
+            }
+        } catch (Exception ignored) {}
 
-        String message =
-                "แอป " + appName + " ใช้บริการ VPN ของระบบ Android\n\n"
+        String message = "แอป " + appName + " ใช้บริการ VPN ของระบบ Android\n\n"
                 + "• ทราฟฟิกอินเทอร์เน็ตของอุปกรณ์จะถูกส่งผ่านเซิร์ฟเวอร์ที่คุณเลือก "
                 + "(SSH / V2Ray ตามโปรไฟล์)\n"
                 + "• ใช้เพื่อการเชื่อมต่อเครือข่ายที่คุณตั้งค่าเองเท่านั้น\n"
                 + "• แอปจะไม่ขายข้อมูลทราฟฟิกของคุณ\n\n"
-                + "กด "ยอมรับ" เพื่อดำเนินการขอสิทธิ์ VPN จากระบบ";
+                + "กด «ยอมรับ» เพื่อดำเนินการขอสิทธิ์ VPN จากระบบ";
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("การใช้บริการ VPN")
-                .setMessage(message.replace("\n", "
-"))
+                .setMessage(message)
                 .setCancelable(false)
                 .setNegativeButton("ไม่ยอมรับ", (d, w) ->
                         StyledToast.info(this, "ต้องยอมรับก่อนจึงจะเชื่อมต่อ VPN ได้"))
