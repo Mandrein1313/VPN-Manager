@@ -24,6 +24,7 @@ import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.vpn.MainActivity;
 import com.example.vpn.ProxyVpnService;
+import com.example.vpn.VpnDisclosurePrefs;
 import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
@@ -145,7 +146,7 @@ public class ConnectionActivity extends AppCompatActivity
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
-        toolbar.setTitle("Tunnel Mate");
+        toolbar.setTitle("VPN Manager");
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
@@ -175,7 +176,7 @@ public class ConnectionActivity extends AppCompatActivity
                 if (list == null || list.isEmpty()) {
                     updateStatusText("[ NO PROFILE ]", 0xFF00E676);
                     updateConfigCard("Not Set", "---", "---");
-                    toolbar.setTitle("Tunnel Mate");
+                    toolbar.setTitle("VPN Manager");
                     return;
                 }
                 Profile p = null;
@@ -260,10 +261,7 @@ public class ConnectionActivity extends AppCompatActivity
                     startActivity(new Intent(this, ShareWifiActivity.class)));
         }
         if (actionAdd != null) {
-            actionAdd.setOnClickListener(v -> {
-                Intent i = new Intent(this, ProfileEditActivity.class);
-                addProfileLauncher.launch(i);
-            });
+            actionAdd.setOnClickListener(v -> showAddProminentDisclosure());
         }
     }
 
@@ -359,7 +357,7 @@ public class ConnectionActivity extends AppCompatActivity
             if (list == null || list.isEmpty()) {
                 updateStatusText("[ NO PROFILE ]", 0xFF00E676);
                 updateConfigCard("Not Set", "---", "---");
-                toolbar.setTitle("Tunnel Mate");
+                toolbar.setTitle("VPN Manager");
                 return;
             }
             Profile p = null;
@@ -433,8 +431,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 }
     private void showAboutDialog() {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("เกี่ยวกับ Tunnel Mate")
-                .setMessage("Tunnel Mate v1.0\n\n" +
+                .setTitle("เกี่ยวกับ VPN Manager")
+                .setMessage("VPN Manager v1.0\n\n" +
                         "แอป VPN ที่รองรับ SSH Tunnel\n" +
                         "และหลาย protocol\n\n" +
                         "สร้างด้วย ❤️ ในประเทศไทย")
@@ -658,7 +656,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         targetProfile = p;
         // ⭐ ไม่ใส่ชื่อโปรไฟล์บน toolbar — กันตัวอักษรหลุด (เช่น "h" จากชื่อ "hT")
         // ชื่อโปรไฟล์แสดงที่การ์ด ACTIVE CONFIGURATION อยู่แล้ว
-        toolbar.setTitle("Tunnel Mate");
+        toolbar.setTitle("VPN Manager");
 
         updateConfigCard(p.name, p.host, String.valueOf(p.port));
 
@@ -674,6 +672,57 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     private void requestConnect() {
+        if (targetProfile == null) {
+            StyledToast.info(this, "กรุณาเลือกโปรไฟล์ก่อน");
+            return;
+        }
+        // ⭐ Prominent Disclosure (Play policy) — แสดงครั้งเดียวก่อนขอสิทธิ์ VPN
+        VpnDisclosurePrefs disclosurePrefs = new VpnDisclosurePrefs(this);
+        if (!disclosurePrefs.isAccepted()) {
+            showVpnProminentDisclosure(disclosurePrefs);
+            return;
+        }
+        proceedVpnPermission();
+    }
+
+    /**
+     * Google Play: ต้องแจ้งชัดเจนก่อนเรียก VpnService.prepare()
+     * ว่าแอปจะใช้ VPN เพื่อส่งทราฟฟิกผ่านเซิร์ฟเวอร์ที่ผู้ใช้เลือก
+     */
+    private void showVpnProminentDisclosure(VpnDisclosurePrefs disclosurePrefs) {
+        String appName = getString(getApplicationInfo().labelRes);
+        if (appName == null || appName.isEmpty() || appName.startsWith("com.")) {
+            appName = "Tunnel Mate";
+            try {
+                CharSequence label = getPackageManager()
+                        .getApplicationLabel(getApplicationInfo());
+                if (label != null) appName = label.toString();
+            } catch (Exception ignored) {}
+        }
+
+        String message =
+                "แอป " + appName + " ใช้บริการ VPN ของระบบ Android\n\n"
+                + "• ทราฟฟิกอินเทอร์เน็ตของอุปกรณ์จะถูกส่งผ่านเซิร์ฟเวอร์ที่คุณเลือก "
+                + "(SSH / V2Ray ตามโปรไฟล์)\n"
+                + "• ใช้เพื่อการเชื่อมต่อเครือข่ายที่คุณตั้งค่าเองเท่านั้น\n"
+                + "• แอปจะไม่ขายข้อมูลทราฟฟิกของคุณ\n\n"
+                + "กด "ยอมรับ" เพื่อดำเนินการขอสิทธิ์ VPN จากระบบ";
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("การใช้บริการ VPN")
+                .setMessage(message.replace("\n", "
+"))
+                .setCancelable(false)
+                .setNegativeButton("ไม่ยอมรับ", (d, w) ->
+                        StyledToast.info(this, "ต้องยอมรับก่อนจึงจะเชื่อมต่อ VPN ได้"))
+                .setPositiveButton("ยอมรับ", (d, w) -> {
+                    disclosurePrefs.setAccepted(true);
+                    proceedVpnPermission();
+                })
+                .show();
+    }
+
+    private void proceedVpnPermission() {
         Intent prepare = VpnService.prepare(this);
         if (prepare != null) {
             vpnPermissionLauncher.launch(prepare);
