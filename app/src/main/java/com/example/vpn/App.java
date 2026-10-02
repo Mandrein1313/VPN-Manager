@@ -6,7 +6,7 @@ import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.ThemePrefs;
 
 /**
- * ⭐ Application class — apply theme ก่อนทุกอย่าง
+ * Application class — apply theme ก่อน Activity ใด ๆ
  */
 public class App extends Application {
 
@@ -14,10 +14,10 @@ public class App extends Application {
     public void onCreate() {
         super.onCreate();
 
-        // ⭐ ติดตั้ง Crash Handler
+        // ติดตั้ง Crash Handler
         CrashHandler.install(this);
 
-        // ⭐ Apply theme ที่บันทึกไว้ — ก่อน UI ทุกอย่าง
+        // Apply theme ที่บันทึกไว้
         ThemePrefs prefs = new ThemePrefs(this);
         prefs.applySaved();
     }

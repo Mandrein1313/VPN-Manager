@@ -41,6 +41,11 @@ public final class ThemePrefs {
         applyMode(getMode());
     }
 
+    /** alias ของ apply() — ใช้ใน App.java */
+    public void applySaved() {
+        apply();
+    }
+
     public static void applyMode(int mode) {
         int nightMode;
         switch (mode) {
