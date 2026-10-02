@@ -28,10 +28,6 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
 
     private ScrollView scrollLogView;
     private TextView txtLogContent;
-    private ImageButton btnLogCopy;
-    private ImageButton btnLogClear;
-    private ImageButton btnLogScrollBottom;
-
     private View root;
 
     @Nullable
@@ -49,13 +45,14 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
 
         scrollLogView = v.findViewById(R.id.scrollLogView);
         txtLogContent = v.findViewById(R.id.txtLogContent);
-        btnLogCopy = v.findViewById(R.id.btnLogCopy);
-        btnLogClear = v.findViewById(R.id.btnLogClear);
-        btnLogScrollBottom = v.findViewById(R.id.btnLogScrollBottom);
 
-        btnLogCopy.setOnClickListener(v1 -> copyLogToClipboard());
-        btnLogClear.setOnClickListener(v1 -> confirmClearLog());
-        btnLogScrollBottom.setOnClickListener(v1 -> scrollLogToBottom());
+        // ปุ่มใน layout อาจถูกซ่อน (ย้ายไป Toolbar แล้ว) — ผูกถ้ายังมี
+        ImageButton btnLogCopy = v.findViewById(R.id.btnLogCopy);
+        ImageButton btnLogClear = v.findViewById(R.id.btnLogClear);
+        ImageButton btnLogScrollBottom = v.findViewById(R.id.btnLogScrollBottom);
+        if (btnLogCopy != null) btnLogCopy.setOnClickListener(v1 -> copyLogToClipboard());
+        if (btnLogClear != null) btnLogClear.setOnClickListener(v1 -> confirmClearLog());
+        if (btnLogScrollBottom != null) btnLogScrollBottom.setOnClickListener(v1 -> scrollLogToBottom());
 
         refreshLog();
     }
@@ -93,7 +90,9 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
         scrollLogToBottom();
     }
 
-    private void copyLogToClipboard() {
+    /** เรียกจาก Toolbar หลักของ ConnectionActivity */
+    public void copyLogToClipboard() {
+        if (getContext() == null) return;
         String log = VpnLogger.dump();
         if (log == null || log.isEmpty()) {
             Toast.makeText(getContext(), "ไม่มี log", Toast.LENGTH_SHORT).show();
@@ -103,26 +102,27 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
                 requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm != null) {
             cm.setPrimaryClip(ClipData.newPlainText("VPN Log", log));
-            Toast.makeText(getContext(), "คัดลอก log แล้ว",
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "คัดลอก log แล้ว", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void confirmClearLog() {
+    /** เรียกจาก Toolbar หลัก */
+    public void confirmClearLog() {
+        if (getContext() == null) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("ล้าง Log?")
                 .setMessage("ลบ log ทั้งหมดใช่หรือไม่?")
                 .setPositiveButton("ล้าง", (d, w) -> {
                     VpnLogger.clear();
                     if (txtLogContent != null) txtLogContent.setText("");
-                    Toast.makeText(getContext(), "ล้าง log แล้ว",
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "ล้าง log แล้ว", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
     }
 
-    private void scrollLogToBottom() {
+    /** เรียกจาก Toolbar หลัก */
+    public void scrollLogToBottom() {
         if (scrollLogView != null) {
             scrollLogView.post(() -> scrollLogView.fullScroll(View.FOCUS_DOWN));
         }

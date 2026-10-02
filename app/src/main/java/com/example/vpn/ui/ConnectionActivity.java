@@ -56,6 +56,7 @@ public class ConnectionActivity extends AppCompatActivity
 
     private MainFragment mainFragment;
     private LogFragment logFragment;
+    private boolean logMenuVisible = false;
 
     private ProfileViewModel viewModel;
     private Profile targetProfile;
@@ -141,6 +142,14 @@ public class ConnectionActivity extends AppCompatActivity
                     break;
             }
         }).attach();
+
+        viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override
+            public void onPageSelected(int position) {
+                logMenuVisible = (position == 2); // LOG tab
+                invalidateOptionsMenu();
+            }
+        });
 
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -474,9 +483,38 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                     themePrefs.setMode(modes[which]);
                     d.dismiss();
                     StyledToast.info(this, "ธีม: " + ThemePrefs.getModeName(modes[which]));
+                    // รีสร้าง Activity ให้สีทั้งจอสลับทันที
+                    recreate();
                 })
                 .setNegativeButton("ยกเลิก", null)
                 .show();
+    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        if (logMenuVisible) {
+            getMenuInflater().inflate(R.menu.menu_log_toolbar, menu);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_log_copy) {
+            if (logFragment != null) logFragment.copyLogToClipboard();
+            return true;
+        }
+        if (id == R.id.action_log_clear) {
+            if (logFragment != null) logFragment.confirmClearLog();
+            return true;
+        }
+        if (id == R.id.action_log_scroll) {
+            if (logFragment != null) logFragment.scrollLogToBottom();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
