@@ -44,5 +44,15 @@
     <color name="vpn_connected">#66BB6A</color>
     <color name="vpn_disconnected">#78909C</color>
     <color name="vpn_connecting">#FFD54F</color>
+
+    <!-- ===== Protocol badge colors ===== -->
+    <color name="proto_ssh">#26C6DA</color>
+    <color name="proto_v2ray">#B388FF</color>
+    <color name="proto_vless">#B388FF</color>
+    <color name="proto_http">#64B5F6</color>
+    <color name="proto_trojan">#FF8A65</color>
+    <color name="proto_wireguard">#81C784</color>
+    <color name="proto_shadowsocks">#FFB74D</color>
+
     <color name="accent_green">#00E676</color>
 </resources>
