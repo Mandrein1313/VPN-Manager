@@ -41,8 +41,8 @@ public class BypassActivity extends AppCompatActivity
     private BypassPrefs prefs;
     private AppListAdapter adapter;
     private RecyclerView recycler;
-    private LinearLayout loadingView;
-    private LinearLayout emptyView;
+    private View loadingView;
+    private View emptyView;
     private TextView txtCount;
     private TextInputEditText edtSearch;
 

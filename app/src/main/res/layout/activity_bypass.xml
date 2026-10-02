@@ -86,14 +86,21 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <TextView
+        <LinearLayout
             android:id="@+id/emptyView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="ไม่พบแอป"
-            android:textColor="@color/text_muted"
-            android:visibility="gone" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ไม่พบแอป"
+                android:textColor="@color/text_muted"
+                android:textSize="14sp" />
+        </LinearLayout>
     </FrameLayout>
 
     <TextView
