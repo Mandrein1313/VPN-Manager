@@ -28,7 +28,7 @@
             android:layout_height="20dp"
             android:layout_gravity="center"
             android:contentDescription="icon"
-            app:tint="#FFFFFF" />
+            app:tint="@color/text_primary" />
     </FrameLayout>
 
     <LinearLayout
@@ -44,7 +44,7 @@
             android:layout_height="wrap_content"
             android:text="SUCCESS"
             android:textAllCaps="true"
-            android:textColor="#00E676"
+            android:textColor="@color/accent_green"
             android:textSize="12sp"
             android:textStyle="bold"
             android:letterSpacing="0.05" />
@@ -55,7 +55,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="Message"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

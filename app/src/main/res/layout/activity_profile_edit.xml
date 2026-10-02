@@ -129,7 +129,7 @@
                     app:endIconMode="custom"
                     app:endIconDrawable="@android:drawable/ic_menu_view"
                     app:endIconContentDescription="แสดง/ซ่อนรหัสผ่าน"
-                    app:endIconTint="#B0BEC5">
+                    app:endIconTint="@color/text_secondary">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edtPass"
@@ -380,7 +380,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="เชื่อมต่อใหม่อัตโนมัติ"
-                android:textColor="#DDDDDD"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp" />
 
             <TextView
@@ -389,7 +389,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginTop="2dp"
                 android:text="เมื่อเน็ตกลับมา ระบบจะ reconnect VPN ให้ทันที"
-                android:textColor="#666666"
+                android:textColor="@color/text_muted"
                 android:textSize="11sp" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
@@ -398,7 +398,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:text="Kill Switch"
-                android:textColor="#DDDDDD"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp" />
 
             <TextView
@@ -407,7 +407,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginTop="2dp"
                 android:text="บล็อกการเชื่อมต่ออินเทอร์เน็ตถ้า VPN หลุด (ป้องกัน IP รั่ว)"
-                android:textColor="#666666"
+                android:textColor="@color/text_muted"
                 android:textSize="11sp" />
 
             <!-- ⭐ Auto-connect on Boot -->
@@ -417,7 +417,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:text="เชื่อมต่ออัตโนมัติเมื่อเปิดเครื่อง"
-                android:textColor="#DDDDDD"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp" />
 
             <TextView
@@ -426,7 +426,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginTop="2dp"
                 android:text="เมื่อเปิดเครื่องใหม่ ระบบจะเชื่อมต่อ VPN ให้ทันที"
-                android:textColor="#666666"
+                android:textColor="@color/text_muted"
                 android:textSize="11sp" />
 
             <!-- ⭐ V2Ray Section -->
@@ -554,7 +554,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:text="เปิด TLS"
-                    android:textColor="#DDDDDD"
+                    android:textColor="@color/text_primary"
                     android:textSize="14sp" />
 
                 <com.google.android.material.materialswitch.MaterialSwitch

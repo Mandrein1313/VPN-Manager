@@ -24,7 +24,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
-        android:name=".App"
+        android:name=".VpnApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -136,7 +136,7 @@
             android:name=".VpnTileService"
             android:exported="true"
             android:icon="@drawable/ic_vpn"
-            android:label="Tunnel Mate"
+            android:label="VPN Manager"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

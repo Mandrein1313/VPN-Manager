@@ -9,10 +9,10 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="#0D1117"
+    app:cardBackgroundColor="@color/window_background"
     app:cardCornerRadius="10dp"
     app:cardElevation="0dp"
-    app:strokeColor="#00E676"
+    app:strokeColor="@color/accent_green"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -47,7 +47,7 @@
                 android:maxLines="1"
                 android:fontFamily="monospace"
                 android:text="TRUE-INSTAGRAM"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_primary"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
@@ -60,7 +60,7 @@
                 android:maxLines="1"
                 android:fontFamily="monospace"
                 android:text="www.cloudzerovps.online:80"
-                android:textColor="#888888"
+                android:textColor="@color/text_muted"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -78,7 +78,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:text="ssh"
-                android:textColor="#00E676"
+                android:textColor="@color/accent_green"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
@@ -90,7 +90,7 @@
                 android:text="…"
                 android:fontFamily="monospace"
                 android:textStyle="bold"
-                android:textColor="#666666"
+                android:textColor="@color/text_muted"
                 android:textSize="10sp" />
         </LinearLayout>
 
@@ -112,7 +112,7 @@
                 android:padding="6dp"
                 android:scaleType="fitCenter"
                 android:src="@android:drawable/ic_menu_share"
-                app:tint="#00BCD4" />
+                app:tint="@color/md_theme_primary" />
 
             <!-- สัญญาณ (ระดับตาม ping) กดเพื่อวัดใหม่ -->
             <ImageButton
@@ -135,7 +135,7 @@
                 android:padding="6dp"
                 android:scaleType="fitCenter"
                 android:src="@android:drawable/ic_menu_edit"
-                app:tint="#B0BEC5" />
+                app:tint="@color/text_secondary" />
 
             <!-- Delete -->
             <ImageButton
@@ -147,7 +147,7 @@
                 android:padding="6dp"
                 android:scaleType="fitCenter"
                 android:src="@android:drawable/ic_menu_delete"
-                app:tint="#EF5350" />
+                app:tint="@color/md_theme_error" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

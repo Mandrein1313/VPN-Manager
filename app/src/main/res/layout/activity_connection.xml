@@ -10,36 +10,36 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#0D1117"
+        android:background="@color/window_background"
         android:orientation="vertical">
 
         <!-- ===== AppBar + Toolbar ===== -->
         <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#0D1117"
+            android:background="@color/window_background"
             app:elevation="0dp">
 
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
-                android:background="#0D1117"
+                android:background="@color/window_background"
                 app:navigationIcon="@android:drawable/ic_menu_sort_by_size"
-                app:navigationIconTint="#FFFFFF"
-                app:title="Tunnel Mate"
-                app:titleTextColor="#FFFFFF" />
+                app:navigationIconTint="@color/toolbar_icon"
+                app:title="VPN Manager"
+                app:titleTextColor="@color/toolbar_title" />
 
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tabLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#0D1117"
-                app:tabIndicatorColor="#00BCD4"
+                android:background="@color/window_background"
+                app:tabIndicatorColor="@color/tab_indicator"
                 app:tabIndicatorFullWidth="false"
                 app:tabIndicatorHeight="3dp"
-                app:tabSelectedTextColor="#00BCD4"
-                app:tabTextColor="#888888">
+                app:tabSelectedTextColor="@color/tab_selected"
+                app:tabTextColor="@color/tab_unselected">
 
                 <com.google.android.material.tabs.TabItem
                     android:layout_width="wrap_content"
@@ -64,7 +64,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#0D1117"
+            android:background="@color/window_background"
             android:orientation="horizontal"
             android:paddingVertical="8dp">
 
@@ -84,14 +84,14 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@android:drawable/ic_menu_compass"
-                    app:tint="#B0BEC5" />
+                    app:tint="@color/bottom_nav_icon" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Home"
-                    android:textColor="#B0BEC5"
+                    android:textColor="@color/bottom_nav_icon"
                     android:textSize="10sp" />
             </LinearLayout>
 
@@ -110,14 +110,14 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@android:drawable/ic_menu_info_details"
-                    app:tint="#B0BEC5" />
+                    app:tint="@color/bottom_nav_icon" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Log"
-                    android:textColor="#B0BEC5"
+                    android:textColor="@color/bottom_nav_icon"
                     android:textSize="10sp" />
             </LinearLayout>
 
@@ -137,14 +137,14 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@android:drawable/ic_menu_share"
-                    app:tint="#00E676" />
+                    app:tint="@color/bottom_nav_icon_active" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="แชร์"
-                    android:textColor="#00E676"
+                    android:textColor="@color/bottom_nav_icon_active"
                     android:textSize="10sp" />
             </LinearLayout>
 
@@ -163,14 +163,14 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@android:drawable/ic_input_add"
-                    app:tint="#B0BEC5" />
+                    app:tint="@color/bottom_nav_icon" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="เพิ่ม"
-                    android:textColor="#B0BEC5"
+                    android:textColor="@color/bottom_nav_icon"
                     android:textSize="10sp" />
             </LinearLayout>
         </LinearLayout>
@@ -182,10 +182,10 @@
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#161B22"
+        android:background="@color/drawer_background"
         app:headerLayout="@layout/nav_header_connection"
-        app:itemIconTint="#FFFFFF"
-        app:itemTextColor="#FFFFFF"
+        app:itemIconTint="@color/drawer_item"
+        app:itemTextColor="@color/drawer_item"
         app:menu="@menu/menu_drawer_connection" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
