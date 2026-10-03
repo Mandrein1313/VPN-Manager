@@ -143,6 +143,9 @@ public class ConnectionActivity extends AppCompatActivity
             }
         }).attach();
 
+        // เปิดแท็บจาก Intent (เช่น จากปุ่ม LOGS หน้า CONFIGS)
+        handleOpenTabIntent(getIntent());
+
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {

@@ -26,7 +26,7 @@
             <item
                 android:id="@+id/nav_log"
                 android:icon="@android:drawable/ic_menu_info_details"
-                android:title="Log การเชื่อมต่อ" />
+                android:title="Log (แท็บ LOG)" />
 
             <item
                 android:id="@+id/nav_crash"

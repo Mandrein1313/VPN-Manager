@@ -137,6 +137,9 @@ public class MainActivity extends AppCompatActivity
 
         setContentView(R.layout.activity_profile_list);
 
+        // Google Play: Prominent Disclosure (แสดงครั้งเดียว)
+        VpnProminentDisclosure.showIfNeeded(this);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
         }
@@ -160,8 +163,7 @@ public class MainActivity extends AppCompatActivity
             navHome.setOnClickListener(v -> finish());
         }
         if (navLogs != null) {
-            navLogs.setOnClickListener(v ->
-                    startActivity(new Intent(this, LogViewerActivity.class)));
+            navLogs.setOnClickListener(v -> openConnectionLogTab());
         }
         if (navMore != null) {
             navMore.setOnClickListener(v -> showMoreMenu());
@@ -429,8 +431,8 @@ public class MainActivity extends AppCompatActivity
 
     private void showAboutDialog() {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("เกี่ยวกับ Tunnel Mate")
-                .setMessage("Tunnel Mate v1.0\n\n" +
+                .setTitle("เกี่ยวกับ VPN Manager")
+                .setMessage("VPN Manager v1.0\n\n" +
                         "แอป VPN ที่รองรับ SSH Tunnel\n" +
                         "สร้างด้วย ❤️ ในประเทศไทย")
                 .setPositiveButton("ตกลง", null)
@@ -468,6 +470,7 @@ public class MainActivity extends AppCompatActivity
                 .setSingleChoiceItems(names, checkedItem, (d, which) -> {
                     themePrefs.setMode(modes[which]);
                     d.dismiss();
+                    recreate();
                     Toast.makeText(this,
                             "ธีม: " + ThemePrefs.getModeName(modes[which]),
                             Toast.LENGTH_SHORT).show();
@@ -1041,7 +1044,7 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.nav_backup) {
             startActivity(new Intent(this, BackupActivity.class));
         } else if (id == R.id.nav_log) {
-            startActivity(new Intent(this, LogViewerActivity.class));
+            openConnectionLogTab();
         } else if (id == R.id.nav_crash) {
             startActivity(new Intent(this, CrashLogActivity.class));
         } else if (id == R.id.nav_bypass) {
@@ -1055,8 +1058,8 @@ public class MainActivity extends AppCompatActivity
             StyledToast.info(this, "เปลี่ยนธีมได้จากหน้าแรก");
         } else if (id == R.id.nav_about) {
             new MaterialAlertDialogBuilder(this)
-                    .setTitle("เกี่ยวกับ Tunnel Mate")
-                    .setMessage("Tunnel Mate v1.0")
+                    .setTitle("เกี่ยวกับ VPN Manager")
+                    .setMessage("VPN Manager v1.0")
                     .setPositiveButton("ตกลง", null)
                     .show();
         } else if (id == R.id.nav_exit) {
