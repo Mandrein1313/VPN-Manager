@@ -12,6 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.vpn.R;
+import com.example.vpn.model.Profile;
+import com.example.vpn.util.CountryFlag;
 
 public class MainFragment extends Fragment {
 
@@ -21,9 +23,13 @@ public class MainFragment extends Fragment {
     private TextView txtAdFreeTime;
     private View configCard;
     private ImageView imgConfigIcon;
+    private TextView txtConfigFlag;
     private TextView txtConfigName;
     private TextView txtConfigLeft;
     private TextView txtConfigRight;
+    private TextView txtConfigProtocol;
+    private TextView txtConfigPing;
+    private ImageView imgConfigSignal;
     private ImageView btnConfigArrow;
     private TextView txtDownload;
     private TextView txtUpload;
@@ -69,9 +75,13 @@ public class MainFragment extends Fragment {
         txtAdFreeTime = v.findViewById(R.id.txtAdFreeTime);
         configCard = v.findViewById(R.id.configCard);
         imgConfigIcon = v.findViewById(R.id.imgConfigIcon);
+        txtConfigFlag = v.findViewById(R.id.txtConfigFlag);
         txtConfigName = v.findViewById(R.id.txtConfigName);
         txtConfigLeft = v.findViewById(R.id.txtConfigLeft);
         txtConfigRight = v.findViewById(R.id.txtConfigRight);
+        txtConfigProtocol = v.findViewById(R.id.txtConfigProtocol);
+        txtConfigPing = v.findViewById(R.id.txtConfigPing);
+        imgConfigSignal = v.findViewById(R.id.imgConfigSignal);
         btnConfigArrow = v.findViewById(R.id.btnConfigArrow);
         txtDownload = v.findViewById(R.id.txtDownload);
         txtUpload = v.findViewById(R.id.txtUpload);
@@ -90,7 +100,7 @@ public class MainFragment extends Fragment {
         }
         if (btnConfigArrow != null) {
             btnConfigArrow.setOnClickListener(v1 -> {
-                if (listener != null) listener.onConfigCardClick();
+                if (listener != null) listener.onMainConnectClick(); // ปุ่ม ▶ = เชื่อมต่อ
             });
         }
         if (adFreeCard != null) {
@@ -98,5 +108,61 @@ public class MainFragment extends Fragment {
                 if (listener != null) listener.onAdFreeClick();
             });
         }
+    }
+
+    /**
+     * อัปเดตการ์ด ACTIVE CONFIGURATION ตามภาพที่ออกแบบ
+     * @param latencyMs null = ยังไม่วัด, &lt;0 = ล้มเหลว
+     */
+    public void bindActiveProfile(@Nullable Profile p, @Nullable Integer latencyMs) {
+        if (p == null) {
+            if (txtConfigName != null) txtConfigName.setText("Not Set");
+            if (txtConfigLeft != null) txtConfigLeft.setText("---");
+            if (txtConfigFlag != null) txtConfigFlag.setText("🌐");
+            if (txtConfigProtocol != null) txtConfigProtocol.setText("---");
+            if (txtConfigPing != null) txtConfigPing.setText("--");
+            if (imgConfigSignal != null)
+                imgConfigSignal.setImageResource(R.drawable.ic_signal_0);
+            return;
+        }
+
+        String name = (p.name != null && !p.name.isEmpty()) ? p.name : (p.host != null ? p.host : "---");
+        String host = p.host != null ? p.host : "---";
+        String proto = p.protocol != null ? p.protocol.name().toLowerCase() : "ssh";
+
+        if (txtConfigName != null) txtConfigName.setText(name);
+        if (txtConfigLeft != null) txtConfigLeft.setText(host);
+        if (txtConfigFlag != null)
+            txtConfigFlag.setText(CountryFlag.flagFor(p.name, p.host));
+        if (txtConfigProtocol != null) txtConfigProtocol.setText(proto);
+
+        applyLatency(latencyMs);
+
+        if (imgConfigIcon != null) {
+            imgConfigIcon.setImageResource(android.R.drawable.ic_lock_lock);
+        }
+    }
+
+    public void applyLatency(@Nullable Integer ms) {
+        if (txtConfigPing != null) {
+            if (ms == null) {
+                txtConfigPing.setText("--");
+            } else if (ms < 0) {
+                txtConfigPing.setText("fail");
+            } else {
+                txtConfigPing.setText(ms + "ms");
+            }
+        }
+        if (imgConfigSignal != null) {
+            imgConfigSignal.setImageResource(signalIconFor(ms));
+        }
+    }
+
+    private static int signalIconFor(Integer ms) {
+        if (ms == null || ms < 0) return R.drawable.ic_signal_0;
+        if (ms < 80) return R.drawable.ic_signal_4;
+        if (ms < 150) return R.drawable.ic_signal_3;
+        if (ms < 300) return R.drawable.ic_signal_2;
+        return R.drawable.ic_signal_1;
     }
 }

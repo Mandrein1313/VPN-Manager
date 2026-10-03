@@ -57,6 +57,10 @@ public class ConnectionActivity extends AppCompatActivity
     private MainFragment mainFragment;
     private LogFragment logFragment;
     private boolean logMenuVisible = false;
+    // ค่าการ์ด ACTIVE CONFIG — กัน mainFragment ยังไม่พร้อม
+    private String pendingConfigName;
+    private String pendingConfigLeft;
+    private String pendingConfigRight;
 
     private ProfileViewModel viewModel;
     private Profile targetProfile;
@@ -287,6 +291,10 @@ public class ConnectionActivity extends AppCompatActivity
         if (fragment instanceof MainFragment) {
             mainFragment = (MainFragment) fragment;
             mainFragment.setListener(this);
+            applyConfigCardUi(); // ใส่ชื่อโปรไฟล์ที่ค้างไว้ตอน fragment ยังไม่พร้อม
+            if (targetProfile != null) {
+                bindProfile(targetProfile);
+            }
         } else if (fragment instanceof LogFragment) {
             logFragment = (LogFragment) fragment;
         }
@@ -341,13 +349,23 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     private void updateConfigCard(String name, String left, String right) {
+        pendingConfigName = name != null ? name : "Not Set";
+        pendingConfigLeft = left != null ? left : "---";
+        pendingConfigRight = right != null ? right : "---";
+        applyConfigCardUi();
+    }
+
+    private void applyConfigCardUi() {
         if (mainFragment == null) return;
         if (mainFragment.getTxtConfigName() != null)
-            mainFragment.getTxtConfigName().setText(name);
+            mainFragment.getTxtConfigName().setText(
+                    pendingConfigName != null ? pendingConfigName : "Not Set");
         if (mainFragment.getTxtConfigLeft() != null)
-            mainFragment.getTxtConfigLeft().setText(left);
+            mainFragment.getTxtConfigLeft().setText(
+                    pendingConfigLeft != null ? pendingConfigLeft : "---");
         if (mainFragment.getTxtConfigRight() != null)
-            mainFragment.getTxtConfigRight().setText(right);
+            mainFragment.getTxtConfigRight().setText(
+                    pendingConfigRight != null ? pendingConfigRight : "---");
     }
 
     private void syncButtonState() {
@@ -719,20 +737,22 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
     private void bindProfile(Profile p) {
         targetProfile = p;
-        // ⭐ ไม่ใส่ชื่อโปรไฟล์บน toolbar — กันตัวอักษรหลุด (เช่น "h" จากชื่อ "hT")
-        // ชื่อโปรไฟล์แสดงที่การ์ด ACTIVE CONFIGURATION อยู่แล้ว
         toolbar.setTitle("VPN Manager");
 
-        updateConfigCard(p.name, p.host, String.valueOf(p.port));
+        String hostLine = (p.host != null ? p.host : "---");
+        String name = (p.name != null && !p.name.isEmpty()) ? p.name : hostLine;
+        updateConfigCard(name, hostLine, String.valueOf(p.port));
 
-        if (mainFragment != null && mainFragment.getImgConfigIcon() != null) {
-            if (p.protocol == com.example.vpn.model.Protocol.SSH) {
-                mainFragment.getImgConfigIcon().setImageResource(
-                        android.R.drawable.ic_lock_lock);
-            } else {
-                mainFragment.getImgConfigIcon().setImageResource(
-                        android.R.drawable.ic_menu_upload);
-            }
+        // การ์ดแบบใหม่: ธง + โปรโตคอล + ping
+        if (mainFragment != null) {
+            mainFragment.bindActiveProfile(p, null);
+            // วัด ping เบื้องหลังแล้วอัปเดตสัญญาณ
+            final long pid = p.id;
+            com.example.vpn.util.LatencyProbe.measure(pid, p.host, p.port, (profileId, ms) -> {
+                if (targetProfile != null && targetProfile.id == profileId && mainFragment != null) {
+                    mainFragment.applyLatency(ms);
+                }
+            });
         }
     }
 
