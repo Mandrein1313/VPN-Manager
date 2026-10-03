@@ -494,6 +494,26 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
 
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleOpenTabIntent(intent);
+    }
+
+    private void handleOpenTabIntent(android.content.Intent intent) {
+        if (intent == null || viewPager == null) return;
+        int tab = intent.getIntExtra("open_tab", -1);
+        if (tab >= 0 && tab <= 2) {
+            viewPager.post(() -> {
+                viewPager.setCurrentItem(tab, false);
+                logMenuVisible = (tab == 2);
+                invalidateOptionsMenu();
+            });
+        }
+    }
+
     @Override
     public boolean onCreateOptionsMenu(android.view.Menu menu) {
         if (logMenuVisible) {

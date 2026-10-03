@@ -37,7 +37,6 @@ import com.example.vpn.ui.CrashLogActivity;
 import com.example.vpn.ui.ShareWifiActivity;
 import com.example.vpn.ui.BypassActivity;
 import com.example.vpn.ui.BackupActivity;
-import com.example.vpn.ui.LogViewerActivity;
 import com.example.vpn.ui.ProfileAdapter;
 import com.example.vpn.ui.ProfileEditActivity;
 import com.example.vpn.ui.ProfileViewModel;
@@ -1080,5 +1079,13 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+
+    /** เปิดหน้าหลักที่แท็บ LOG (ไม่ใช้ LogViewerActivity แยกแล้ว) */
+    private void openConnectionLogTab() {
+        Intent i = new Intent(this, ConnectionActivity.class);
+        i.putExtra("open_tab", 2);
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(i);
+    }
 
 }
