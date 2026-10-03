@@ -56,6 +56,13 @@ public class MainFragment extends Fragment {
     public TextView getTxtDownload() { return txtDownload; }
     public TextView getTxtUpload() { return txtUpload; }
     public TextView getTxtSession() { return txtSession; }
+    public TextView getTxtAdFreeTime() { return txtAdFreeTime; }
+
+    public void setAdFreeLabel(String label) {
+        if (txtAdFreeTime != null && label != null) {
+            txtAdFreeTime.setText(label);
+        }
+    }
 
     @Nullable
     @Override

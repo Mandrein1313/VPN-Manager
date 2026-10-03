@@ -280,6 +280,7 @@ public class ConnectionActivity extends AppCompatActivity
             mainFragment = (MainFragment) fragment;
             mainFragment.setListener(this);
             applyConfigCardUi(); // ใส่ชื่อโปรไฟล์ที่ค้างไว้ตอน fragment ยังไม่พร้อม
+            refreshAdFreeCard();
             if (targetProfile != null) {
                 bindProfile(targetProfile);
             }
@@ -324,7 +325,65 @@ public class ConnectionActivity extends AppCompatActivity
 
     @Override
     public void onAdFreeClick() {
-        StyledToast.info(this, "Ad-free time — เร็วๆ นี้");
+        showAdFreeDialog();
+    }
+
+    private com.example.vpn.util.AdFreePrefs adFreePrefs;
+
+    private com.example.vpn.util.AdFreePrefs adFree() {
+        if (adFreePrefs == null) {
+            adFreePrefs = new com.example.vpn.util.AdFreePrefs(this);
+        }
+        return adFreePrefs;
+    }
+
+    private void refreshAdFreeCard() {
+        if (mainFragment != null) {
+            mainFragment.setAdFreeLabel(adFree().getCardLabel());
+        }
+    }
+
+    private void showAdFreeDialog() {
+        com.example.vpn.util.AdFreePrefs af = adFree();
+        String status;
+        if (af.isAdFreeActive()) {
+            status = "สถานะ: กำลังปลอดโฆษณา\nเหลือ " + af.getCardLabel();
+        } else {
+            status = "สถานะ: ยังไม่เปิด Ad-free\nคะแนนปัจจุบัน: " + af.getPoints() + " pts";
+        }
+        status += "\n\n• รับโบนัสรายวัน +" + com.example.vpn.util.AdFreePrefs.DAILY_BONUS_PTS
+                + " pts\n• ดูโฆษณา +" + com.example.vpn.util.AdFreePrefs.WATCH_AD_PTS
+                + " pts\n• แลก " + com.example.vpn.util.AdFreePrefs.COST_30_MIN
+                + " pts = " + com.example.vpn.util.AdFreePrefs.MINUTES_PER_REDEEM + " นาที";
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("⭐ Ad-free time")
+                .setMessage(status)
+                .setPositiveButton("แลก 30 นาที", (d, w) -> {
+                    if (af.redeem30Minutes()) {
+                        StyledToast.success(this, "เปิด Ad-free 30 นาทีแล้ว");
+                        refreshAdFreeCard();
+                    } else {
+                        StyledToast.info(this, "คะแนนไม่พอ (ต้องการ "
+                                + com.example.vpn.util.AdFreePrefs.COST_30_MIN + " pts)");
+                    }
+                })
+                .setNeutralButton("รับโบนัสวัน", (d, w) -> {
+                    if (af.claimDailyBonus()) {
+                        StyledToast.success(this, "รับ +"
+                                + com.example.vpn.util.AdFreePrefs.DAILY_BONUS_PTS + " pts");
+                        refreshAdFreeCard();
+                    } else {
+                        StyledToast.info(this, "รับโบนัสวันนี้ไปแล้ว");
+                    }
+                })
+                .setNegativeButton("ดูโฆษณา (+pts)", (d, w) -> {
+                    af.rewardWatchAd();
+                    StyledToast.success(this, "ได้รับ +"
+                            + com.example.vpn.util.AdFreePrefs.WATCH_AD_PTS + " pts");
+                    refreshAdFreeCard();
+                })
+                .show();
     }
 
     // ============================================================
@@ -604,6 +663,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     @Override
     protected void onResume() {
         super.onResume();
+        refreshAdFreeCard();
 
         // ⭐ ถ้า UI บอกว่าไม่เชื่อมต่อ แต่ service flag ยัง running → บังคับหยุด (กันกุญแจค้าง)
         tryCleanupOrphanVpn();
