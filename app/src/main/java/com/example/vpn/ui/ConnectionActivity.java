@@ -187,19 +187,7 @@ public class ConnectionActivity extends AppCompatActivity
                 bindProfile(p);
             });
         } else {
-            viewModel.getProfiles().observe(this, list -> {
-                if (targetProfile != null) return;
-                if (list == null || list.isEmpty()) {
-                    updateStatusText("[ NO PROFILE ]", 0xFF00E676);
-                    updateConfigCard("Not Set", "---", "---");
-                    toolbar.setTitle("VPN Manager");
-                    return;
-                }
-                Profile p = null;
-                for (Profile x : list) if (x.isFavorite) { p = x; break; }
-                if (p == null) p = list.get(0);
-                bindProfile(p);
-            });
+            reloadProfiles();
         }
 
         // ⭐ Observe Status
@@ -386,19 +374,33 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     private void reloadProfiles() {
-        viewModel.getProfiles().observe(this, list -> {
-            if (targetProfile != null) return;
+        // ใช้ getAll ครั้งเดียว — กัน observe ซ้อนจน crash / สถานะเพี้ยน
+        viewModel.getRepo().getAllSync(list -> runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) return;
             if (list == null || list.isEmpty()) {
+                targetProfile = null;
                 updateStatusText("[ NO PROFILE ]", 0xFF00E676);
                 updateConfigCard("Not Set", "---", "---");
+                if (mainFragment != null) {
+                    try { mainFragment.bindActiveProfile(null, null); } catch (Exception ignored) {}
+                }
                 toolbar.setTitle("VPN Manager");
                 return;
+            }
+            if (targetProfile != null) {
+                // คงโปรไฟล์เดิมถ้ายังอยู่ใน list
+                for (Profile x : list) {
+                    if (x.id == targetProfile.id) {
+                        bindProfile(x);
+                        return;
+                    }
+                }
             }
             Profile p = null;
             for (Profile x : list) if (x.isFavorite) { p = x; break; }
             if (p == null) p = list.get(0);
             bindProfile(p);
-        });
+        }));
     }
 
     // ============================================================
@@ -736,22 +738,31 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     private void bindProfile(Profile p) {
+        if (p == null) return;
         targetProfile = p;
         toolbar.setTitle("VPN Manager");
+
+        // มีโปรไฟล์แล้ว — อย่าค้างข้อความ NO PROFILE
+        if (!ProxyVpnService.isServiceRunning(this)) {
+            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+        }
 
         String hostLine = (p.host != null ? p.host : "---");
         String name = (p.name != null && !p.name.isEmpty()) ? p.name : hostLine;
         updateConfigCard(name, hostLine, String.valueOf(p.port));
 
-        // การ์ดแบบใหม่: ธง + โปรโตคอล + ping
         if (mainFragment != null) {
-            mainFragment.bindActiveProfile(p, null);
-            // วัด ping เบื้องหลังแล้วอัปเดตสัญญาณ
+            try {
+                mainFragment.bindActiveProfile(p, null);
+            } catch (Exception ignored) {}
             final long pid = p.id;
             com.example.vpn.util.LatencyProbe.measure(pid, p.host, p.port, (profileId, ms) -> {
-                if (targetProfile != null && targetProfile.id == profileId && mainFragment != null) {
-                    mainFragment.applyLatency(ms);
-                }
+                try {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (targetProfile != null && targetProfile.id == profileId && mainFragment != null) {
+                        mainFragment.applyLatency(ms);
+                    }
+                } catch (Exception ignored) {}
             });
         }
     }

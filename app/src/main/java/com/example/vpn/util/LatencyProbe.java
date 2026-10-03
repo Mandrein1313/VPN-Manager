@@ -1,12 +1,16 @@
 package com.example.vpn.util;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * วัด latency แบบ TCP connect ไป host:port (ไม่ต้อง root / ICMP)
+ * วัด latency แบบ TCP connect ไป host:port
+ * callback เสมอบน Main thread — กัน crash CalledFromWrongThreadException
  */
 public final class LatencyProbe {
 
@@ -15,20 +19,26 @@ public final class LatencyProbe {
     }
 
     private static final ExecutorService POOL = Executors.newFixedThreadPool(4);
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final int TIMEOUT_MS = 4000;
 
     private LatencyProbe() {}
 
     public static void measure(long profileId, String host, int port, Callback cb) {
-        if (host == null || host.trim().isEmpty() || port <= 0 || cb == null) {
-            if (cb != null) cb.onResult(profileId, -1);
+        if (cb == null) return;
+        if (host == null || host.trim().isEmpty() || port <= 0) {
+            MAIN.post(() -> cb.onResult(profileId, -1));
             return;
         }
         final String h = host.trim();
         final int p = port;
         POOL.execute(() -> {
             int ms = tcpPing(h, p);
-            cb.onResult(profileId, ms);
+            MAIN.post(() -> {
+                try {
+                    cb.onResult(profileId, ms);
+                } catch (Exception ignored) {}
+            });
         });
     }
 
