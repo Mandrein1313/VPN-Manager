@@ -332,7 +332,6 @@ public class MainActivity extends AppCompatActivity
     // Toolbar Menu
     // ============================================================
     @Override
-    @Override
     protected void onResume() {
         super.onResume();
         RemoteGate.check(this);
