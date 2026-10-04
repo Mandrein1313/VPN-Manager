@@ -30,6 +30,7 @@ import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
 import com.example.vpn.model.Profile;
 import com.example.vpn.util.StyledToast;
+import com.example.vpn.util.RemoteGate;
 import com.example.vpn.util.StatusBus;
 import com.example.vpn.util.ThemePrefs;
 import com.example.vpn.util.VpnLogger;
@@ -119,6 +120,9 @@ public class ConnectionActivity extends AppCompatActivity
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connection);
+
+        // Remote kill — บล็อกทั้งหน้าเชื่อมต่อ
+        RemoteGate.check(this);
 
         themePrefs = new ThemePrefs(this);
 
@@ -663,6 +667,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     @Override
     protected void onResume() {
         super.onResume();
+        // Remote kill — บล็อกทุกครั้งที่กลับมาหน้านี้
+        RemoteGate.check(this);
         refreshAdFreeCard();
 
         // ⭐ ถ้า UI บอกว่าไม่เชื่อมต่อ แต่ service flag ยัง running → บังคับหยุด (กันกุญแจค้าง)
@@ -828,6 +834,10 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     private void requestConnect() {
+        if (RemoteGate.isBlocked(this)) {
+            RemoteGate.enforceBlock(this);
+            return;
+        }
         if (targetProfile == null) {
             StyledToast.info(this, "กรุณาเลือกโปรไฟล์ก่อน");
             return;

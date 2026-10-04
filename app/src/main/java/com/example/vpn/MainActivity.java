@@ -332,6 +332,12 @@ public class MainActivity extends AppCompatActivity
     // Toolbar Menu
     // ============================================================
     @Override
+    @Override
+    protected void onResume() {
+        super.onResume();
+        RemoteGate.check(this);
+    }
+
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_profile_list, menu);
         return true;
