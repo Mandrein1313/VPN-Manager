@@ -1,0 +1,611 @@
+package com.example.vpn.ui;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.autofill.AutofillManager;
+import android.view.inputmethod.InputMethodManager;
+import android.text.method.PasswordTransformationMethod;
+import android.text.InputType;
+import android.text.TextUtils;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.example.vpn.R;
+import com.example.vpn.MainActivity;
+import com.example.vpn.data.AppDatabase;
+import com.example.vpn.data.ProfileRepository;
+import com.example.vpn.model.Profile;
+import com.example.vpn.model.ConnectionMode;
+import com.example.vpn.model.Protocol;
+import com.example.vpn.util.StyledToast;
+import com.example.vpn.util.VpnPrefs;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+public class ProfileEditActivity extends AppCompatActivity {
+
+    public static final String EXTRA_PREFILL_HOST = "prefill_host";
+    public static final String EXTRA_PREFILL_PORT = "prefill_port";
+    public static final String EXTRA_PREFILL_USER = "prefill_user";
+    public static final String EXTRA_PREFILL_PASS = "prefill_pass";
+
+    private ProfileViewModel viewModel;
+    private Profile existing;
+
+    private TextInputLayout tilPass;
+    private boolean passwordVisible = false;
+    private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
+            edtHttpProxy, edtProxyPort, edtPayload, edtSni, edtSslPort,
+            edtUdpgwPort, edtDns1, edtDns2, edtPrivateKey, edtKeyPassphrase;
+    private TextInputEditText edtV2rayUuid, edtV2rayPath, edtV2rayHost,
+            edtV2rayServiceName, edtV2rayFlow;
+    private MaterialAutoCompleteTextView ddProtocol, ddConnectionMode, ddAuthMethod,
+            ddV2rayType, ddV2rayNetwork;
+    private LinearLayout groupCredentials, groupSsh, groupV2Ray;
+    private View tilHttpProxy, tilProxyPort, tilPayload, tilSni, tilSslPort,
+            tilPrivateKey, tilKeyPassphrase, tilPassField, tilAuthMethod;
+    private MaterialSwitch switchV2rayTls, switchV2rayFragment;
+    private TextInputEditText edtV2rayPublicKey, edtV2rayShortId;
+    private MaterialButton btnSave;
+
+    // ⭐ Options switches
+    private MaterialSwitch switchAutoReconnect;
+    private MaterialSwitch switchKillSwitch;
+    private MaterialSwitch switchAutoConnectBoot;   // ⭐ ใหม่
+
+    private VpnPrefs prefs;
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_profile_edit);
+        // ปิด Google Password Manager / Autofill
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            getWindow().getDecorView().setImportantForAutofill(
+                    android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
+
+        prefs = new VpnPrefs(this);
+
+        ProfileRepository repo = new ProfileRepository(AppDatabase.get(this));
+        viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
+                .get(ProfileViewModel.class);
+
+        MaterialToolbar tb = findViewById(R.id.toolbar);
+        tb.setNavigationOnClickListener(v -> finish());
+
+        edtName = findViewById(R.id.edtName);
+        edtHost = findViewById(R.id.edtHost);
+        edtPort = findViewById(R.id.edtPort);
+        edtUser = findViewById(R.id.edtUser);
+        edtPass = findViewById(R.id.edtPass);
+        tilPass = findViewById(R.id.tilPass);
+        edtHttpProxy = findViewById(R.id.edtHttpProxy);
+        edtProxyPort = findViewById(R.id.edtProxyPort);
+        edtSslPort = findViewById(R.id.edtSslPort);
+        edtPrivateKey = findViewById(R.id.edtPrivateKey);
+        edtKeyPassphrase = findViewById(R.id.edtKeyPassphrase);
+        ddAuthMethod = findViewById(R.id.ddAuthMethod);
+        tilAuthMethod = findViewById(R.id.tilAuthMethod);
+        tilProxyPort = findViewById(R.id.tilProxyPort);
+        tilSslPort = findViewById(R.id.tilSslPort);
+        tilPrivateKey = findViewById(R.id.tilPrivateKey);
+        tilKeyPassphrase = findViewById(R.id.tilKeyPassphrase);
+        setupAuthMethodDropdown();
+        edtPayload = findViewById(R.id.edtPayload);
+        edtSni = findViewById(R.id.edtSni);
+        edtUdpgwPort = findViewById(R.id.edtUdpgwPort);
+        edtDns1 = findViewById(R.id.edtDns1);
+        edtDns2 = findViewById(R.id.edtDns2);
+        ddProtocol = findViewById(R.id.ddProtocol);
+        groupCredentials = findViewById(R.id.groupCredentials);
+        groupSsh = findViewById(R.id.groupSsh);
+        ddConnectionMode = findViewById(R.id.ddConnectionMode);
+        tilHttpProxy = findViewById(R.id.tilHttpProxy);
+        tilPayload = findViewById(R.id.tilPayload);
+        tilSni = findViewById(R.id.tilSni);
+        setupConnectionModeDropdown();
+        btnSave = findViewById(R.id.btnSave);
+
+        disablePasswordAutofill();
+        setupPasswordVisibilityToggle();
+
+        // ⭐ V2Ray UI binding
+        edtV2rayUuid = findViewById(R.id.edtV2rayUuid);
+        edtV2rayPath = findViewById(R.id.edtV2rayPath);
+        edtV2rayHost = findViewById(R.id.edtV2rayHost);
+        edtV2rayServiceName = findViewById(R.id.edtV2rayServiceName);
+        edtV2rayFlow = findViewById(R.id.edtV2rayFlow);
+        ddV2rayType = findViewById(R.id.ddV2rayType);
+        ddV2rayNetwork = findViewById(R.id.ddV2rayNetwork);
+        groupV2Ray = findViewById(R.id.groupV2Ray);
+        switchV2rayTls = findViewById(R.id.switchV2rayTls);
+        switchV2rayFragment = findViewById(R.id.switchV2rayFragment);
+        edtV2rayPublicKey = findViewById(R.id.edtV2rayPublicKey);
+        edtV2rayShortId = findViewById(R.id.edtV2rayShortId);
+
+        if (ddV2rayType != null) {
+            String[] v2Types = {"vless", "vmess", "trojan", "ss"};
+            ddV2rayType.setAdapter(new ArrayAdapter<>(this,
+                    android.R.layout.simple_list_item_1, v2Types));
+        }
+
+        if (ddV2rayNetwork != null) {
+            String[] v2Networks = {"tcp", "ws", "grpc", "http", "h2"};
+            ddV2rayNetwork.setAdapter(new ArrayAdapter<>(this,
+                    android.R.layout.simple_list_item_1, v2Networks));
+        }
+
+        // ⭐ Bind options
+        switchAutoReconnect = findViewById(R.id.switchAutoReconnect);
+        switchKillSwitch = findViewById(R.id.switchKillSwitch);
+        switchAutoConnectBoot = findViewById(R.id.switchAutoConnectBoot);  // ⭐ ใหม่
+
+        if (switchAutoReconnect != null) {
+            switchAutoReconnect.setChecked(prefs.isAutoReconnect());
+            switchAutoReconnect.setOnCheckedChangeListener((b, checked) ->
+                    prefs.setAutoReconnect(checked));
+        }
+        if (switchKillSwitch != null) {
+            switchKillSwitch.setChecked(prefs.isKillSwitch());
+            switchKillSwitch.setOnCheckedChangeListener((b, checked) ->
+                    prefs.setKillSwitch(checked));
+        }
+
+        // ⭐ Auto-connect on Boot toggle
+        if (switchAutoConnectBoot != null) {
+            switchAutoConnectBoot.setChecked(prefs.isAutoConnectBoot());
+            switchAutoConnectBoot.setOnCheckedChangeListener((b, checked) ->
+                    prefs.setAutoConnectBoot(checked));
+        }
+
+        String[] protoNames = new String[Protocol.values().length];
+        for (int i = 0; i < Protocol.values().length; i++) {
+            protoNames[i] = Protocol.values()[i].displayName;
+        }
+        ddProtocol.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, protoNames));
+        ddProtocol.setOnItemClickListener((p, v, pos, id) -> {
+            Protocol selected = Protocol.values()[pos];
+            onProtocolChanged(selected);
+        });
+
+        long id = getIntent().getLongExtra(MainActivity.EXTRA_PROFILE_ID, -1L);
+        Intent intent = getIntent();
+
+        if (id > 0) {
+            tb.setTitle("แก้ไขโปรไฟล์");
+            viewModel.getRepo().getById(id, loaded -> {
+                if (loaded == null) { finish(); return; }
+                existing = loaded;
+                bindProfile(loaded);
+            });
+        } else if (intent.hasExtra(EXTRA_PREFILL_HOST)) {
+            tb.setTitle("เพิ่มโปรไฟล์ (จาก Clipboard)");
+            prefillFromIntent(intent);
+        } else {
+            tb.setTitle("เพิ่มโปรไฟล์");
+            fillDefaults();
+        }
+
+        btnSave.setOnClickListener(v -> save());
+    }
+
+    private void prefillFromIntent(Intent intent) {
+        String host = intent.getStringExtra(EXTRA_PREFILL_HOST);
+        int port = intent.getIntExtra(EXTRA_PREFILL_PORT, 22);
+        String user = intent.getStringExtra(EXTRA_PREFILL_USER);
+        String pass = intent.getStringExtra(EXTRA_PREFILL_PASS);
+
+        ddProtocol.setText(Protocol.SSH.displayName, false);
+
+        if (host != null && !host.isEmpty()) {
+            edtName.setText(host);
+            edtHost.setText(host);
+        }
+        edtPort.setText(String.valueOf(port));
+        if (user != null) edtUser.setText(user);
+        if (pass != null) edtPass.setText(pass);
+        edtDns1.setText("8.8.8.8");
+        edtDns2.setText("8.8.4.4");
+
+        onProtocolChanged(Protocol.SSH);
+    }
+
+    private void fillDefaults() {
+        ddProtocol.setText(Protocol.SSH.displayName, false);
+        edtPort.setText(String.valueOf(Protocol.SSH.defaultPort));
+        edtDns1.setText("8.8.8.8");
+        edtDns2.setText("8.8.4.4");
+        onProtocolChanged(Protocol.SSH);
+    }
+
+    private void bindProfile(Profile p) {
+        edtName.setText(p.name);
+        ddProtocol.setText(p.protocol.displayName, false);
+        edtHost.setText(p.host);
+        edtPort.setText(String.valueOf(p.port));
+        edtUser.setText(p.user);
+        edtPass.setText(p.pass);
+        edtHttpProxy.setText(p.httpProxy);
+        edtPayload.setText(p.payload);
+        edtSni.setText(p.sni);
+        ConnectionMode cm = p.getConnectionMode();
+        if (ddConnectionMode != null) {
+            ddConnectionMode.setText(cm.label, false);
+            applyConnectionModeUi(cm);
+        }
+        if (edtUdpgwPort != null) {
+            edtUdpgwPort.setText(p.udpgwPort > 0 ? String.valueOf(p.udpgwPort) : "7300");
+        }
+        if (edtProxyPort != null) {
+            edtProxyPort.setText(p.proxyPort > 0 ? String.valueOf(p.proxyPort) : "");
+        }
+        if (edtSslPort != null) {
+            edtSslPort.setText(p.sslPort > 0 ? String.valueOf(p.sslPort) : "");
+        }
+        if (ddAuthMethod != null) {
+            boolean key = p.usePrivateKey() || "private_key".equalsIgnoreCase(p.authMethod);
+            ddAuthMethod.setText(key ? "Private Key" : "Password", false);
+            applyAuthMethodUi(key);
+        }
+        if (edtPrivateKey != null) edtPrivateKey.setText(p.privateKey != null ? p.privateKey : "");
+        if (edtKeyPassphrase != null) edtKeyPassphrase.setText(p.keyPassphrase != null ? p.keyPassphrase : "");
+        edtDns1.setText(p.dns1);
+        edtDns2.setText(p.dns2);
+
+        // ⭐ Bind V2Ray
+        if (edtV2rayUuid != null) edtV2rayUuid.setText(p.v2rayUuid);
+        if (edtV2rayPath != null) edtV2rayPath.setText(p.v2rayPath);
+        if (edtV2rayHost != null) edtV2rayHost.setText(p.v2rayHost);
+        if (edtV2rayServiceName != null) edtV2rayServiceName.setText(p.v2rayServiceName);
+        if (edtV2rayFlow != null) edtV2rayFlow.setText(p.v2rayFlow);
+        if (ddV2rayType != null) ddV2rayType.setText(p.v2rayType, false);
+        if (ddV2rayNetwork != null) ddV2rayNetwork.setText(p.v2rayNetwork, false);
+        if (switchV2rayTls != null) switchV2rayTls.setChecked(p.v2rayTls);
+        if (switchV2rayFragment != null) switchV2rayFragment.setChecked(p.v2rayFragment);
+        if (edtV2rayPublicKey != null) edtV2rayPublicKey.setText(p.v2rayPublicKey);
+        if (edtV2rayShortId != null) edtV2rayShortId.setText(p.v2rayShortId);
+
+        onProtocolChanged(p.protocol);
+    }
+
+
+
+    private void setupAuthMethodDropdown() {
+        if (ddAuthMethod == null) return;
+        String[] labels = new String[]{"Password", "Private Key"};
+        ddAuthMethod.setAdapter(new ArrayAdapter<>(
+                this, android.R.layout.simple_dropdown_item_1line, labels));
+        ddAuthMethod.setText("Password", false);
+        ddAuthMethod.setOnItemClickListener((parent, view, position, id) ->
+                applyAuthMethodUi(position == 1));
+        applyAuthMethodUi(false);
+    }
+
+    private void applyAuthMethodUi(boolean useKey) {
+        if (tilPrivateKey != null) {
+            tilPrivateKey.setVisibility(useKey ? View.VISIBLE : View.GONE);
+        }
+        if (tilKeyPassphrase != null) {
+            tilKeyPassphrase.setVisibility(useKey ? View.VISIBLE : View.GONE);
+        }
+        if (edtPass != null) {
+            edtPass.setEnabled(true);
+        }
+    }
+
+    private boolean isPrivateKeyAuth() {
+        if (ddAuthMethod == null) return false;
+        String t = ddAuthMethod.getText().toString();
+        return t != null && t.toLowerCase().contains("key");
+    }
+
+    private void setupConnectionModeDropdown() {
+        if (ddConnectionMode == null) return;
+        String[] labels = ConnectionMode.labels();
+        ddConnectionMode.setAdapter(new ArrayAdapter<>(
+                this, android.R.layout.simple_dropdown_item_1line, labels));
+        ddConnectionMode.setText(ConnectionMode.HTTP_PROXY_PAYLOAD.label, false);
+        ddConnectionMode.setOnItemClickListener((parent, view, position, id) -> {
+            if (position >= 0 && position < ConnectionMode.values().length) {
+                applyConnectionModeUi(ConnectionMode.values()[position]);
+            }
+        });
+        applyConnectionModeUi(ConnectionMode.HTTP_PROXY_PAYLOAD);
+    }
+
+    private void applyConnectionModeUi(ConnectionMode mode) {
+        if (mode == null) mode = ConnectionMode.DIRECT;
+        int visProxy = View.GONE;
+        int visPayload = View.GONE;
+        int visSni = View.GONE;
+        switch (mode) {
+            case DIRECT:
+                break;
+            case HTTP_PROXY_PAYLOAD:
+                visProxy = View.VISIBLE;
+                visPayload = View.VISIBLE;
+                break;
+            case SSL_TLS:
+                visSni = View.VISIBLE;
+                break;
+            case WEBSOCKET:
+                visProxy = View.VISIBLE;
+                visPayload = View.VISIBLE;
+                visSni = View.VISIBLE;
+                break;
+        }
+        if (tilHttpProxy != null) tilHttpProxy.setVisibility(visProxy);
+        if (tilProxyPort != null) tilProxyPort.setVisibility(visProxy);
+        if (tilPayload != null) tilPayload.setVisibility(visPayload);
+        if (tilSni != null) tilSni.setVisibility(visSni);
+        if (tilSslPort != null) tilSslPort.setVisibility(visSni);
+    }
+
+    private ConnectionMode selectedConnectionMode() {
+        if (ddConnectionMode == null) return ConnectionMode.DIRECT;
+        return ConnectionMode.fromLabel(ddConnectionMode.getText().toString());
+    }
+
+    private void onProtocolChanged(Protocol proto) {
+        boolean isSsh = (proto == Protocol.SSH);
+        boolean isV2Style = (proto == Protocol.V2RAY
+                || proto == Protocol.SHADOWSOCKS
+                || proto == Protocol.TROJAN);
+
+        // พอร์ตเริ่มต้นตามโปรโตคอล (โปรไฟล์ใหม่ หรือสลับโหมดตอนสร้าง)
+        if (existing == null && edtPort != null) {
+            edtPort.setText(String.valueOf(proto.defaultPort));
+        }
+
+        // SSH: user/pass + SSH options
+        if (groupCredentials != null) {
+            groupCredentials.setVisibility(isSsh ? View.VISIBLE : View.GONE);
+        }
+        if (groupSsh != null) {
+            groupSsh.setVisibility(isSsh ? View.VISIBLE : View.GONE);
+        }
+        // SSH Auth / Private Key อยู่นอก group บางครั้ง — บังคับซ่อนเมื่อไม่ใช่ SSH
+        if (tilAuthMethod != null) {
+            tilAuthMethod.setVisibility(isSsh ? View.VISIBLE : View.GONE);
+        }
+        if (tilPrivateKey != null) {
+            tilPrivateKey.setVisibility(View.GONE); // เปิดเมื่อเลือก Private Key เท่านั้น
+        }
+        if (tilKeyPassphrase != null) {
+            tilKeyPassphrase.setVisibility(View.GONE);
+        }
+        if (isSsh) {
+            applyAuthMethodUi(isPrivateKeyAuth());
+        }
+
+        // V2Ray / SS / Trojan
+        if (groupV2Ray != null) {
+            groupV2Ray.setVisibility(isV2Style ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private Protocol currentProtocol() {
+        String text = ddProtocol.getText().toString();
+        for (Protocol p : Protocol.values()) {
+            if (p.displayName.equals(text)) return p;
+        }
+        return Protocol.SSH;
+    }
+
+
+    /**
+     * กัน Google Password Manager / Autofill จับช่อง user/pass
+     * (inputType=textPassword จะโดน save password เสมอ)
+     */
+
+    /** กดไอคอนตา เพื่อแสดง/ซ่อนรหัสผ่าน (ไม่ใช้ textPassword) */
+    private void setupPasswordVisibilityToggle() {
+        if (tilPass == null || edtPass == null) return;
+        tilPass.setEndIconOnClickListener(v -> {
+            passwordVisible = !passwordVisible;
+            int start = edtPass.getSelectionStart();
+            int end = edtPass.getSelectionEnd();
+            if (passwordVisible) {
+                edtPass.setTransformationMethod(null);
+                tilPass.setEndIconContentDescription("ซ่อนรหัสผ่าน");
+            } else {
+                edtPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
+                tilPass.setEndIconContentDescription("แสดงรหัสผ่าน");
+            }
+            // คงตำแหน่งเคอร์เซอร์
+            try {
+                if (start >= 0) edtPass.setSelection(start, Math.max(start, end));
+            } catch (Exception ignored) {}
+        });
+    }
+
+    private void disablePasswordAutofill() {
+        View[] fields = new View[]{
+                edtUser, edtPass, edtHost, edtPort, edtName,
+                edtHttpProxy, edtPayload, edtSni, edtUdpgwPort, edtDns1, edtDns2
+        };
+        for (View v : fields) {
+            if (v == null) continue;
+            v.setSaveEnabled(false);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                v.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+            }
+        }
+        if (edtPass != null) {
+            // ไม่ใช้ TYPE_TEXT_VARIATION_PASSWORD — แต่ยังบังคับแสดงเป็นจุด
+            edtPass.setInputType(InputType.TYPE_CLASS_TEXT
+                    | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+            edtPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                edtPass.setAutofillHints((String[]) null);
+            }
+        }
+        if (edtUser != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            edtUser.setAutofillHints((String[]) null);
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            getWindow().getDecorView().setImportantForAutofill(
+                    View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+            try {
+                AutofillManager afm = getSystemService(AutofillManager.class);
+                if (afm != null) {
+                    afm.cancel();
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void hideKeyboardAndClearFocus() {
+        try {
+            View focus = getCurrentFocus();
+            if (focus != null) {
+                focus.clearFocus();
+                InputMethodManager imm = (InputMethodManager)
+                        getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+                }
+            }
+            if (edtPass != null) edtPass.setText(edtPass.getText()); // re-apply transform
+        } catch (Exception ignored) {}
+    }
+
+    private void save() {
+        hideKeyboardAndClearFocus();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                AutofillManager afm = getSystemService(AutofillManager.class);
+                if (afm != null) afm.cancel();
+            } catch (Exception ignored) {}
+        }
+
+    String name = text(edtName);
+    String host = text(edtHost);
+    String portStr = text(edtPort);
+
+    if (TextUtils.isEmpty(name)) { edtName.setError("กรุณากรอกชื่อ"); return; }
+    if (TextUtils.isEmpty(host)) { edtHost.setError("กรุณากรอก Host"); return; }
+    if (TextUtils.isEmpty(portStr)) { edtPort.setError("กรุณากรอก Port"); return; }
+
+    int port;
+    try { port = Integer.parseInt(portStr); }
+    catch (NumberFormatException e) { edtPort.setError("Port ไม่ถูกต้อง"); return; }
+
+    Profile p = existing != null ? existing.copy() : new Profile();
+    p.name = name;
+    p.protocol = currentProtocol();
+    p.host = host;
+    p.port = port;
+    p.user = text(edtUser);
+    p.pass = text(edtPass);
+    p.httpProxy = text(edtHttpProxy);
+    p.payload = text(edtPayload);
+    p.sni = text(edtSni);
+    p.connectionMode = selectedConnectionMode().name();
+    try {
+        String ug = text(edtUdpgwPort);
+        p.udpgwPort = ug.isEmpty() ? 0 : Integer.parseInt(ug);
+    } catch (NumberFormatException e) {
+        p.udpgwPort = 7300;
+    }
+    p.dns1 = text(edtDns1);
+    p.dns2 = text(edtDns2);
+
+    // ⭐ V2Ray fields
+    if (ddV2rayType != null) {
+        String t = ddV2rayType.getText() != null ? ddV2rayType.getText().toString().trim() : "";
+        if (!t.isEmpty()) p.v2rayType = t;
+    }
+    p.v2rayUuid = text(edtV2rayUuid);
+    if (ddV2rayNetwork != null) {
+        String n = ddV2rayNetwork.getText() != null ? ddV2rayNetwork.getText().toString().trim() : "";
+        if (!n.isEmpty()) p.v2rayNetwork = n;
+    }
+    p.v2rayPath = text(edtV2rayPath);
+    p.v2rayHost = text(edtV2rayHost);
+    p.v2rayServiceName = text(edtV2rayServiceName);
+    p.v2rayFlow = text(edtV2rayFlow);
+    p.v2rayTls = switchV2rayTls != null && switchV2rayTls.isChecked();
+    p.v2rayFragment = switchV2rayFragment != null && switchV2rayFragment.isChecked();
+    p.v2rayPublicKey = text(edtV2rayPublicKey);
+    p.v2rayShortId = text(edtV2rayShortId);
+    if (p.v2rayPublicKey != null && !p.v2rayPublicKey.isEmpty()) {
+        p.v2raySecurity = "reality";
+        p.v2rayTls = true;
+    } else if (p.v2rayTls) {
+        p.v2raySecurity = "tls";
+    } else {
+        p.v2raySecurity = "none";
+    }
+    // Fragment มักใช้คู่ TLS
+    if (p.v2rayFragment && !p.v2rayTls) {
+        p.v2rayTls = true;
+        if ("none".equals(p.v2raySecurity)) p.v2raySecurity = "tls";
+    }
+
+    long excludeId = (existing != null) ? existing.id : 0L;
+
+    // ⭐ ตรวจชื่อซ้ำ
+    viewModel.getRepo().findByName(name, excludeId, dup -> {
+        if (dup != null) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("ชื่อซ้ำ")
+                    .setMessage("มีโปรไฟล์ชื่อ \"" + name + "\" อยู่แล้ว\n\n"
+                            + "Host: " + dup.host + ":" + dup.port + "\n\n"
+                            + "ต้องการอัปเดตโปรไฟล์เดิม หรือยกเลิก?")
+                    .setPositiveButton("อัปเดตของเดิม", (d, w) -> {
+                        p.id = dup.id;   // เขียนทับตัวเดิม
+                        doSave(p);
+                    })
+                    .setNegativeButton("ยกเลิก", null)
+                    .show();
+        } else {
+            doSave(p);
+        }
+    });
+}
+
+private void doSave(Profile p) {
+    viewModel.save(p, id -> {
+        StyledToast.success(this, "บันทึกแล้ว");
+        setResult(RESULT_OK);
+        finish();
+    });
+}
+
+    private String text(TextInputEditText e) {
+        return e.getText() == null ? "" : e.getText().toString().trim();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) { finish(); return true; }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onPause() {
+        hideKeyboardAndClearFocus();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                AutofillManager afm = getSystemService(AutofillManager.class);
+                if (afm != null) afm.cancel();
+            } catch (Exception ignored) {}
+        }
+        super.onPause();
+    }
+
+}
