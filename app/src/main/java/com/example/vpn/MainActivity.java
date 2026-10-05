@@ -203,9 +203,9 @@ public class MainActivity extends AppCompatActivity
         recycler.setAdapter(adapter);
 
         // ===== Empty state buttons =====
-        btnAddConfig.setOnClickListener(v -> showAddConfigurationMenu());
+        if (btnAddConfig != null) btnAddConfig.setOnClickListener(v -> showAddConfigurationMenu());
 
-        btnImportClipboard.setOnClickListener(v -> importFromClipboard());
+        if (btnImportClipboard != null) btnImportClipboard.setOnClickListener(v -> importFromClipboard());
 
 
         // ===== Observe profiles =====

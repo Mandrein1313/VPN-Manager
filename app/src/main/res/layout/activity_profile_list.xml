@@ -77,67 +77,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:gravity="center"
-                    android:text="Got a share link from a creator?\nCopy it and use the button below."
+                    android:text="กดปุ่ม + มุมล่างขวาเพื่อเพิ่มคอนฟิก"
                     android:textColor="@color/text_muted"
                     android:textSize="12sp" />
-
-                <LinearLayout
-                    android:id="@+id/btnAddConfig"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="28dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="10dp">
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@android:drawable/ic_input_add"
-                        app:tint="@color/accent_green" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="10dp"
-                        android:text="Add Configuration"
-                        android:textColor="@color/accent_green"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/btnImportClipboard"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="10dp">
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:src="@android:drawable/ic_menu_agenda"
-                        app:tint="@color/text_muted" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:text="Import from Clipboard"
-                        android:textColor="@color/text_muted"
-                        android:textSize="13sp" />
-                </LinearLayout>
-            </LinearLayout>
 
             <!-- ⭐ FAB Speed Dial -->
             <LinearLayout
