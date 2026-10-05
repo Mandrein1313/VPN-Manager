@@ -153,8 +153,7 @@ public class MainActivity extends AppCompatActivity
 
         // ===== Bind views =====
         emptyState = findViewById(R.id.emptyState);
-        recycler = findViewById(R.id.recyclerProfiles);
-        btnAddConfig = findViewById(R.id.btnAddConfig);
+        
         btnImportClipboard = findViewById(R.id.btnImportClipboard);
         setupFabMenu();
 
