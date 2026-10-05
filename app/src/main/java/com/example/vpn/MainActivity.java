@@ -70,8 +70,6 @@ public class MainActivity extends AppCompatActivity
     private LinearLayout emptyState;
     private RecyclerView recycler;
 
-    private View btnAddConfig;
-    private View btnImportClipboard;
     // FAB Speed Dial
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabMain;
     private View fabOptionAdd, fabOptionImport, fabOptionQr;
@@ -154,8 +152,6 @@ public class MainActivity extends AppCompatActivity
         // ===== Bind views =====
         emptyState = findViewById(R.id.emptyState);
         recycler = findViewById(R.id.recyclerProfiles);
-        btnAddConfig = findViewById(R.id.btnAddConfig);
-        btnImportClipboard = findViewById(R.id.btnImportClipboard);
         setupFabMenu();
 
         navHome = findViewById(R.id.navHome);
@@ -203,9 +199,7 @@ public class MainActivity extends AppCompatActivity
         recycler.setAdapter(adapter);
 
         // ===== Empty state buttons =====
-        if (btnAddConfig != null) btnAddConfig.setOnClickListener(v -> showAddConfigurationMenu());
 
-        if (btnImportClipboard != null) btnImportClipboard.setOnClickListener(v -> importFromClipboard());
 
 
         // ===== Observe profiles =====
