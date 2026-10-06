@@ -246,8 +246,7 @@ public class MainActivity extends AppCompatActivity
         if (p == null) return;
         final String[] options = {
                 "📱  แสดง QR",
-                "📋  คัดลอกไป Clipboard",
-                "📄  ส่งออกเป็นไฟล์ config"
+                "📋  คัดลอกไป Clipboard"
         };
 
         new MaterialAlertDialogBuilder(this)
@@ -261,9 +260,6 @@ public class MainActivity extends AppCompatActivity
                             break;
                         case 1:
                             copyProfileToClipboard(p);
-                            break;
-                        case 2:
-                            exportProfileAsFile(p);
                             break;
                     }
                 })
@@ -351,33 +347,30 @@ public class MainActivity extends AppCompatActivity
     // Bottom Nav "More"
     // ============================================================
     private void showMoreMenu() {
-        String[] options = {
-                "📤 ส่งออกทั้งหมด",
-                "📥 นำเข้าจาก Clipboard",
-                "📷 สแกน QR Code",
-                "🔗 เพิ่ม Subscription",
-                "🔄 อัปเดต Subscription ทั้งหมด",
-                "📋 จัดการ Subscription",
-                "🧹 ลบโปรไฟล์ชื่อซ้ำ",
-                "🎨 เปลี่ยนธีม",
-                "🐛 Crash Log",
-                "ℹ️ เกี่ยวกับ"
+        // ไม่มีนำเข้า/ส่งออก/สแกน QR — ใช้ FAB + และปุ่มแชร์รายการแทน
+        final String[] options = {
+                "🔗  เพิ่ม Subscription",
+                "🔄  อัปเดต Subscription ทั้งหมด",
+                "📋  จัดการ Subscription",
+                "🧹  ลบโปรไฟล์ชื่อซ้ำ",
+                "🎨  เปลี่ยนธีม",
+                "🐛  Crash Log",
+                "ℹ️  เกี่ยวกับ"
         };
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("เมนูเพิ่มเติม")
                 .setItems(options, (d, which) -> {
                     switch (which) {
-                        case 0: exportAllProfiles(); break;
-                        case 1: importFromClipboardDialog(); break;
-                        case 2: startQrScan(); break;
-                        case 3: showAddSubscriptionDialog(); break;
-                        case 4: updateAllSubscriptions(); break;
-                        case 5: showManageSubscriptions(); break;
-                        case 6: removeDuplicateNames(); break;
-                        case 7: showThemeDialog(); break;
-                        case 8: startActivity(new Intent(this, CrashLogActivity.class)); break;
-                        case 9: showAboutDialog(); break;
+                        case 0: showAddSubscriptionDialog(); break;
+                        case 1: updateAllSubscriptions(); break;
+                        case 2: showManageSubscriptions(); break;
+                        case 3: removeDuplicateNames(); break;
+                        case 4: showThemeDialog(); break;
+                        case 5:
+                            startActivity(new Intent(this, CrashLogActivity.class));
+                            break;
+                        case 6: showAboutDialog(); break;
                     }
                 })
                 .show();
@@ -617,7 +610,8 @@ public class MainActivity extends AppCompatActivity
 
         if (fabMain == null) return;
 
-        fabMain.setOnClickListener(v -> toggleFabMenu());
+        // กด + เพิ่มโปรไฟล์ทันที (ไม่เปิดเมนูนำเข้าหลายแบบ)
+        fabMain.setOnClickListener(v -> openManualAdd());
 
         if (fabAdd != null) {
             fabAdd.setOnClickListener(v -> {
@@ -667,9 +661,10 @@ public class MainActivity extends AppCompatActivity
         if (fabMain != null) {
             fabMain.animate().rotation(45f).setDuration(200).start();
         }
-        showFabOption(fabOptionQr, 0);
-        showFabOption(fabOptionImport, 40);
-        showFabOption(fabOptionAdd, 80);
+        // เหลือแค่เพิ่มโปรไฟล์ — นำเข้า/QR เอาออกจาก FAB
+        showFabOption(fabOptionAdd, 0);
+        if (fabOptionImport != null) fabOptionImport.setVisibility(View.GONE);
+        if (fabOptionQr != null) fabOptionQr.setVisibility(View.GONE);
     }
 
     private void closeFabMenu() {
