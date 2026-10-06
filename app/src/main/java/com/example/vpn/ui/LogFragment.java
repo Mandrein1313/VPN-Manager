@@ -72,15 +72,10 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
 
     @Override
     public void onLogAdded(String line) {
-        if (root == null || txtLogContent == null) return;
-        if (!isVisible()) return;
-        root.post(() -> {
-            SpannableStringBuilder ssb = new SpannableStringBuilder();
-            ssb.append(LogColors.coloredLine(line));
-            ssb.append("\n");
-            txtLogContent.append(ssb);
-            scrollLogToBottom();
-        });
+        // VpnLogger รวม batch แล้ว — รีเฟรชทั้งก้อนครั้งเดียว กัน TextView ค้าง
+        if (!isAdded() || txtLogContent == null) return;
+        if (getView() == null) return;
+        refreshLog();
     }
 
     private void refreshLog() {
