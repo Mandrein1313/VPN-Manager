@@ -58,6 +58,9 @@ public class ConnectionActivity extends AppCompatActivity
     private MainFragment mainFragment;
     private LogFragment logFragment;
     private boolean logMenuVisible = false;
+
+    // Bottom nav
+    private View actionHome, actionLog, actionShareWifi, actionAdd;
     // ค่าการ์ด ACTIVE CONFIG — กัน mainFragment ยังไม่พร้อม
     private String pendingConfigName;
     private String pendingConfigLeft;
@@ -159,6 +162,7 @@ public class ConnectionActivity extends AppCompatActivity
             public void onPageSelected(int position) {
                 logMenuVisible = (position == 2); // LOG tab
                 invalidateOptionsMenu();
+                setBottomNavSelected(position);
             }
         });
 
@@ -242,39 +246,84 @@ public class ConnectionActivity extends AppCompatActivity
             }
         });
 
-        View actionHome = findViewById(R.id.actionHome);
-        View actionLog = findViewById(R.id.actionLog);
-        View actionShareWifi = findViewById(R.id.actionShareWifi);
-        View actionAdd = findViewById(R.id.actionAdd);
+        actionHome = findViewById(R.id.actionHome);
+        actionLog = findViewById(R.id.actionLog);
+        actionShareWifi = findViewById(R.id.actionShareWifi);
+        actionAdd = findViewById(R.id.actionAdd);
+        setupBottomNav();
+    }
 
-        // ⭐ Home → กลับแท็บ MAIN (index 0)
+    /** เมนูล่าง: กดแล้วสลับแท็บ + ไฮไลต์สีเหมือนปุ่มแชร์ */
+    private void setupBottomNav() {
         if (actionHome != null) {
             actionHome.setOnClickListener(v -> {
-                if (viewPager != null) {
-                    viewPager.setCurrentItem(0, true);
-                }
-                if (drawerLayout != null && drawerLayout.isDrawerOpen(
-                        androidx.core.view.GravityCompat.START)) {
-                    drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
+                if (viewPager != null) viewPager.setCurrentItem(0, true);
+                setBottomNavSelected(0);
+                if (drawerLayout != null && drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
                 }
             });
         }
-        // ⭐ กด Log → ไปแท็บ LOG (index 2)
         if (actionLog != null) {
-            actionLog.setOnClickListener(v -> viewPager.setCurrentItem(2, true));
+            actionLog.setOnClickListener(v -> {
+                if (viewPager != null) viewPager.setCurrentItem(2, true);
+                setBottomNavSelected(2);
+            });
         }
-        // ⭐ แชร์ VPN (Wi‑Fi) — แทนปุ่มลบ
         if (actionShareWifi != null) {
-            actionShareWifi.setOnClickListener(v ->
-                    startActivity(new Intent(this, ShareWifiActivity.class)));
+            actionShareWifi.setOnClickListener(v -> {
+                setBottomNavSelected(-1); // ไฮไลต์แชร์ชั่วคราว
+                tintBottomItem(actionShareWifi, true);
+                startActivity(new Intent(this, ShareWifiActivity.class));
+            });
         }
         if (actionAdd != null) {
-            // ปุ่มเพิ่มโปรไฟล์ — ไม่ใช่ disclosure (disclosure อยู่ตอนกดเชื่อมต่อ)
             actionAdd.setOnClickListener(v -> {
+                setBottomNavSelected(-2);
+                tintBottomItem(actionAdd, true);
                 Intent i = new Intent(this, ProfileEditActivity.class);
                 addProfileLauncher.launch(i);
             });
         }
+        // เริ่มต้น = แท็บ MAIN
+        setBottomNavSelected(0);
+    }
+
+    /**
+     * @param tab 0=Home/MAIN, 1=CHART, 2=LOG, -1=แชร์, -2=เพิ่ม
+     */
+    private void setBottomNavSelected(int tab) {
+        tintBottomItem(actionHome, tab == 0);
+        tintBottomItem(actionLog, tab == 2);
+        tintBottomItem(actionShareWifi, tab == -1);
+        tintBottomItem(actionAdd, tab == -2);
+        // CHART ไม่มีปุ่มล่าง — ไม่ไฮไลต์ Home/Log
+        if (tab == 1) {
+            tintBottomItem(actionHome, false);
+            tintBottomItem(actionLog, false);
+        }
+    }
+
+    private void tintBottomItem(View item, boolean active) {
+        if (item == null) return;
+        int color = active
+                ? getColorCompat(R.color.bottom_nav_icon_active)
+                : getColorCompat(R.color.bottom_nav_icon);
+        if (item instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) item;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View c = g.getChildAt(i);
+                if (c instanceof android.widget.ImageView) {
+                    ((android.widget.ImageView) c).setColorFilter(color);
+                } else if (c instanceof android.widget.TextView) {
+                    ((android.widget.TextView) c).setTextColor(color);
+                }
+            }
+        }
+    }
+
+    private int getColorCompat(int resId) {
+        return androidx.core.content.ContextCompat.getColor(this, resId);
     }
 
     @Override
@@ -669,6 +718,9 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         super.onResume();
         // Remote kill — บล็อกทุกครั้งที่กลับมาหน้านี้
         RemoteGate.check(this);
+        if (viewPager != null) {
+            setBottomNavSelected(viewPager.getCurrentItem());
+        }
         refreshAdFreeCard();
 
         // ⭐ ถ้า UI บอกว่าไม่เชื่อมต่อ แต่ service flag ยัง running → บังคับหยุด (กันกุญแจค้าง)
