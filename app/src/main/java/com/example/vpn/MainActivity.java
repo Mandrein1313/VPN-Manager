@@ -610,8 +610,8 @@ public class MainActivity extends AppCompatActivity
 
         if (fabMain == null) return;
 
-        // กด + เพิ่มโปรไฟล์ทันที (ไม่เปิดเมนูนำเข้าหลายแบบ)
-        fabMain.setOnClickListener(v -> openManualAdd());
+        // กด + เปิดเมนู speed dial (QR / Clipboard / Add)
+        fabMain.setOnClickListener(v -> toggleFabMenu());
 
         if (fabAdd != null) {
             fabAdd.setOnClickListener(v -> {
@@ -660,17 +660,23 @@ public class MainActivity extends AppCompatActivity
         fabMenuOpen = true;
         if (fabMain != null) {
             fabMain.animate().rotation(45f).setDuration(200).start();
+            try {
+                fabMain.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
+            } catch (Exception ignored) {}
         }
-        // เหลือแค่เพิ่มโปรไฟล์ — นำเข้า/QR เอาออกจาก FAB
-        showFabOption(fabOptionAdd, 0);
-        if (fabOptionImport != null) fabOptionImport.setVisibility(View.GONE);
-        if (fabOptionQr != null) fabOptionQr.setVisibility(View.GONE);
+        // แสดงครบ 3 ตัว: QR / Clipboard / Add
+        showFabOption(fabOptionQr, 0);
+        showFabOption(fabOptionImport, 40);
+        showFabOption(fabOptionAdd, 80);
     }
 
     private void closeFabMenu() {
         fabMenuOpen = false;
         if (fabMain != null) {
             fabMain.animate().rotation(0f).setDuration(200).start();
+            try {
+                fabMain.setImageResource(android.R.drawable.ic_input_add);
+            } catch (Exception ignored) {}
         }
         hideFabOption(fabOptionAdd);
         hideFabOption(fabOptionImport);
