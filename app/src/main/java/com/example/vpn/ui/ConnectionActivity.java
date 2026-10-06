@@ -346,30 +346,69 @@ public class ConnectionActivity extends AppCompatActivity
     // ============================================================
     // MainFragment.Listener
     // ============================================================
+    private long lastConnectClickMs = 0L;
+
     @Override
     public void onMainConnectClick() {
+        // กันกดรัว ๆ ทำให้ออเดอร์ start/stop ซ้อน
+        long now = System.currentTimeMillis();
+        if (now - lastConnectClickMs < 600) return;
+        lastConnectClickMs = now;
+
         if (targetProfile == null) {
             StyledToast.warning(this, "ยังไม่มีโปรไฟล์ — กด CONFIGS เพื่อเพิ่ม");
             return;
         }
 
         boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
+        boolean serviceAlive = isProxyVpnServiceAlive();
+        boolean reallyUp = serviceRunning && serviceAlive;
 
-        if (serviceRunning) {
-            VpnLogger.i("ConnectionActivity", "Service is running — stopping");
+        ConnectButtonView btn = (mainFragment != null)
+                ? mainFragment.getConnectButton() : null;
+        ConnectButtonView.State uiState = (btn != null)
+                ? btn.getState() : ConnectButtonView.State.IDLE;
+
+        // กำลังเชื่อม — กดอีกครั้ง = ยกเลิก
+        if (uiState == ConnectButtonView.State.CONNECTING) {
+            VpnLogger.i("ConnectionActivity", "Cancel connecting");
+            showConnectingUi(false);
             stopVpnService();
             return;
         }
 
-        if (mainFragment != null && mainFragment.getConnectButton() != null) {
-            ConnectButtonView.State state = mainFragment.getConnectButton().getState();
-            if (state == ConnectButtonView.State.CONNECTING) {
+        // ต่ออยู่จริง → หยุด
+        if (reallyUp || uiState == ConnectButtonView.State.CONNECTED) {
+            if (reallyUp || serviceRunning) {
+                VpnLogger.i("ConnectionActivity", "Service is running — stopping");
+                showConnectingUi(false);
+                if (btn != null) btn.forceSetState(ConnectButtonView.State.IDLE);
+                updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
                 stopVpnService();
                 return;
             }
         }
 
+        // flag ค้างแต่ service ไม่อยู่ → ล้างแล้วต่อใหม่
+        if (serviceRunning && !serviceAlive) {
+            try {
+                getSharedPreferences("vpn_state", MODE_PRIVATE)
+                        .edit().putBoolean("running", false).apply();
+            } catch (Exception ignored) {}
+        }
+
         requestConnect();
+    }
+
+    /** ตอบสนองทันทีบน UI ตอนเริ่มเชื่อม — กันรู้สึกว่าค้าง */
+    private void showConnectingUi(boolean connecting) {
+        if (mainFragment != null && mainFragment.getConnectButton() != null) {
+            if (connecting) {
+                mainFragment.getConnectButton()
+                        .forceSetState(ConnectButtonView.State.CONNECTING);
+                updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+            }
+        }
     }
 
     @Override
@@ -962,6 +1001,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     private void startVpnService(Profile p) {
+        // UI ทันที — ไม่รอ StatusBus จาก service
+        showConnectingUi(true);
         Intent svc = new Intent(this, ProxyVpnService.class);
         svc.setAction(ProxyVpnService.ACTION_START);
         svc.putExtra(ProxyVpnService.EXTRA_PROFILE_ID, p.id);
@@ -972,6 +1013,12 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 startService(svc);
             }
         } catch (Exception e) {
+            showConnectingUi(false);
+            if (mainFragment != null && mainFragment.getConnectButton() != null) {
+                mainFragment.getConnectButton()
+                        .forceSetState(ConnectButtonView.State.ERROR);
+            }
+            updateStatusText("[ ERROR ]", 0xFFEF5350);
             StyledToast.error(this, "ผิดพลาด: " + e.getMessage());
         }
     }
