@@ -472,17 +472,35 @@ public class ConnectionActivity extends AppCompatActivity
     private void syncButtonState() {
         if (mainFragment == null || mainFragment.getConnectButton() == null) return;
 
-        boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
-        ConnectButtonView.State currentState = mainFragment.getConnectButton().getState();
+        boolean flagRunning = ProxyVpnService.isServiceRunning(this);
+        boolean serviceAlive = isProxyVpnServiceAlive();
+        // ใช้ทั้ง flag และ service จริง — กัน UI เทาทั้งที่ VPN ยังต่ออยู่
+        boolean connected = flagRunning || serviceAlive;
 
-        if (!serviceRunning && currentState == ConnectButtonView.State.CONNECTED) {
-            mainFragment.getConnectButton().setState(ConnectButtonView.State.IDLE);
-            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
-            VpnLogger.i("ConnectionActivity", "Synced to IDLE");
-        } else if (serviceRunning && currentState == ConnectButtonView.State.IDLE) {
-            mainFragment.getConnectButton().setState(ConnectButtonView.State.CONNECTED);
+        ConnectButtonView btn = mainFragment.getConnectButton();
+        if (connected) {
+            btn.forceSetState(ConnectButtonView.State.CONNECTED);
             updateStatusText("[ CONNECTED ]", 0xFF00E676);
-            VpnLogger.i("ConnectionActivity", "Synced to CONNECTED");
+            // ถ้า flag หลุดแต่ service ยังอยู่ → เขียน flag กลับ
+            if (!flagRunning && serviceAlive) {
+                try {
+                    getSharedPreferences("vpn_state", MODE_PRIVATE)
+                            .edit().putBoolean("running", true).apply();
+                } catch (Exception ignored) {}
+            }
+            if (sessionStartTime == 0L) {
+                sessionStartTime = System.currentTimeMillis();
+                startStatsUpdates();
+            }
+            VpnLogger.i("ConnectionActivity",
+                    "Synced to CONNECTED (flag=" + flagRunning
+                            + " alive=" + serviceAlive + ")");
+        } else {
+            // ไม่ต่อแล้ว
+            if (btn.getState() != ConnectButtonView.State.CONNECTING) {
+                btn.forceSetState(ConnectButtonView.State.IDLE);
+                updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+            }
         }
     }
 

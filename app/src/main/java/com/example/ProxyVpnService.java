@@ -1,5 +1,7 @@
 package com.example.vpn;
 
+import com.example.vpn.util.RemoteGate;
+
 import java.util.regex.Pattern;
 
 import android.app.Notification;
@@ -113,8 +115,25 @@ public class ProxyVpnService extends VpnService
 
     public static boolean isServiceRunning(Context ctx) {
         try {
-            return ctx.getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
+            boolean flag = ctx.getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
                     .getBoolean(KEY_RUNNING, false);
+            if (flag) return true;
+            // fallback: ตรวจจาก ActivityManager กัน flag หลุดแต่ VPN ยังทำงาน
+            try {
+                android.app.ActivityManager am = (android.app.ActivityManager)
+                        ctx.getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) {
+                    for (android.app.ActivityManager.RunningServiceInfo info
+                            : am.getRunningServices(Integer.MAX_VALUE)) {
+                        if (info != null && info.service != null
+                                && ProxyVpnService.class.getName()
+                                .equals(info.service.getClassName())) {
+                            return true;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+            return false;
         } catch (Exception e) {
             return false;
         }
@@ -161,6 +180,11 @@ public class ProxyVpnService extends VpnService
 
         // ===== RECONNECT =====
         if (ACTION_RECONNECT.equals(action)) {
+            if (RemoteGate.isBlocked(this)) {
+                VpnLogger.w(TAG, "Reconnect blocked by RemoteGate");
+                stopVpn(true);
+                return START_NOT_STICKY;
+            }
             if (currentProfile != null && !reconnecting) {
                 VpnLogger.i(TAG, "Manual reconnect requested");
                 doReconnect();
@@ -170,6 +194,11 @@ public class ProxyVpnService extends VpnService
 
         // ===== RESTART VPN =====
         if (ACTION_RESTART_VPN.equals(action)) {
+            if (RemoteGate.isBlocked(this)) {
+                VpnLogger.w(TAG, "Restart blocked by RemoteGate");
+                stopVpn(true);
+                return START_NOT_STICKY;
+            }
             VpnLogger.i(TAG, "Restart VPN requested");
             handleRestartVpn();
             return START_STICKY;
@@ -191,6 +220,16 @@ public class ProxyVpnService extends VpnService
 
         // ===== START =====
         if (ACTION_START.equals(action)) {
+            // Remote kill (cache) — ห้ามเริ่มถ้าเคยถูกสั่งปิด
+            if (RemoteGate.isBlocked(this)) {
+                VpnLogger.w(TAG, "VPN start blocked by RemoteGate (cache)");
+                prefs.setWasConnected(false);
+                try {
+                    StatusBus.post(StatusBus.State.ERROR, RemoteGate.cachedMessage(this));
+                } catch (Exception ignored) {}
+                stopSelf();
+                return START_NOT_STICKY;
+            }
             long profileId = intent.getLongExtra(EXTRA_PROFILE_ID, -1L);
             if (profileId <= 0) {
                 VpnLogger.e(TAG, "Invalid profile id");
@@ -333,6 +372,14 @@ public class ProxyVpnService extends VpnService
 
     private void startVpn(Profile profile) {
         try {
+            // เช็กเซิร์ฟอีกครั้งบน worker thread (ไม่ ANR)
+            if (!RemoteGate.allowVpnStart(this)) {
+                VpnLogger.w(TAG, "VPN start blocked by RemoteGate (server)");
+                StatusBus.post(StatusBus.State.ERROR, RemoteGate.cachedMessage(this));
+                setServiceRunning(false);
+                stopSelf();
+                return;
+            }
             if (profile == null || profile.host == null || profile.host.trim().isEmpty()) {
                 throw new IOException("โปรไฟล์ไม่มี host");
             }
@@ -474,6 +521,12 @@ public class ProxyVpnService extends VpnService
             // shareWifi=true → bind 0.0.0.0 ให้เครื่องอื่นใน Hotspot/LAN ใช้ได้
             socks5Server = new Socks5Server(sshTunnel, !shareWifi, profile.udpgwPort);
             socks5Server.start();
+            if (profile.udpgwPort > 0) {
+                VpnLogger.i(TAG, "UDP enabled via udpgw port " + profile.udpgwPort
+                        + " (DNS/QUIC/เกม ต้องมี badvpn-udpgw บนเซิร์ฟเวอร์)");
+            } else {
+                VpnLogger.w(TAG, "UDP disabled (udpgwPort=0) — มีแค่ TCP ผ่าน SOCKS");
+            }
 
             String socksBind = shareWifi ? "0.0.0.0 (แชร์ LAN/Hotspot)" : "127.0.0.1";
             StatusBus.post(StatusBus.State.SOCKS_READY,

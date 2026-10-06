@@ -107,6 +107,12 @@ public class ConnectButtonView extends FrameLayout {
         applyState(state);
     }
 
+    /** บังคับทาสีใหม่แม้ state เดิม (แก้ปุ่มเทาทั้งที่ยัง CONNECTED) */
+    public void forceSetState(State state) {
+        this.currentState = state;
+        applyState(state);
+    }
+
     public State getState() {
         return currentState;
     }
@@ -122,27 +128,27 @@ public class ConnectButtonView extends FrameLayout {
             case CONNECTING:
                 circleRes = R.drawable.bg_connect_circle_connecting;
                 iconColor = 0xFFFFFFFF;
-                label = "กำลังเชื่อมต่อ";
+                label = "";
                 startPulse();
                 break;
 
             case CONNECTED:
                 circleRes = R.drawable.bg_connect_circle_connected;
                 iconColor = 0xFFFFFFFF;
-                label = "เชื่อมต่อแล้ว\nกดเพื่อยกเลิก";
+                label = "";
                 break;
 
             case ERROR:
                 circleRes = R.drawable.bg_connect_circle_error;
                 iconColor = 0xFFFFFFFF;
-                label = "ผิดพลาด\nกดเพื่อลองใหม่";
+                label = "";
                 break;
 
             case IDLE:
             default:
                 circleRes = R.drawable.bg_connect_circle_idle;
                 iconColor = 0xFFFFFFFF;
-                label = "เชื่อมต่อ";
+                label = "";
                 break;
         }
 
@@ -150,6 +156,7 @@ public class ConnectButtonView extends FrameLayout {
         clipToOval(circleInner);
         iconPower.setColorFilter(iconColor);
         txtButtonLabel.setText(label);
+        txtButtonLabel.setVisibility(label.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     private void startPulse() {
