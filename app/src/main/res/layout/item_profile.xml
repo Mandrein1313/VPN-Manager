@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="4dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/window_background"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/accent_green"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp">
+
+        <!-- ธงชาติ PNG: th_flag.png, sg_flag.png, ... -->
+        <ImageView
+            android:id="@+id/imgFlag"
+            android:layout_width="28dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="flag" />
+
+        <!-- ===== Left: Name + Host ===== -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/txtName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:fontFamily="monospace"
+                android:text="TRUE-INSTAGRAM"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/txtHost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:fontFamily="monospace"
+                android:text="www.cloudzerovps.online:80"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- ===== Middle: Protocol + Ping ===== -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/txtProtocol"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="ssh"
+                android:textColor="@color/accent_green"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/txtPing"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="…"
+                android:fontFamily="monospace"
+                android:textStyle="bold"
+                android:textColor="@color/text_muted"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- ===== Right: 4 Icons ===== -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- ⭐ QR Share -->
+            <ImageButton
+                android:id="@+id/btnQr"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="แชร์ QR"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_share"
+                app:tint="@color/md_theme_primary" />
+
+            <!-- สัญญาณ (ระดับตาม ping) กดเพื่อวัดใหม่ -->
+            <ImageButton
+                android:id="@+id/btnSignal"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="สัญญาณ / วัด ping"
+                android:padding="4dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_signal_0" />
+
+            <!-- Edit -->
+            <ImageButton
+                android:id="@+id/btnEdit"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="แก้ไข"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_edit"
+                app:tint="@color/text_secondary" />
+
+            <!-- Delete -->
+            <ImageButton
+                android:id="@+id/btnDelete"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="ลบ"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@android:drawable/ic_menu_delete"
+                app:tint="@color/md_theme_error" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
