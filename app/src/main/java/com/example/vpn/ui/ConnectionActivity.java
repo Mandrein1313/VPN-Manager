@@ -278,11 +278,12 @@ public class ConnectionActivity extends AppCompatActivity
             });
         }
         if (actionAdd != null) {
+            // ปุ่ม CONFIGS — เปิดหน้ารายการโปรไฟล์
             actionAdd.setOnClickListener(v -> {
                 setBottomNavSelected(-2);
                 tintBottomItem(actionAdd, true);
-                Intent i = new Intent(this, ProfileEditActivity.class);
-                addProfileLauncher.launch(i);
+                Intent i = new Intent(this, MainActivity.class);
+                startActivity(i);
             });
         }
         // เริ่มต้น = แท็บ MAIN
@@ -290,7 +291,7 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     /**
-     * @param tab 0=Home/MAIN, 1=CHART, 2=LOG, -1=แชร์, -2=เพิ่ม
+     * @param tab 0=Home/MAIN, 1=CHART, 2=LOG, -1=แชร์, -2=CONFIGS
      */
     private void setBottomNavSelected(int tab) {
         tintBottomItem(actionHome, tab == 0);
@@ -348,7 +349,7 @@ public class ConnectionActivity extends AppCompatActivity
     @Override
     public void onMainConnectClick() {
         if (targetProfile == null) {
-            StyledToast.warning(this, "ยังไม่มีโปรไฟล์ — กด 'เพิ่ม' เพื่อสร้าง");
+            StyledToast.warning(this, "ยังไม่มีโปรไฟล์ — กด CONFIGS เพื่อเพิ่ม");
             return;
         }
 
