@@ -555,10 +555,6 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     } else if (id == R.id.nav_theme) {
         showThemeDialog();
 
-    } else if (id == R.id.nav_import) {
-        StyledToast.info(this, "เปิดหน้า Profile เพื่อ Import");
-        openProfilePicker();
-
     } else if (id == R.id.nav_about) {
         showAboutDialog();
 

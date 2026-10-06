@@ -1047,8 +1047,6 @@ public class MainActivity extends AppCompatActivity
             startActivity(new Intent(this, BypassActivity.class));
         } else if (id == R.id.nav_share_wifi) {
             startActivity(new Intent(this, ShareWifiActivity.class));
-        } else if (id == R.id.nav_import) {
-            showAddConfigurationMenu();
         } else if (id == R.id.nav_theme) {
             // เปิด theme จากหน้าหลักถ้ามี — ตอนนี้แค่ปิด drawer
             StyledToast.info(this, "เปลี่ยนธีมได้จากหน้าแรก");

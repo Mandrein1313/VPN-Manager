@@ -38,10 +38,6 @@
                 android:title="Bypass Mode" />
 
             <item
-                android:id="@+id/nav_import"
-                android:icon="@android:drawable/ic_menu_upload"
-                android:title="Import จาก Clipboard" />
-            <item
                  android:id="@+id/nav_share_wifi"
                  android:icon="@android:drawable/ic_menu_share"
                  android:title="แชร์ VPN (Wi‑Fi)" />
