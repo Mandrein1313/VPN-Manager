@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabAdd, fabImport, fabQr;
     private boolean fabMenuOpen = false;
 
-    private View navHome, navLogs, navMore;
+    private View navHome, navConfigs, navLogs, navMore;
     private DrawerLayout drawerLayout;
     private NavigationView navView;
 
@@ -155,18 +155,10 @@ public class MainActivity extends AppCompatActivity
         setupFabMenu();
 
         navHome = findViewById(R.id.navHome);
+        navConfigs = findViewById(R.id.navConfigs);
         navLogs = findViewById(R.id.navLogs);
         navMore = findViewById(R.id.navMore);
-
-        if (navHome != null) {
-            navHome.setOnClickListener(v -> finish());
-        }
-        if (navLogs != null) {
-            navLogs.setOnClickListener(v -> openConnectionLogTab());
-        }
-        if (navMore != null) {
-            navMore.setOnClickListener(v -> showMoreMenu());
-        }
+        setupConfigsBottomNav();
 
         // ===== Toolbar =====
         drawerLayout = findViewById(R.id.drawerLayout);
@@ -329,6 +321,7 @@ public class MainActivity extends AppCompatActivity
     protected void onResume() {
         super.onResume();
         RemoteGate.check(this);
+        setConfigsBottomNavSelected(1);
     }
 
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -1082,6 +1075,62 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+
+
+    /** เมนูล่างหน้า CONFIGS — ไฮไลต์สลับได้ */
+    private void setupConfigsBottomNav() {
+        if (navHome != null) {
+            navHome.setOnClickListener(v -> {
+                setConfigsBottomNavSelected(0);
+                Intent i = new Intent(this, ConnectionActivity.class);
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(i);
+                finish();
+            });
+        }
+        if (navConfigs != null) {
+            navConfigs.setOnClickListener(v -> setConfigsBottomNavSelected(1));
+        }
+        if (navLogs != null) {
+            navLogs.setOnClickListener(v -> {
+                setConfigsBottomNavSelected(2);
+                openConnectionLogTab();
+            });
+        }
+        if (navMore != null) {
+            navMore.setOnClickListener(v -> {
+                setConfigsBottomNavSelected(3);
+                showMoreMenu();
+            });
+        }
+        setConfigsBottomNavSelected(1);
+    }
+
+    /** 0=HOME 1=CONFIGS 2=LOGS 3=MORE */
+    private void setConfigsBottomNavSelected(int index) {
+        tintConfigsNavItem(navHome, index == 0);
+        tintConfigsNavItem(navConfigs, index == 1);
+        tintConfigsNavItem(navLogs, index == 2);
+        tintConfigsNavItem(navMore, index == 3);
+    }
+
+    private void tintConfigsNavItem(View item, boolean active) {
+        if (item == null) return;
+        int color = androidx.core.content.ContextCompat.getColor(
+                this,
+                active ? R.color.bottom_nav_icon_active : R.color.bottom_nav_icon);
+        if (item instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) item;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View c = g.getChildAt(i);
+                if (c instanceof android.widget.ImageView) {
+                    ((android.widget.ImageView) c).setColorFilter(color);
+                } else if (c instanceof android.widget.TextView) {
+                    ((android.widget.TextView) c).setTextColor(color);
+                }
+            }
+        }
+    }
 
     /** เปิดหน้าหลักที่แท็บ LOG (ไม่ใช้ LogViewerActivity แยกแล้ว) */
     private void openConnectionLogTab() {
