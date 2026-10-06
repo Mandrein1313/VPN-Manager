@@ -220,4 +220,283 @@ public class V2RayEngine {
                 vnext.put(server);
                 settings.put("vnext", vnext);
                 break;
-  
+            }
+            case "vmess": {
+                JSONArray vnext = new JSONArray();
+                JSONObject server = new JSONObject();
+                server.put("address", config.address);
+                server.put("port", config.port);
+                JSONArray users = new JSONArray();
+                JSONObject user = new JSONObject();
+                user.put("id", config.uuid);
+                user.put("alterId", 0);
+                user.put("security", "auto");
+                users.put(user);
+                server.put("users", users);
+                vnext.put(server);
+                settings.put("vnext", vnext);
+                break;
+            }
+            case "trojan": {
+                JSONArray servers = new JSONArray();
+                JSONObject s = new JSONObject();
+                s.put("address", config.address);
+                s.put("port", config.port);
+                s.put("password", config.password);
+                servers.put(s);
+                settings.put("servers", servers);
+                break;
+            }
+            case "ss": {
+                JSONArray servers = new JSONArray();
+                JSONObject s = new JSONObject();
+                s.put("address", config.address);
+                s.put("port", config.port);
+                s.put("password", config.password);
+                s.put("method", config.method);
+                servers.put(s);
+                settings.put("servers", servers);
+                break;
+            }
+        }
+
+        return settings;
+    }
+
+    private JSONObject buildStreamSettings() throws Exception {
+        JSONObject stream = new JSONObject();
+        stream.put("network", config.network == null || config.network.isEmpty()
+                ? "tcp" : config.network);
+
+        // Xray ห้าม VLESS ไปโดเมนสาธารณะโดยไม่มี TLS
+        // กำหนด security: reality | tls | none
+        String sec = config.security != null ? config.security.toLowerCase() : "";
+        if (sec.isEmpty()) {
+            if (config.publicKey != null && !config.publicKey.isEmpty()) {
+                sec = "reality";
+            } else if (config.tls) {
+                sec = "tls";
+            } else {
+                sec = "none";
+            }
+        }
+
+        // Fragment ใช้ได้กับ TLS/REALITY
+        if (config.fragment && "none".equals(sec)) {
+            sec = "tls";
+            VpnLogger.w(TAG, "Fragment เปิด → บังคับ TLS");
+        }
+        // VLESS ไปโดเมนสาธารณะ: บังคับ TLS เฉพาะเมื่อไม่ได้ตั้ง Reality และผู้ใช้ไม่ได้ปิดตั้งใจ
+        if ("none".equals(sec) && isVlessFamily() && isPublicServer(config.address)
+                && (config.publicKey == null || config.publicKey.isEmpty())) {
+            sec = "tls";
+            VpnLogger.w(TAG, "Force TLS for VLESS public host: " + config.address);
+        }
+
+        if ("reality".equals(sec)) {
+            stream.put("security", "reality");
+            JSONObject reality = new JSONObject();
+            String serverName = config.sni;
+            if (serverName == null || serverName.isEmpty()) {
+                serverName = (config.host != null && !config.host.isEmpty())
+                        ? config.host : config.address;
+            }
+            if (serverName != null && !serverName.isEmpty()) {
+                reality.put("serverName", serverName);
+            }
+            String fp = (config.fingerprint != null && !config.fingerprint.isEmpty())
+                    ? config.fingerprint : "chrome";
+            reality.put("fingerprint", fp);
+            if (config.publicKey != null && !config.publicKey.isEmpty()) {
+                reality.put("publicKey", config.publicKey);
+            }
+            // shortId: Xray รับ string หรือ array — ใช้ string ว่างได้
+            reality.put("shortId", config.shortId != null ? config.shortId : "");
+            if (config.spiderX != null && !config.spiderX.isEmpty()) {
+                reality.put("spiderX", config.spiderX);
+            }
+            // show: false ปกติ
+            reality.put("show", false);
+            stream.put("realitySettings", reality);
+            VpnLogger.i(TAG, "REALITY: sni=" + serverName
+                    + " pbk=" + (config.publicKey != null ? config.publicKey.substring(0, Math.min(8, config.publicKey.length())) + "…" : "")
+                    + " sid=" + config.shortId);
+        } else if ("tls".equals(sec) || "xtls".equals(sec)) {
+            stream.put("security", "tls");
+            JSONObject tls = new JSONObject();
+            String serverName = config.sni;
+            if (serverName == null || serverName.isEmpty()) {
+                serverName = (config.host != null && !config.host.isEmpty())
+                        ? config.host : config.address;
+            }
+            if (serverName != null && !serverName.isEmpty()) {
+                tls.put("serverName", serverName);
+            }
+            if (config.alpn != null && !config.alpn.isEmpty()) {
+                JSONArray arr = new JSONArray();
+                for (String a : config.alpn.split(",")) {
+                    String t = a.trim();
+                    if (!t.isEmpty()) arr.put(t);
+                }
+                if (arr.length() > 0) tls.put("alpn", arr);
+            }
+            String fp = (config.fingerprint != null && !config.fingerprint.isEmpty())
+                    ? config.fingerprint : "chrome";
+            tls.put("fingerprint", fp);
+            stream.put("tlsSettings", tls);
+        } else {
+            stream.put("security", "none");
+        }
+
+        // Network settings
+        switch (config.network) {
+            case "ws": {
+                JSONObject ws = new JSONObject();
+                if (!config.host.isEmpty()) {
+                    ws.put("headers", new JSONObject().put("Host", config.host));
+                }
+                ws.put("path", config.path.isEmpty() ? "/" : config.path);
+                stream.put("wsSettings", ws);
+                break;
+            }
+            case "tcp": {
+                if (!"none".equals(config.headerType)) {
+                    JSONObject tcp = new JSONObject();
+                    JSONObject header = new JSONObject();
+                    header.put("type", config.headerType);
+                    if ("http".equals(config.headerType)) {
+                        JSONObject req = new JSONObject();
+                        JSONArray headers = new JSONArray();
+                        headers.put(new JSONObject()
+                                .put("Host", new JSONArray().put(config.host)));
+                        req.put("headers", headers);
+                        header.put("request", req);
+                    }
+                    tcp.put("header", header);
+                    stream.put("tcpSettings", tcp);
+                }
+                break;
+            }
+            case "grpc": {
+                JSONObject grpc = new JSONObject();
+                grpc.put("serviceName", config.serviceName);
+                stream.put("grpcSettings", grpc);
+                break;
+            }
+            case "http":
+            case "h2": {
+                JSONObject http = new JSONObject();
+                if (!config.host.isEmpty()) {
+                    JSONArray hosts = new JSONArray();
+                    hosts.put(config.host);
+                    http.put("host", hosts);
+                }
+                http.put("path", config.path.isEmpty() ? "/" : config.path);
+                stream.put("httpSettings", http);
+                break;
+            }
+        }
+
+        return stream;
+    }
+
+    // ============================================================
+    // ✅ Core Callback Handler (API ใหม่ แทน V2RayVPNServiceSupportsSet)
+    // ============================================================
+    private CoreCallbackHandler buildCallbackHandler() {
+        return new CoreCallbackHandler() {
+
+            // ✅ FIX #3: เปลี่ยน Startup() → startup() (ตัว s พิมพ์เล็ก)
+            @Override
+            public long startup() {
+                VpnLogger.i(TAG, "V2Ray callback: startup");
+                return 0;
+            }
+
+            @Override
+            public long shutdown() {
+                VpnLogger.i(TAG, "V2Ray callback: shutdown");
+                running = false;
+                return 0;
+            }
+
+            // หมายเหตุ: OnEmitStatus อาจสะกดต่างออกไป
+            // ถ้ายัง error ให้ลบบรรทัด @Override ออกแล้วลองคอมไพล์
+            @Override
+            public long onEmitStatus(long code, String message) {
+                VpnLogger.d(TAG, "V2Ray status: " + code + " — " + message);
+                return 0;
+            }
+        };
+    }
+
+    // ============================================================
+    // Check SOCKS
+    // ============================================================
+    private boolean checkSocksReady() {
+        try {
+            Socket s = new Socket();
+            s.connect(new InetSocketAddress("127.0.0.1", SOCKS_PORT), 500);
+            s.close();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private JSONObject buildFragmentOutbound() throws Exception {
+        JSONObject frag = new JSONObject();
+        frag.put("tag", "fragment");
+        frag.put("protocol", "freedom");
+
+        JSONObject settings = new JSONObject();
+        settings.put("domainStrategy", "AsIs");
+        JSONObject fragment = new JSONObject();
+        String packets = (config.fragmentPackets != null && !config.fragmentPackets.isEmpty())
+                ? config.fragmentPackets : "tlshello";
+        String length = (config.fragmentLength != null && !config.fragmentLength.isEmpty())
+                ? config.fragmentLength : "100-200";
+        String interval = (config.fragmentInterval != null && !config.fragmentInterval.isEmpty())
+                ? config.fragmentInterval : "10-20";
+        fragment.put("packets", packets);
+        fragment.put("length", length);
+        fragment.put("interval", interval);
+        settings.put("fragment", fragment);
+        frag.put("settings", settings);
+
+        JSONObject stream = new JSONObject();
+        JSONObject sockopt = new JSONObject();
+        sockopt.put("tcpNoDelay", true);
+        stream.put("sockopt", sockopt);
+        frag.put("streamSettings", stream);
+
+        VpnLogger.i(TAG, "Fragment outbound: packets=" + packets
+                + " length=" + length + " interval=" + interval);
+        return frag;
+    }
+
+    private boolean isVlessFamily() {
+        String t = config.type == null ? "" : config.type.toLowerCase();
+        return "vless".equals(t) || "trojan".equals(t);
+    }
+
+    /** true ถ้าไม่ใช่ private IP / localhost */
+    private static boolean isPublicServer(String host) {
+        if (host == null || host.isEmpty()) return true;
+        String h = host.trim().toLowerCase();
+        if (h.equals("localhost") || h.equals("127.0.0.1") || h.equals("::1")) return false;
+        if (h.startsWith("10.") || h.startsWith("192.168.") || h.startsWith("169.254.")) return false;
+        if (h.startsWith("172.")) {
+            try {
+                String[] parts = h.split("\\.");
+                if (parts.length >= 2) {
+                    int second = Integer.parseInt(parts[1]);
+                    if (second >= 16 && second <= 31) return false;
+                }
+            } catch (Exception ignored) {}
+        }
+        return true;
+    }
+
+
+}
