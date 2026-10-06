@@ -1,5 +1,5 @@
 {
-  "enabled": true,
+  "enabled": false,
   "minVersion": 1,
-  "message": "กรุณาใช้เวอร์ชันอย่างเป็นทางการ"
+  "message": "เวอร์ชันนี้ถูกปิดแล้ว กรุณาโหลดจาก Play Store"
 }
