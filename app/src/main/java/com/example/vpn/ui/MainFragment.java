@@ -23,7 +23,7 @@ public class MainFragment extends Fragment {
     private TextView txtAdFreeTime;
     private View configCard;
     private ImageView imgConfigIcon;
-    private TextView txtConfigFlag;
+    private android.widget.ImageView imgConfigFlag;
     private TextView txtConfigName;
     private TextView txtConfigLeft;
     private TextView txtConfigRight;
@@ -82,7 +82,7 @@ public class MainFragment extends Fragment {
         txtAdFreeTime = v.findViewById(R.id.txtAdFreeTime);
         configCard = v.findViewById(R.id.configCard);
         imgConfigIcon = v.findViewById(R.id.imgConfigIcon);
-        txtConfigFlag = v.findViewById(R.id.txtConfigFlag);
+        imgConfigFlag = v.findViewById(R.id.imgConfigFlag);
         txtConfigName = v.findViewById(R.id.txtConfigName);
         txtConfigLeft = v.findViewById(R.id.txtConfigLeft);
         txtConfigRight = v.findViewById(R.id.txtConfigRight);
@@ -125,7 +125,7 @@ public class MainFragment extends Fragment {
         if (p == null) {
             if (txtConfigName != null) txtConfigName.setText("Not Set");
             if (txtConfigLeft != null) txtConfigLeft.setText("---");
-            if (txtConfigFlag != null) txtConfigFlag.setText("🌐");
+            if (imgConfigFlag != null) CountryFlag.applyTo(imgConfigFlag, null, null);
             if (txtConfigProtocol != null) txtConfigProtocol.setText("---");
             if (txtConfigPing != null) txtConfigPing.setText("--");
             if (imgConfigSignal != null)
@@ -139,8 +139,8 @@ public class MainFragment extends Fragment {
 
         if (txtConfigName != null) txtConfigName.setText(name);
         if (txtConfigLeft != null) txtConfigLeft.setText(host);
-        if (txtConfigFlag != null)
-            txtConfigFlag.setText(CountryFlag.flagFor(p.name, p.host));
+        if (imgConfigFlag != null)
+            CountryFlag.applyTo(imgConfigFlag, p.name, p.host);
         if (txtConfigProtocol != null) txtConfigProtocol.setText(proto);
 
         applyLatency(latencyMs);

@@ -23,14 +23,14 @@
         android:paddingHorizontal="12dp"
         android:paddingVertical="10dp">
 
-        <!-- ธงชาติ -->
-        <TextView
-            android:id="@+id/txtFlag"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <!-- ธงชาติ PNG: th_flag.png, sg_flag.png, ... -->
+        <ImageView
+            android:id="@+id/imgFlag"
+            android:layout_width="28dp"
+            android:layout_height="20dp"
             android:layout_marginEnd="8dp"
-            android:text="🌐"
-            android:textSize="22sp" />
+            android:scaleType="fitCenter"
+            android:contentDescription="flag" />
 
         <!-- ===== Left: Name + Host ===== -->
         <LinearLayout

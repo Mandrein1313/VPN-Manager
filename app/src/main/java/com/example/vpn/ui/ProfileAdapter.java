@@ -168,12 +168,13 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     // non-static เพื่อเข้าถึง latencyMap / main / notify ของ adapter ได้
     class VH extends RecyclerView.ViewHolder {
-        TextView flag, name, host, protocol, ping;
+        android.widget.ImageView flag;
+        TextView name, host, protocol, ping;
         ImageButton btnQr, btnSignal, btnEdit, btnDelete;
 
         VH(@NonNull View v) {
             super(v);
-            flag = v.findViewById(R.id.txtFlag);
+            flag = v.findViewById(R.id.imgFlag);
             name = v.findViewById(R.id.txtName);
             host = v.findViewById(R.id.txtHost);
             protocol = v.findViewById(R.id.txtProtocol);
@@ -186,7 +187,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
         void bind(Profile p, Integer latencyMs) {
             if (flag != null) {
-                flag.setText(CountryFlag.flagFor(p.name, p.host));
+                CountryFlag.applyTo(flag, p.name, p.host);
             }
             name.setText(p.name != null ? p.name : "");
             host.setText(p.host + ":" + p.port);
