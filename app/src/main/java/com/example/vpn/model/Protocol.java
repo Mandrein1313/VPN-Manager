@@ -39,4 +39,9 @@ public enum Protocol {
         if ("shadowsocks".equalsIgnoreCase(id)) return SHADOWSOCKS;
         return SSH;
     }
+
+    /** โปรโตคอลที่ให้เลือกใน UI (ที่เหลือเก็บไว้ใน enum เพื่อ profile เก่า) */
+    public static Protocol[] selectable() {
+        return new Protocol[]{ SSH, V2RAY };
+    }
 }

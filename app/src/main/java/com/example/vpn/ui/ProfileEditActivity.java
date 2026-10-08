@@ -170,14 +170,15 @@ public class ProfileEditActivity extends AppCompatActivity {
                     prefs.setAutoConnectBoot(checked));
         }
 
-        String[] protoNames = new String[Protocol.values().length];
-        for (int i = 0; i < Protocol.values().length; i++) {
-            protoNames[i] = Protocol.values()[i].displayName;
+        Protocol[] selectable = Protocol.selectable();
+        String[] protoNames = new String[selectable.length];
+        for (int i = 0; i < selectable.length; i++) {
+            protoNames[i] = selectable[i].displayName;
         }
         ddProtocol.setAdapter(new ArrayAdapter<>(this,
                 android.R.layout.simple_list_item_1, protoNames));
         ddProtocol.setOnItemClickListener((p, v, pos, id) -> {
-            Protocol selected = Protocol.values()[pos];
+            Protocol selected = Protocol.selectable()[pos];
             onProtocolChanged(selected);
         });
 
