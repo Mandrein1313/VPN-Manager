@@ -23,14 +23,21 @@
         android:paddingHorizontal="14dp"
         android:paddingVertical="12dp">
 
-        <!-- ธง -->
-        <ImageView
-            android:id="@+id/imgFlag"
-            android:layout_width="36dp"
-            android:layout_height="26dp"
+        <!-- ธง — กรอบมน ขอบบาง กันดูจืด -->
+        <FrameLayout
+            android:layout_width="42dp"
+            android:layout_height="30dp"
             android:layout_marginEnd="12dp"
-            android:scaleType="fitCenter"
-            android:contentDescription="flag" />
+            android:background="@drawable/bg_flag_frame"
+            android:padding="2.5dp">
+
+            <ImageView
+                android:id="@+id/imgFlag"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="flag" />
+        </FrameLayout>
 
         <!-- ชื่อ + host + protocol/ping -->
         <LinearLayout
@@ -140,7 +147,7 @@
                 android:padding="8dp"
                 android:scaleType="fitCenter"
                 android:src="@android:drawable/ic_menu_delete"
-                app:tint="#E57373" />
+                app:tint="#C62828" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
