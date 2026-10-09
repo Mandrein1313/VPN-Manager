@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_log_copy"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="คัดลอก / บันทึก"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_log_clear"
+        android:icon="@android:drawable/ic_menu_delete"
+        android:title="ล้าง Log"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_log_scroll"
+        android:icon="@android:drawable/arrow_down_float"
+        android:title="เลื่อนลงล่าง"
+        app:showAsAction="always" />
+</menu>
