@@ -114,26 +114,11 @@ public class ProxyVpnService extends VpnService
     }
 
     public static boolean isServiceRunning(Context ctx) {
+        // ใช้เฉพาะ flag ที่ set ตอนเชื่อมสำเร็จ — ไม่ใช้ ActivityManager
+        // (service process อาจมีตอนกำลัง start ทำให้ UI เขียวผิด)
         try {
-            boolean flag = ctx.getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
+            return ctx.getSharedPreferences(STATE_PREF, Context.MODE_PRIVATE)
                     .getBoolean(KEY_RUNNING, false);
-            if (flag) return true;
-            // fallback: ตรวจจาก ActivityManager กัน flag หลุดแต่ VPN ยังทำงาน
-            try {
-                android.app.ActivityManager am = (android.app.ActivityManager)
-                        ctx.getSystemService(Context.ACTIVITY_SERVICE);
-                if (am != null) {
-                    for (android.app.ActivityManager.RunningServiceInfo info
-                            : am.getRunningServices(Integer.MAX_VALUE)) {
-                        if (info != null && info.service != null
-                                && ProxyVpnService.class.getName()
-                                .equals(info.service.getClassName())) {
-                            return true;
-                        }
-                    }
-                }
-            } catch (Exception ignored) {}
-            return false;
         } catch (Exception e) {
             return false;
         }
@@ -259,7 +244,7 @@ public class ProxyVpnService extends VpnService
             }
 
             prefs.setLastProfileId(profileId);
-            setServiceRunning(true);
+            // อย่า set running=true ตอนเริ่ม — รอจน CONNECTED จริง
             loadProfileAndStart(profileId);
         }
 
@@ -479,7 +464,7 @@ public class ProxyVpnService extends VpnService
                 throw new IOException("Failed to establish TUN — อาจมี VPN อื่นทำงานอยู่ หรือระบบปฏิเสธ");
             }
             running = true;
-            setServiceRunning(true);
+            // ยังไม่ setServiceRunning(true) — รอจน CONNECTED จริง กันปุ่มเขียวก่อนต่อสำเร็จ
             VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd() + " MTU=" + VPN_MTU
                     + " (system VPN key should appear)");
             // แจ้งระบบทันทีว่า VPN ทำงาน — ช่วยเรื่องไอคอนกุญแจบาง OEM
@@ -605,6 +590,7 @@ public class ProxyVpnService extends VpnService
                 VpnLogger.w(TAG, "Tun2Socks not available — SSH/SOCKS5 only");
                 tun2socksRunning = false;
                 connected = true;
+                setServiceRunning(true);
                 StatusBus.post(StatusBus.State.CONNECTED,
                         "เชื่อมต่อ (SSH เท่านั้น): " + profile.name);
                 ConnectFeedback.onConnected(ProxyVpnService.this);
@@ -640,6 +626,7 @@ public class ProxyVpnService extends VpnService
                 @Override
                 public void onReady() {
                     connected = true;
+                    setServiceRunning(true);
                     VpnLogger.i(TAG, "[Fix] ✅ Connectivity verified — VPN ready!");
                     StatusBus.post(StatusBus.State.CONNECTED,
                             "เชื่อมต่อแล้ว: " + profile.name);
@@ -652,6 +639,7 @@ public class ProxyVpnService extends VpnService
                 @Override
                 public void onFailed(String reason) {
                     connected = true;
+                    setServiceRunning(true);
                     VpnLogger.w(TAG, "[Fix] ⚠️ Verification failed: " + reason);
                     StatusBus.post(StatusBus.State.CONNECTED,
                             "เชื่อมต่อแล้ว (อาจต้องรอสักครู่): " + profile.name);
@@ -773,6 +761,7 @@ public class ProxyVpnService extends VpnService
             @Override
             public void onReady() {
                 connected = true;
+                setServiceRunning(true);
                 VpnLogger.i(TAG, "[V2Ray] ✅ Connectivity verified");
                 StatusBus.post(StatusBus.State.CONNECTED,
                         "เชื่อมต่อแล้ว: " + profile.name);
@@ -786,6 +775,7 @@ public class ProxyVpnService extends VpnService
             public void onFailed(String reason) {
                 // ยังถือว่าเชื่อม (โหนดฟรีอาจช้า) แต่แจ้ง log ชัด
                 connected = true;
+                setServiceRunning(true);
                 VpnLogger.w(TAG, "[V2Ray] ⚠️ Verify failed: " + reason
                         + " — โหนดอาจตัน/เน็ตไม่ออกจริง");
                 StatusBus.post(StatusBus.State.CONNECTED,

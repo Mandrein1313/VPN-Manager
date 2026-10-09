@@ -498,34 +498,35 @@ public class ConnectionActivity extends AppCompatActivity
 
         boolean flagRunning = ProxyVpnService.isServiceRunning(this);
         boolean serviceAlive = isProxyVpnServiceAlive();
-        // ใช้ทั้ง flag และ service จริง — กัน UI เทาทั้งที่ VPN ยังต่ออยู่
-        boolean connected = flagRunning || serviceAlive;
+        // ต้องทั้ง flag และ process จริง — ห้ามใช้ OR (ทำให้เขียวทั้งที่ยังไม่ต่อ)
+        boolean reallyUp = flagRunning && serviceAlive;
 
         ConnectButtonView btn = mainFragment.getConnectButton();
-        if (connected) {
-            btn.forceSetState(ConnectButtonView.State.CONNECTED);
-            updateStatusText("[ CONNECTED ]", 0xFF00E676);
-            // ถ้า flag หลุดแต่ service ยังอยู่ → เขียน flag กลับ
-            if (!flagRunning && serviceAlive) {
+
+        if (!reallyUp) {
+            // ล้าง flag ค้าง
+            if (flagRunning && !serviceAlive) {
                 try {
                     getSharedPreferences("vpn_state", MODE_PRIVATE)
-                            .edit().putBoolean("running", true).apply();
+                            .edit().putBoolean("running", false).apply();
+                    VpnLogger.i("ConnectionActivity", "Cleared stale running flag");
                 } catch (Exception ignored) {}
             }
-            if (sessionStartTime == 0L) {
-                sessionStartTime = System.currentTimeMillis();
-                startStatsUpdates();
-            }
-            VpnLogger.i("ConnectionActivity",
-                    "Synced to CONNECTED (flag=" + flagRunning
-                            + " alive=" + serviceAlive + ")");
-        } else {
-            // ไม่ต่อแล้ว
-            if (btn.getState() != ConnectButtonView.State.CONNECTING) {
+            // ห้ามเขียวค้าง — แต่ไม่รบกวนตอนกำลัง CONNECTING จากที่ผู้ใช้กด
+            if (btn.getState() == ConnectButtonView.State.CONNECTED) {
                 btn.forceSetState(ConnectButtonView.State.IDLE);
                 updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+                stopStatsUpdates();
+                sessionStartTime = 0L;
+                VpnLogger.i("ConnectionActivity", "Synced to IDLE (not really up)");
             }
+            return;
         }
+
+        // reallyUp = service รันจริง — ไม่บังคับเขียว
+        // ปล่อย StatusBus เป็นคนตั้ง CONNECTED หลังเชื่อมสำเร็จเท่านั้น
+        VpnLogger.d("ConnectionActivity",
+                "Service up (flag+alive) — wait StatusBus for CONNECTED UI");
     }
 
     private void reloadProfiles() {
