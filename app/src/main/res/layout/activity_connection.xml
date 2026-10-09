@@ -29,28 +29,6 @@
                 app:navigationIconTint="@color/toolbar_icon"
                 app:title="VPN Manager"
                 app:titleTextColor="@color/toolbar_title" />
-
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/window_background"
-                app:tabIndicatorColor="@color/tab_indicator"
-                app:tabIndicatorFullWidth="false"
-                app:tabIndicatorHeight="3dp"
-                app:tabSelectedTextColor="@color/tab_selected"
-                app:tabTextColor="@color/tab_unselected">
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="MAIN" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="LOG" />
-            </com.google.android.material.tabs.TabLayout>
         </com.google.android.material.appbar.AppBarLayout>
 
         <!-- ⭐ ===== ViewPager2 — ปัดซ้าย-ขวาได้ ===== -->
