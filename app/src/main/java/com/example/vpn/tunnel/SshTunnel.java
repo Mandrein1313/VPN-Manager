@@ -33,8 +33,8 @@ public class SshTunnel {
             + "Chrome/120.0.0.0 Mobile Safari/537.36";
 
     // ⭐ Keep-alive ที่แรงขึ้นสำหรับมือถือ (กัน NAT/Carrier ตัด idle)
-    private static final int SERVER_ALIVE_INTERVAL_MS = 15_000;  // ทุก 15 วินาที
-    private static final int SERVER_ALIVE_COUNT_MAX   = 6;       // ทนได้ ~90 วินาที
+    private static final int SERVER_ALIVE_INTERVAL_MS = 20_000;  // ทุก 20 วินาที
+    private static final int SERVER_ALIVE_COUNT_MAX   = 9;       // ทน idle ~3 นาที
 
     private final Session session;
 

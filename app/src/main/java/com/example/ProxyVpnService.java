@@ -93,10 +93,10 @@ public class ProxyVpnService extends VpnService
     // ⭐ Heartbeat — ส่ง traffic เล็ก ๆ ผ่าน tunnel ทุก 20 วินาที กัน idle หลุด
     private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
     private Runnable heartbeatRunnable;
-    private static final long HEARTBEAT_INTERVAL_MS = 15_000; // ตรวจถี่ขึ้น
-    private static final long HEARTBEAT_RETRY_MS = 5_000;     // หลัง fail ลองใหม่เร็ว
+    private static final long HEARTBEAT_INTERVAL_MS = 30_000; // ไม่ถี่เกิน — ลด reconnect หลอก
+    private static final long HEARTBEAT_RETRY_MS = 10_000;
     private volatile int heartbeatFailCount = 0;
-    private static final int HEARTBEAT_FAIL_MAX = 2; // เน็ตค้างจริง → reconnect เร็วขึ้น (~20-30 วิ)
+    private static final int HEARTBEAT_FAIL_MAX = 4; // ทน fail ชั่วคราวมากขึ้นก่อน reconnect
 
     // ============================================================
     // ⭐ Service state
@@ -411,13 +411,32 @@ public class ProxyVpnService extends VpnService
             StatusBus.post(StatusBus.State.CONNECTING_SSH, "กำลังสร้าง TUN...");
             VpnLogger.i(TAG, "Creating TUN interface...");
 
+            // ชื่อ session สั้น ใส — บางเครื่อง OEM แสดงไอคอนกุญแจจาก session
+            String sessionName = profile.name != null ? profile.name.trim() : "Tunnel Mate";
+            if (sessionName.isEmpty()) sessionName = "Tunnel Mate";
+            // ตัด emoji/อักขระแปลก ๆ ที่ทำให้ notification/สถานะแปลก
+            sessionName = sessionName.replaceAll("[^\\p{L}\\p{N}\\p{P}\\p{Z}]", "").trim();
+            if (sessionName.isEmpty()) sessionName = "Tunnel Mate";
+            if (sessionName.length() > 32) sessionName = sessionName.substring(0, 32);
+
             Builder builder = new Builder()
-                    .setSession(profile.name)
-                    .addAddress(VPN_ADDRESS, 32)
+                    .setSession(sessionName)
+                    .addAddress(VPN_ADDRESS, 30)
                     .addRoute(VPN_ROUTE, VPN_PREFIX)
                     .addDisallowedApplication(getPackageName())
                     .setMtu(VPN_MTU)
                     .setBlocking(true);
+
+            // Android 10+: บอกระบบว่าเป็น VPN ไม่ใช่ metered ผิด ๆ
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                try { builder.setMetered(false); } catch (Throwable ignored) {}
+            }
+            // Android 5+: ให้ family IPv4 ชัด
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    builder.allowFamily(android.system.OsConstants.AF_INET);
+                } catch (Throwable ignored) {}
+            }
 
             // ⭐ Apply bypass list — ถ้าไม่ถูก disable
             int bypassCount = 0;
@@ -457,10 +476,14 @@ public class ProxyVpnService extends VpnService
 
             tunFd = builder.establish();
             if (tunFd == null) {
-                throw new IOException("Failed to establish TUN");
+                throw new IOException("Failed to establish TUN — อาจมี VPN อื่นทำงานอยู่ หรือระบบปฏิเสธ");
             }
             running = true;
-            VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd() + " MTU=" + VPN_MTU);
+            setServiceRunning(true);
+            VpnLogger.i(TAG, "TUN established: fd=" + tunFd.getFd() + " MTU=" + VPN_MTU
+                    + " (system VPN key should appear)");
+            // แจ้งระบบทันทีว่า VPN ทำงาน — ช่วยเรื่องไอคอนกุญแจบาง OEM
+            updateNotification("VPN interface พร้อม — กำลังเชื่อม SSH...");
 
             prefs.setWasConnected(true);
 
@@ -471,7 +494,7 @@ public class ProxyVpnService extends VpnService
                 VpnLogger.w(TAG, "setUnderlyingNetworks failed: " + t.getMessage());
             }
 
-            try { Thread.sleep(800); } catch (InterruptedException ignored) {}
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
             VpnLogger.i(TAG, "VPN fully established — starting connection...");
 
             connectSshAndSocks(profile);
