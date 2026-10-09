@@ -18,8 +18,9 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/window_background"
-        app:title="CONFIGS"
-            app:titleTextColor="@color/text_primary" />
+            app:title="Configs"
+            app:titleTextColor="@color/text_primary"
+            app:titleCentered="false" />
 
         <!-- ===== Content ===== -->
         <FrameLayout
@@ -32,9 +33,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingHorizontal="12dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="88dp"
+                android:paddingHorizontal="14dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="96dp"
                 android:visibility="gone" />
 
             <!-- Empty state -->
@@ -50,7 +51,7 @@
                 <ImageView
                     android:layout_width="72dp"
                     android:layout_height="72dp"
-                    android:src="@android:drawable/ic_menu_manage"
+                    android:src="@drawable/ic_nav_configs"
                     app:tint="@color/md_theme_surface_variant"
                     android:contentDescription="empty" />
 
@@ -58,7 +59,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="[ NO CONFIGS ]"
+                    android:text="ยังไม่มีโปรไฟล์"
                     android:textColor="@color/accent_green"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -201,8 +202,10 @@
                     android:contentDescription="Menu"
                     app:srcCompat="@android:drawable/ic_input_add"
                     app:backgroundTint="@color/accent_green"
-                    app:tint="@color/text_primary"
-                    app:elevation="6dp" />
+                    app:tint="@android:color/white"
+                    app:elevation="8dp"
+                    app:fabSize="normal"
+                    app:borderWidth="0dp" />
             </LinearLayout>
         </FrameLayout>
 
@@ -210,9 +213,10 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/window_background"
+            android:background="@drawable/bg_bottom_nav"
             android:orientation="horizontal"
-            android:paddingVertical="8dp">
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
 
             <LinearLayout
                 android:id="@+id/navHome"
