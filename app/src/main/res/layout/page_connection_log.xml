@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:id="@+id/scrollLogView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/window_background"
+        android:paddingHorizontal="8dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/txtLogContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/text_primary"
+            android:textIsSelectable="true"
+            android:textSize="10sp" />
+    </ScrollView>
+
+    <!-- ปุ่มถูกย้ายไป Toolbar หลักของ Activity แล้ว
+         เก็บ id ไว้ (gone) เพื่อไม่ให้ findViewById พังถ้าโค้ดเก่า -->
+    <ImageButton
+        android:id="@+id/btnLogCopy"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+    <ImageButton
+        android:id="@+id/btnLogClear"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+    <ImageButton
+        android:id="@+id/btnLogScrollBottom"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+</FrameLayout>
