@@ -1134,7 +1134,7 @@ public class MainActivity extends AppCompatActivity
     /** เปิดหน้าหลักที่แท็บ LOG (ไม่ใช้ LogViewerActivity แยกแล้ว) */
     private void openConnectionLogTab() {
         Intent i = new Intent(this, ConnectionActivity.class);
-        i.putExtra("open_tab", 1); // LOG tab
+        i.putExtra("open_tab", 2); // LOG tab
         i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(i);
     }

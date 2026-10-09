@@ -60,7 +60,7 @@ public class ConnectionActivity extends AppCompatActivity
     private boolean logMenuVisible = false;
 
     // Bottom nav
-    private View actionHome, actionLog, actionShareWifi, actionAdd;
+    private View actionHome, actionLog, actionChart, actionAdd;
     // ค่าการ์ด ACTIVE CONFIG — กัน mainFragment ยังไม่พร้อม
     private String pendingConfigName;
     private String pendingConfigLeft;
@@ -139,10 +139,13 @@ public class ConnectionActivity extends AppCompatActivity
         viewPager.setAdapter(pagerAdapter);
         viewPager.setUserInputEnabled(true);
 
-        // ⭐ 2 Tabs: MAIN / LOG (CHART ตัดออก — ดูทราฟฟิกบนการ์ด MAIN)
+        // ⭐ 3 Tabs: MAIN / CHART / LOG
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            if (position == 0) tab.setText("MAIN");
-            else tab.setText("LOG");
+            switch (position) {
+                case 0: tab.setText("MAIN"); break;
+                case 1: tab.setText("CHART"); break;
+                case 2: tab.setText("LOG"); break;
+            }
         }).attach();
 
         // เปิดแท็บจาก Intent (เช่น จากปุ่ม LOGS หน้า CONFIGS)
@@ -151,7 +154,7 @@ public class ConnectionActivity extends AppCompatActivity
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
-                logMenuVisible = (position == 1); // LOG tab
+                logMenuVisible = (position == 2); // LOG tab
                 invalidateOptionsMenu();
                 setBottomNavSelected(position);
             }
@@ -239,7 +242,7 @@ public class ConnectionActivity extends AppCompatActivity
 
         actionHome = findViewById(R.id.actionHome);
         actionLog = findViewById(R.id.actionLog);
-        actionShareWifi = findViewById(R.id.actionShareWifi);
+        actionChart = findViewById(R.id.actionChart);
         actionAdd = findViewById(R.id.actionAdd);
         setupBottomNav();
     }
@@ -257,37 +260,33 @@ public class ConnectionActivity extends AppCompatActivity
         }
         if (actionLog != null) {
             actionLog.setOnClickListener(v -> {
+                if (viewPager != null) viewPager.setCurrentItem(2, true);
+                setBottomNavSelected(2);
+            });
+        }
+        if (actionChart != null) {
+            actionChart.setOnClickListener(v -> {
                 if (viewPager != null) viewPager.setCurrentItem(1, true);
                 setBottomNavSelected(1);
             });
         }
-        if (actionShareWifi != null) {
-            actionShareWifi.setOnClickListener(v -> {
-                setBottomNavSelected(-1); // ไฮไลต์แชร์ชั่วคราว
-                tintBottomItem(actionShareWifi, true);
-                startActivity(new Intent(this, ShareWifiActivity.class));
-            });
-        }
         if (actionAdd != null) {
-            // ปุ่ม CONFIGS — เปิดหน้ารายการโปรไฟล์
             actionAdd.setOnClickListener(v -> {
                 setBottomNavSelected(-2);
                 tintBottomItem(actionAdd, true);
-                Intent i = new Intent(this, MainActivity.class);
-                startActivity(i);
+                startActivity(new Intent(this, MainActivity.class));
             });
         }
-        // เริ่มต้น = แท็บ MAIN
         setBottomNavSelected(0);
     }
 
     /**
-     * @param tab 0=Home/MAIN, 1=LOG, -1=แชร์, -2=CONFIGS
+     * @param tab 0=MAIN 1=CHART 2=LOG -2=CONFIGS
      */
     private void setBottomNavSelected(int tab) {
         tintBottomItem(actionHome, tab == 0);
-        tintBottomItem(actionLog, tab == 1);
-        tintBottomItem(actionShareWifi, tab == -1);
+        tintBottomItem(actionChart, tab == 1);
+        tintBottomItem(actionLog, tab == 2);
         tintBottomItem(actionAdd, tab == -2);
     }
 
@@ -575,12 +574,12 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     } else if (id == R.id.nav_auto_select) {
             autoSelectLowestPing();
         } else if (id == R.id.nav_chart) {
-        viewPager.setCurrentItem(0, true);
-        StyledToast.info(this, "ดู Download/Upload บนหน้า MAIN");
-
-    } else if (id == R.id.nav_log) {
         viewPager.setCurrentItem(1, true);
         setBottomNavSelected(1);
+
+    } else if (id == R.id.nav_log) {
+        viewPager.setCurrentItem(2, true);
+        setBottomNavSelected(2);
 
     } else if (id == R.id.nav_crash) {
         startActivity(new Intent(this, CrashLogActivity.class));
@@ -677,13 +676,11 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     private void handleOpenTabIntent(android.content.Intent intent) {
         if (intent == null || viewPager == null) return;
         int tab = intent.getIntExtra("open_tab", -1);
-        // รองรับค่าเก่า open_tab=2 ให้ไป LOG (index 1)
-        if (tab == 2) tab = 1;
-        if (tab >= 0 && tab <= 1) {
+        if (tab >= 0 && tab <= 2) {
             final int t = tab;
             viewPager.post(() -> {
                 viewPager.setCurrentItem(t, false);
-                logMenuVisible = (t == 1);
+                logMenuVisible = (t == 2);
                 setBottomNavSelected(t);
                 invalidateOptionsMenu();
             });
@@ -1113,13 +1110,14 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
         @Override
         public int getItemCount() {
-            return 2;
+            return 3;
         }
 
         @NonNull
         @Override
         public androidx.fragment.app.Fragment createFragment(int position) {
-            if (position == 1) return new LogFragment();
+            if (position == 1) return new TrafficChartFragment();
+            if (position == 2) return new LogFragment();
             return new MainFragment();
         }
     }

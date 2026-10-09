@@ -121,9 +121,9 @@
                     android:textSize="10sp" />
             </LinearLayout>
 
-            <!-- ⭐ แชร์ VPN (Wi‑Fi) แทนปุ่มลบ -->
+            <!-- ⭐ CHART (แทนปุ่มแชร์) -->
             <LinearLayout
-                android:id="@+id/actionShareWifi"
+                android:id="@+id/actionChart"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -136,15 +136,15 @@
                 <ImageView
                     android:layout_width="22dp"
                     android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_share"
-                    app:tint="@color/bottom_nav_icon_active" />
+                    android:src="@android:drawable/ic_menu_gallery"
+                    app:tint="@color/bottom_nav_icon" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="แชร์"
-                    android:textColor="@color/bottom_nav_icon_active"
+                    android:text="CHART"
+                    android:textColor="@color/bottom_nav_icon"
                     android:textSize="10sp" />
             </LinearLayout>
 
