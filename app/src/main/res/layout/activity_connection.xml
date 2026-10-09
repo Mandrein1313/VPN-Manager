@@ -25,7 +25,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:background="@color/window_background"
-                app:navigationIcon="@android:drawable/ic_menu_sort_by_size"
+                app:navigationIcon="@drawable/ic_nav_configs"
                 app:navigationIconTint="@color/toolbar_icon"
                 app:title="VPN Manager"
                 app:titleTextColor="@color/toolbar_title" />
@@ -81,9 +81,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_compass"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_home"
                     app:tint="@color/bottom_nav_icon" />
 
                 <TextView
@@ -91,32 +91,6 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Home"
-                    android:textColor="@color/bottom_nav_icon"
-                    android:textSize="10sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/actionLog"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_info_details"
-                    app:tint="@color/bottom_nav_icon" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Log"
                     android:textColor="@color/bottom_nav_icon"
                     android:textSize="10sp" />
             </LinearLayout>
@@ -134,9 +108,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_gallery"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_chart"
                     app:tint="@color/bottom_nav_icon" />
 
                 <TextView
@@ -144,6 +118,32 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="CHART"
+                    android:textColor="@color/bottom_nav_icon"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/actionLog"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_log"
+                    app:tint="@color/bottom_nav_icon" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Log"
                     android:textColor="@color/bottom_nav_icon"
                     android:textSize="10sp" />
             </LinearLayout>
@@ -160,9 +160,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_sort_by_size"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_configs"
                     app:tint="@color/bottom_nav_icon" />
 
                 <TextView
