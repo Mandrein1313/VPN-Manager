@@ -139,19 +139,10 @@ public class ConnectionActivity extends AppCompatActivity
         viewPager.setAdapter(pagerAdapter);
         viewPager.setUserInputEnabled(true);
 
-        // ⭐ 3 Tabs: MAIN / CHART / LOG
+        // ⭐ 2 Tabs: MAIN / LOG (CHART ตัดออก — ดูทราฟฟิกบนการ์ด MAIN)
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            switch (position) {
-                case 0:
-                    tab.setText("MAIN");
-                    break;
-                case 1:
-                    tab.setText("CHART");
-                    break;
-                case 2:
-                    tab.setText("LOG");
-                    break;
-            }
+            if (position == 0) tab.setText("MAIN");
+            else tab.setText("LOG");
         }).attach();
 
         // เปิดแท็บจาก Intent (เช่น จากปุ่ม LOGS หน้า CONFIGS)
@@ -160,7 +151,7 @@ public class ConnectionActivity extends AppCompatActivity
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
-                logMenuVisible = (position == 2); // LOG tab
+                logMenuVisible = (position == 1); // LOG tab
                 invalidateOptionsMenu();
                 setBottomNavSelected(position);
             }
@@ -266,8 +257,8 @@ public class ConnectionActivity extends AppCompatActivity
         }
         if (actionLog != null) {
             actionLog.setOnClickListener(v -> {
-                if (viewPager != null) viewPager.setCurrentItem(2, true);
-                setBottomNavSelected(2);
+                if (viewPager != null) viewPager.setCurrentItem(1, true);
+                setBottomNavSelected(1);
             });
         }
         if (actionShareWifi != null) {
@@ -291,18 +282,13 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
     /**
-     * @param tab 0=Home/MAIN, 1=CHART, 2=LOG, -1=แชร์, -2=CONFIGS
+     * @param tab 0=Home/MAIN, 1=LOG, -1=แชร์, -2=CONFIGS
      */
     private void setBottomNavSelected(int tab) {
         tintBottomItem(actionHome, tab == 0);
-        tintBottomItem(actionLog, tab == 2);
+        tintBottomItem(actionLog, tab == 1);
         tintBottomItem(actionShareWifi, tab == -1);
         tintBottomItem(actionAdd, tab == -2);
-        // CHART ไม่มีปุ่มล่าง — ไม่ไฮไลต์ Home/Log
-        if (tab == 1) {
-            tintBottomItem(actionHome, false);
-            tintBottomItem(actionLog, false);
-        }
     }
 
     private void tintBottomItem(View item, boolean active) {
@@ -346,30 +332,69 @@ public class ConnectionActivity extends AppCompatActivity
     // ============================================================
     // MainFragment.Listener
     // ============================================================
+    private long lastConnectClickMs = 0L;
+
     @Override
     public void onMainConnectClick() {
+        // กันกดรัว ๆ ทำให้ออเดอร์ start/stop ซ้อน
+        long now = System.currentTimeMillis();
+        if (now - lastConnectClickMs < 600) return;
+        lastConnectClickMs = now;
+
         if (targetProfile == null) {
             StyledToast.warning(this, "ยังไม่มีโปรไฟล์ — กด CONFIGS เพื่อเพิ่ม");
             return;
         }
 
         boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
+        boolean serviceAlive = isProxyVpnServiceAlive();
+        boolean reallyUp = serviceRunning && serviceAlive;
 
-        if (serviceRunning) {
-            VpnLogger.i("ConnectionActivity", "Service is running — stopping");
+        ConnectButtonView btn = (mainFragment != null)
+                ? mainFragment.getConnectButton() : null;
+        ConnectButtonView.State uiState = (btn != null)
+                ? btn.getState() : ConnectButtonView.State.IDLE;
+
+        // กำลังเชื่อม — กดอีกครั้ง = ยกเลิก
+        if (uiState == ConnectButtonView.State.CONNECTING) {
+            VpnLogger.i("ConnectionActivity", "Cancel connecting");
+            showConnectingUi(false);
             stopVpnService();
             return;
         }
 
-        if (mainFragment != null && mainFragment.getConnectButton() != null) {
-            ConnectButtonView.State state = mainFragment.getConnectButton().getState();
-            if (state == ConnectButtonView.State.CONNECTING) {
+        // ต่ออยู่จริง → หยุด
+        if (reallyUp || uiState == ConnectButtonView.State.CONNECTED) {
+            if (reallyUp || serviceRunning) {
+                VpnLogger.i("ConnectionActivity", "Service is running — stopping");
+                showConnectingUi(false);
+                if (btn != null) btn.forceSetState(ConnectButtonView.State.IDLE);
+                updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
                 stopVpnService();
                 return;
             }
         }
 
+        // flag ค้างแต่ service ไม่อยู่ → ล้างแล้วต่อใหม่
+        if (serviceRunning && !serviceAlive) {
+            try {
+                getSharedPreferences("vpn_state", MODE_PRIVATE)
+                        .edit().putBoolean("running", false).apply();
+            } catch (Exception ignored) {}
+        }
+
         requestConnect();
+    }
+
+    /** ตอบสนองทันทีบน UI ตอนเริ่มเชื่อม — กันรู้สึกว่าค้าง */
+    private void showConnectingUi(boolean connecting) {
+        if (mainFragment != null && mainFragment.getConnectButton() != null) {
+            if (connecting) {
+                mainFragment.getConnectButton()
+                        .forceSetState(ConnectButtonView.State.CONNECTING);
+                updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+            }
+        }
     }
 
     @Override
@@ -472,17 +497,35 @@ public class ConnectionActivity extends AppCompatActivity
     private void syncButtonState() {
         if (mainFragment == null || mainFragment.getConnectButton() == null) return;
 
-        boolean serviceRunning = ProxyVpnService.isServiceRunning(this);
-        ConnectButtonView.State currentState = mainFragment.getConnectButton().getState();
+        boolean flagRunning = ProxyVpnService.isServiceRunning(this);
+        boolean serviceAlive = isProxyVpnServiceAlive();
+        // ใช้ทั้ง flag และ service จริง — กัน UI เทาทั้งที่ VPN ยังต่ออยู่
+        boolean connected = flagRunning || serviceAlive;
 
-        if (!serviceRunning && currentState == ConnectButtonView.State.CONNECTED) {
-            mainFragment.getConnectButton().setState(ConnectButtonView.State.IDLE);
-            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
-            VpnLogger.i("ConnectionActivity", "Synced to IDLE");
-        } else if (serviceRunning && currentState == ConnectButtonView.State.IDLE) {
-            mainFragment.getConnectButton().setState(ConnectButtonView.State.CONNECTED);
+        ConnectButtonView btn = mainFragment.getConnectButton();
+        if (connected) {
+            btn.forceSetState(ConnectButtonView.State.CONNECTED);
             updateStatusText("[ CONNECTED ]", 0xFF00E676);
-            VpnLogger.i("ConnectionActivity", "Synced to CONNECTED");
+            // ถ้า flag หลุดแต่ service ยังอยู่ → เขียน flag กลับ
+            if (!flagRunning && serviceAlive) {
+                try {
+                    getSharedPreferences("vpn_state", MODE_PRIVATE)
+                            .edit().putBoolean("running", true).apply();
+                } catch (Exception ignored) {}
+            }
+            if (sessionStartTime == 0L) {
+                sessionStartTime = System.currentTimeMillis();
+                startStatsUpdates();
+            }
+            VpnLogger.i("ConnectionActivity",
+                    "Synced to CONNECTED (flag=" + flagRunning
+                            + " alive=" + serviceAlive + ")");
+        } else {
+            // ไม่ต่อแล้ว
+            if (btn.getState() != ConnectButtonView.State.CONNECTING) {
+                btn.forceSetState(ConnectButtonView.State.IDLE);
+                updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+            }
         }
     }
 
@@ -532,12 +575,12 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     } else if (id == R.id.nav_auto_select) {
             autoSelectLowestPing();
         } else if (id == R.id.nav_chart) {
-        // ⭐ ไปหน้า CHART
-        viewPager.setCurrentItem(1, true);
+        viewPager.setCurrentItem(0, true);
+        StyledToast.info(this, "ดู Download/Upload บนหน้า MAIN");
 
     } else if (id == R.id.nav_log) {
-        // ⭐ ไปหน้า LOG
-        viewPager.setCurrentItem(2, true);
+        viewPager.setCurrentItem(1, true);
+        setBottomNavSelected(1);
 
     } else if (id == R.id.nav_crash) {
         startActivity(new Intent(this, CrashLogActivity.class));
@@ -634,10 +677,14 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     private void handleOpenTabIntent(android.content.Intent intent) {
         if (intent == null || viewPager == null) return;
         int tab = intent.getIntExtra("open_tab", -1);
-        if (tab >= 0 && tab <= 2) {
+        // รองรับค่าเก่า open_tab=2 ให้ไป LOG (index 1)
+        if (tab == 2) tab = 1;
+        if (tab >= 0 && tab <= 1) {
+            final int t = tab;
             viewPager.post(() -> {
-                viewPager.setCurrentItem(tab, false);
-                logMenuVisible = (tab == 2);
+                viewPager.setCurrentItem(t, false);
+                logMenuVisible = (t == 1);
+                setBottomNavSelected(t);
                 invalidateOptionsMenu();
             });
         }
@@ -944,6 +991,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     private void startVpnService(Profile p) {
+        // UI ทันที — ไม่รอ StatusBus จาก service
+        showConnectingUi(true);
         Intent svc = new Intent(this, ProxyVpnService.class);
         svc.setAction(ProxyVpnService.ACTION_START);
         svc.putExtra(ProxyVpnService.EXTRA_PROFILE_ID, p.id);
@@ -954,6 +1003,12 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 startService(svc);
             }
         } catch (Exception e) {
+            showConnectingUi(false);
+            if (mainFragment != null && mainFragment.getConnectButton() != null) {
+                mainFragment.getConnectButton()
+                        .forceSetState(ConnectButtonView.State.ERROR);
+            }
+            updateStatusText("[ ERROR ]", 0xFFEF5350);
             StyledToast.error(this, "ผิดพลาด: " + e.getMessage());
         }
     }
@@ -1045,5 +1100,27 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         super.onDestroy();
         statsHandler.removeCallbacks(statsRunnable);
         VpnLogger.setListener(null);
+    }
+
+
+    // ============================================================
+    // ViewPager: MAIN + LOG
+    // ============================================================
+    private static class ConnectionPagerAdapter extends androidx.viewpager2.adapter.FragmentStateAdapter {
+        ConnectionPagerAdapter(androidx.fragment.app.FragmentActivity fa) {
+            super(fa);
+        }
+
+        @Override
+        public int getItemCount() {
+            return 2;
+        }
+
+        @NonNull
+        @Override
+        public androidx.fragment.app.Fragment createFragment(int position) {
+            if (position == 1) return new LogFragment();
+            return new MainFragment();
+        }
     }
 }
