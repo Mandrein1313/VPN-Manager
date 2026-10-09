@@ -56,7 +56,6 @@ public class ConnectButtonView extends FrameLayout {
     }
 
     private void init(Context ctx) {
-        // กันธีมระบบใส่พื้นหลังสี่เหลี่ยมให้ FrameLayout นี้
         setBackground(null);
         setClipChildren(false);
         setClipToPadding(false);
@@ -81,7 +80,6 @@ public class ConnectButtonView extends FrameLayout {
         applyState(State.IDLE);
     }
 
-    /** ตัดวิวให้เป็นวงกลม — ripple/highlight จะไม่เป็นสี่เหลี่ยม */
     private void clipToOval(View view) {
         if (view == null) return;
         view.setForeground(null);
@@ -103,6 +101,12 @@ public class ConnectButtonView extends FrameLayout {
 
     public void setState(State state) {
         if (this.currentState == state) return;
+        this.currentState = state;
+        applyState(state);
+    }
+
+    /** บังคับทาสีใหม่แม้ state เดิม */
+    public void forceSetState(State state) {
         this.currentState = state;
         applyState(state);
     }
@@ -146,27 +150,40 @@ public class ConnectButtonView extends FrameLayout {
                 break;
         }
 
-        circleInner.setBackgroundResource(circleRes);
-        clipToOval(circleInner);
-        iconPower.setColorFilter(iconColor);
-        txtButtonLabel.setText(label);
-        txtButtonLabel.setVisibility(label.isEmpty() ? View.GONE : View.VISIBLE);
+        if (circleInner != null) {
+            circleInner.setBackgroundResource(circleRes);
+            clipToOval(circleInner);
+        }
+        if (iconPower != null) {
+            iconPower.setColorFilter(iconColor);
+        }
+        if (txtButtonLabel != null) {
+            txtButtonLabel.setText(label);
+            txtButtonLabel.setVisibility(label.isEmpty() ? View.GONE : View.VISIBLE);
+        }
     }
 
     private void startPulse() {
+        if (circleInner == null) return;
         pulseAnimator = ObjectAnimator.ofFloat(circleInner, View.ALPHA, 1f, 0.5f, 1f);
         pulseAnimator.setDuration(1200);
         pulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
         pulseAnimator.setInterpolator(new LinearInterpolator());
         pulseAnimator.start();
 
-        ringMiddle.animate()
-                .scaleX(1.05f).scaleY(1.05f)
-                .setDuration(800)
-                .withEndAction(() -> ringMiddle.animate()
-                        .scaleX(1f).scaleY(1f)
-                        .setDuration(800)
-                        .start());
+        if (ringMiddle != null) {
+            ringMiddle.animate()
+                    .scaleX(1.05f).scaleY(1.05f)
+                    .setDuration(800)
+                    .withEndAction(() -> {
+                        if (ringMiddle != null) {
+                            ringMiddle.animate()
+                                    .scaleX(1f).scaleY(1f)
+                                    .setDuration(800)
+                                    .start();
+                        }
+                    });
+        }
     }
 
     private void stopPulse() {
@@ -174,9 +191,11 @@ public class ConnectButtonView extends FrameLayout {
             pulseAnimator.cancel();
             pulseAnimator = null;
         }
-        circleInner.setAlpha(1f);
-        ringMiddle.setScaleX(1f);
-        ringMiddle.setScaleY(1f);
+        if (circleInner != null) circleInner.setAlpha(1f);
+        if (ringMiddle != null) {
+            ringMiddle.setScaleX(1f);
+            ringMiddle.setScaleY(1f);
+        }
     }
 
     @Override
