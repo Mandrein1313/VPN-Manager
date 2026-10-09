@@ -226,9 +226,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_compass"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_home"
                     app:tint="@color/text_muted" />
 
                 <TextView
@@ -253,9 +253,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_sort_by_size"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_configs"
                     app:tint="@color/accent_green" />
 
                 <TextView
@@ -280,9 +280,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_info_details"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_log"
                     app:tint="@color/text_muted" />
 
                 <TextView
@@ -307,9 +307,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:src="@android:drawable/ic_menu_more"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_nav_more"
                     app:tint="@color/text_muted" />
 
                 <TextView
