@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.MyApp" parent="Theme.Material3.Dark.NoActionBar">
+    <!-- ค่าเริ่มต้น: ตามระบบ (DayNight) -->
+    <style name="Theme.MyApp" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/accent_green</item>
-        <item name="colorOnPrimary">#000000</item>
-        <item name="colorPrimaryContainer">#1B5E20</item>
-        <item name="colorOnPrimaryContainer">#C8E6C9</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">@color/md_theme_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_on_primary_container</item>
         <item name="colorSecondary">@color/md_theme_secondary</item>
         <item name="colorOnSecondary">@color/md_theme_on_secondary</item>
         <item name="colorSecondaryContainer">@color/md_theme_secondary_container</item>
         <item name="colorOnSecondaryContainer">@color/md_theme_on_secondary_container</item>
+        <item name="colorTertiary">@color/md_theme_tertiary</item>
+        <item name="colorOnTertiary">@color/md_theme_on_tertiary</item>
         <item name="colorError">@color/md_theme_error</item>
         <item name="colorOnError">@color/md_theme_on_error</item>
         <item name="android:colorBackground">@color/window_background</item>
@@ -21,6 +24,63 @@
         <item name="android:statusBarColor">@color/status_bar</item>
         <item name="android:navigationBarColor">@color/bottom_nav_background</item>
         <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- บังคับสว่าง — ไม่พึ่ง values-night -->
+    <style name="Theme.MyApp.Light" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/accent_green</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#E8F5E9</item>
+        <item name="colorOnPrimaryContainer">#1B5E20</item>
+        <item name="colorSecondary">#5A5D72</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#DFE1F9</item>
+        <item name="colorOnSecondaryContainer">#171B2C</item>
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="android:colorBackground">#FFFFFF</item>
+        <item name="colorOnBackground">#1A1B21</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorOnSurface">#1A1B21</item>
+        <item name="colorSurfaceVariant">#E3E1EC</item>
+        <item name="colorOnSurfaceVariant">#46464F</item>
+        <item name="colorOutline">#E5E7EB</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- บังคับมืด -->
+    <style name="Theme.MyApp.Dark" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/accent_green</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorPrimaryContainer">#1B5E20</item>
+        <item name="colorOnPrimaryContainer">#C8E6C9</item>
+        <item name="colorSecondary">#C3C5DD</item>
+        <item name="colorOnSecondary">#2C2F42</item>
+        <item name="colorSecondaryContainer">#434659</item>
+        <item name="colorOnSecondaryContainer">#DFE1F9</item>
+        <item name="colorError">#FFB4AB</item>
+        <item name="colorOnError">#690005</item>
+        <item name="android:colorBackground">#000000</item>
+        <item name="colorOnBackground">#E4E2E9</item>
+        <item name="colorSurface">#161B22</item>
+        <item name="colorOnSurface">#E4E2E9</item>
+        <item name="colorSurfaceVariant">#2A2D36</item>
+        <item name="colorOnSurfaceVariant">#B0BEC5</item>
+        <item name="colorOutline">#2A2D36</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:windowBackground">#000000</item>
         <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="TextAppearance.TunnelMate.Tab" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 </resources>
