@@ -111,6 +111,8 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         CrashHandler.install(this);
+        // ต้อง setTheme ก่อน super.onCreate — ไม่งั้นธีมสลับมืด/สว่าง
+        new ThemePrefs(this).applyToActivity(this);
         super.onCreate(savedInstanceState);
 
         // ⭐ ถ้าเปิดจาก Quick Settings Tile → เปิด ConnectionActivity ทันที
@@ -132,7 +134,6 @@ public class MainActivity extends AppCompatActivity
             finish();
             return;
         }
-
         setContentView(R.layout.activity_profile_list);
 
         // Remote kill — ปิด APK แจกได้จากไฟล์ JSON บนเซิร์ฟเวอร์

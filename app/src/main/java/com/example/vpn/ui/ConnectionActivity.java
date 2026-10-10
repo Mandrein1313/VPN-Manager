@@ -121,6 +121,8 @@ public class ConnectionActivity extends AppCompatActivity
     // ============================================================
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        // ต้อง setTheme ก่อน super.onCreate — ไม่งั้นธีมสลับมืด/สว่าง
+        new ThemePrefs(this).applyToActivity(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connection);
 
@@ -139,16 +141,17 @@ public class ConnectionActivity extends AppCompatActivity
         viewPager.setAdapter(pagerAdapter);
         viewPager.setUserInputEnabled(true);
 
-        // ⭐ 3 Tabs: MAIN / CHART / LOG
-        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            switch (position) {
-                case 0: tab.setText("MAIN"); break;
-                case 1: tab.setText("CHART"); break;
-                case 2: tab.setText("LOG"); break;
-            }
-        }).attach();
+        // ⭐ Tabs มืออาชีพ MAIN / CHART / LOG
+        if (tabLayout != null) {
+            new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
+                switch (position) {
+                    case 0: tab.setText("MAIN"); break;
+                    case 1: tab.setText("CHART"); break;
+                    case 2: tab.setText("LOG"); break;
+                }
+            }).attach();
+        }
 
-        // เปิดแท็บจาก Intent (เช่น จากปุ่ม LOGS หน้า CONFIGS)
         handleOpenTabIntent(getIntent());
 
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
