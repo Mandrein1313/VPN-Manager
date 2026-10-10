@@ -209,7 +209,7 @@
             </LinearLayout>
         </FrameLayout>
 
-        <!-- ===== Bottom Nav ===== -->
+        <!-- ===== Bottom Nav — แบบเดียวกับหน้า MAIN ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -233,20 +233,19 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_nav_home"
-                    app:tint="@color/text_muted" />
+                    app:tint="@color/bottom_nav_icon" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="HOME"
-                    android:textColor="@color/text_muted"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
+                    android:text="Home"
+                    android:textColor="@color/bottom_nav_icon"
+                    android:textSize="10sp" />
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/navConfigs"
+                android:id="@+id/navChart"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -259,17 +258,16 @@
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_nav_configs"
-                    app:tint="@color/accent_green" />
+                    android:src="@drawable/ic_nav_chart"
+                    app:tint="@color/bottom_nav_icon" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="CONFIGS"
-                    android:textColor="@color/accent_green"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
+                    android:text="CHART"
+                    android:textColor="@color/bottom_nav_icon"
+                    android:textSize="10sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -287,20 +285,19 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_nav_log"
-                    app:tint="@color/text_muted" />
+                    app:tint="@color/bottom_nav_icon" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="LOGS"
-                    android:textColor="@color/text_muted"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
+                    android:text="Log"
+                    android:textColor="@color/bottom_nav_icon"
+                    android:textSize="10sp" />
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/navMore"
+                android:id="@+id/navConfigs"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -313,19 +310,19 @@
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_nav_more"
-                    app:tint="@color/text_muted" />
+                    android:src="@drawable/ic_nav_configs"
+                    app:tint="@color/bottom_nav_icon_active" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="MORE"
-                    android:textColor="@color/text_muted"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
+                    android:text="CONFIGS"
+                    android:textColor="@color/bottom_nav_icon_active"
+                    android:textSize="10sp" />
             </LinearLayout>
         </LinearLayout>
+
 
     </LinearLayout>
 
