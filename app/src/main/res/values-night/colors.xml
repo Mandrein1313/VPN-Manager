@@ -1,58 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ===== Material3 Dark ===== -->
-    <color name="md_theme_primary">#C0C1FF</color>
-    <color name="md_theme_on_primary">#282A76</color>
-    <color name="md_theme_primary_container">#3F4290</color>
-    <color name="md_theme_on_primary_container">#E0E0FF</color>
-    <color name="md_theme_secondary">#C3C5DD</color>
-    <color name="md_theme_on_secondary">#2C2F42</color>
-    <color name="md_theme_secondary_container">#434659</color>
-    <color name="md_theme_on_secondary_container">#DFE1F9</color>
-    <color name="md_theme_tertiary">#6CDBCB</color>
-    <color name="md_theme_on_tertiary">#003731</color>
-    <color name="md_theme_error">#FFB4AB</color>
-    <color name="md_theme_on_error">#690005</color>
-    <color name="md_theme_background">#0F1115</color>
-    <color name="md_theme_on_background">#E4E2E9</color>
-    <color name="md_theme_surface">#171A21</color>
-    <color name="md_theme_on_surface">#E4E2E9</color>
-    <color name="md_theme_surface_variant">#2A2D36</color>
-    <color name="md_theme_on_surface_variant">#C7C5D0</color>
-    <color name="md_theme_outline">#918F9A</color>
+    <!-- ===== Material3 Light ===== -->
+    <color name="md_theme_primary">#5B5FC7</color>
+    <color name="md_theme_on_primary">#FFFFFF</color>
+    <color name="md_theme_primary_container">#E0E0FF</color>
+    <color name="md_theme_on_primary_container">#12134A</color>
+    <color name="md_theme_secondary">#5A5D72</color>
+    <color name="md_theme_on_secondary">#FFFFFF</color>
+    <color name="md_theme_secondary_container">#DFE1F9</color>
+    <color name="md_theme_on_secondary_container">#171B2C</color>
+    <color name="md_theme_tertiary">#006B5F</color>
+    <color name="md_theme_on_tertiary">#FFFFFF</color>
+    <color name="md_theme_error">#BA1A1A</color>
+    <color name="md_theme_on_error">#FFFFFF</color>
+    <color name="md_theme_background">#FFFFFF</color>
+    <color name="md_theme_on_background">#1A1B21</color>
+    <color name="md_theme_surface">#FFFFFF</color>
+    <color name="md_theme_on_surface">#1A1B21</color>
+    <color name="md_theme_surface_variant">#E3E1EC</color>
+    <color name="md_theme_on_surface_variant">#46464F</color>
+    <color name="md_theme_outline">#777680</color>
 
-    <!-- ===== App semantic (Dark — มืดให้มืดหมด) ===== -->
-    <color name="window_background">#000000</color>
-    <color name="toolbar_background">#0D1117</color>
-    <color name="toolbar_icon">#FFFFFF</color>
-    <color name="toolbar_title">#FFFFFF</color>
-    <color name="tab_indicator">#00BCD4</color>
-    <color name="tab_selected">#00BCD4</color>
-    <color name="tab_unselected">#888888</color>
-    <color name="card_background">#161B22</color>
-    <color name="bottom_nav_background">#000000</color>
-    <color name="bottom_nav_icon">#B0BEC5</color>
-    <color name="bottom_nav_icon_active">#00E676</color>
-    <color name="drawer_background">#161B22</color>
-    <color name="drawer_item">#FFFFFF</color>
-    <color name="text_primary">#E4E2E9</color>
-    <color name="text_secondary">#B0BEC5</color>
-    <color name="text_muted">#888888</color>
-    <color name="divider">#2A2D36</color>
-    <color name="status_bar">#000000</color>
+    <!-- ===== App semantic (Light — สว่างให้สว่างหมด) ===== -->
+    <color name="window_background">#FFFFFF</color>
+    <color name="toolbar_background">#FFFFFF</color>
+    <color name="toolbar_icon">#1A1B21</color>
+    <color name="toolbar_title">#1A1B21</color>
+    <color name="tab_indicator">#00A854</color>
+    <color name="tab_selected">#00A854</color>
+    <color name="tab_unselected">#9CA3AF</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="bottom_nav_background">#FFFFFF</color>
+    <color name="bottom_nav_icon">#6B7280</color>
+    <color name="bottom_nav_icon_active">#00A854</color>
+    <color name="drawer_background">#FFFFFF</color>
+    <color name="drawer_item">#1A1B21</color>
+    <color name="text_primary">#1A1B21</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_muted">#9CA3AF</color>
+    <color name="divider">#E5E7EB</color>
+    <color name="status_bar">#FFFFFF</color>
 
-    <color name="vpn_connected">#66BB6A</color>
-    <color name="vpn_disconnected">#78909C</color>
-    <color name="vpn_connecting">#FFD54F</color>
+    <color name="vpn_connected">#2E7D32</color>
+    <color name="vpn_disconnected">#607D8B</color>
+    <color name="vpn_connecting">#F9A825</color>
 
     <!-- ===== Protocol badge colors ===== -->
-    <color name="proto_ssh">#26C6DA</color>
-    <color name="proto_v2ray">#B388FF</color>
-    <color name="proto_vless">#B388FF</color>
-    <color name="proto_http">#64B5F6</color>
-    <color name="proto_trojan">#FF8A65</color>
-    <color name="proto_wireguard">#81C784</color>
-    <color name="proto_shadowsocks">#FFB74D</color>
+    <color name="proto_ssh">#00BCD4</color>
+    <color name="proto_v2ray">#7C4DFF</color>
+    <color name="proto_vless">#7C4DFF</color>
+    <color name="proto_http">#42A5F5</color>
+    <color name="proto_trojan">#FF7043</color>
+    <color name="proto_wireguard">#66BB6A</color>
+    <color name="proto_shadowsocks">#FFA726</color>
 
-    <color name="accent_green">#00E676</color>
+    <color name="accent_green">#00A854</color>
+    <color name="connect_btn_idle">#6B7280</color>
 </resources>

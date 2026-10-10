@@ -29,29 +29,22 @@
                 app:navigationIconTint="@color/toolbar_icon"
                 app:title="VPN Manager"
                 app:titleTextColor="@color/toolbar_title" />
-
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/window_background"
-                app:tabIndicatorColor="@color/tab_indicator"
-                app:tabIndicatorFullWidth="false"
-                app:tabIndicatorHeight="3dp"
-                app:tabSelectedTextColor="@color/tab_selected"
-                app:tabTextColor="@color/tab_unselected">
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="MAIN" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="LOG" />
-            </com.google.android.material.tabs.TabLayout>
         </com.google.android.material.appbar.AppBarLayout>
+
+        <!-- แท็บ MAIN / CHART / LOG — สไตล์เดิม สีเขียว -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/window_background"
+            app:tabGravity="fill"
+            app:tabMode="fixed"
+            app:tabIndicatorColor="@color/accent_green"
+            app:tabIndicatorFullWidth="false"
+            app:tabIndicatorHeight="2dp"
+            app:tabSelectedTextColor="@color/accent_green"
+            app:tabTextColor="@color/tab_unselected"
+            app:tabRippleColor="@color/accent_green" />
 
         <!-- ⭐ ===== ViewPager2 — ปัดซ้าย-ขวาได้ ===== -->
         <androidx.viewpager2.widget.ViewPager2
@@ -60,13 +53,14 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- ===== Bottom Action Bar ===== -->
+                <!-- ===== Bottom Action Bar ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/window_background"
+            android:background="@drawable/bg_bottom_nav"
             android:orientation="horizontal"
-            android:paddingVertical="8dp">
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
 
             <!-- ⭐ Home — กลับแท็บ MAIN -->
             <LinearLayout
