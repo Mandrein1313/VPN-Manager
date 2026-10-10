@@ -559,23 +559,21 @@ public class ProfileEditActivity extends AppCompatActivity {
 
     long excludeId = (existing != null) ? existing.id : 0L;
 
-    // ⭐ ตรวจชื่อซ้ำ
+    // ⭐ ห้ามชื่อซ้ำ (ไม่ให้ทับของเดิม)
     viewModel.getRepo().findByName(name, excludeId, dup -> {
         if (dup != null) {
+            edtName.setError("ชื่อนี้มีอยู่แล้ว");
+            edtName.requestFocus();
             new MaterialAlertDialogBuilder(this)
                     .setTitle("ชื่อซ้ำ")
-                    .setMessage("มีโปรไฟล์ชื่อ \"" + name + "\" อยู่แล้ว\n\n"
-                            + "Host: " + dup.host + ":" + dup.port + "\n\n"
-                            + "ต้องการอัปเดตโปรไฟล์เดิม หรือยกเลิก?")
-                    .setPositiveButton("อัปเดตของเดิม", (d, w) -> {
-                        p.id = dup.id;   // เขียนทับตัวเดิม
-                        doSave(p);
-                    })
-                    .setNegativeButton("ยกเลิก", null)
+                    .setMessage("มีโปรไฟล์ชื่อ \"" + name + "\" อยู่แล้ว\n"
+                            + "(Host: " + dup.host + ":" + dup.port + ")\n\n"
+                            + "กรุณาตั้งชื่อใหม่ที่ไม่ซ้ำ")
+                    .setPositiveButton("ตกลง", null)
                     .show();
-        } else {
-            doSave(p);
+            return;
         }
+        doSave(p);
     });
 }
 
