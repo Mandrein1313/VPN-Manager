@@ -122,6 +122,7 @@ public class ConnectionActivity extends AppCompatActivity
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        new ThemePrefs(this).applyToActivity(this);
         setContentView(R.layout.activity_connection);
 
         // Remote kill — บล็อกทั้งหน้าเชื่อมต่อ

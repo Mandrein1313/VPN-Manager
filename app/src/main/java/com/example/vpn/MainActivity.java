@@ -133,6 +133,7 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+        new ThemePrefs(this).applyToActivity(this);
         setContentView(R.layout.activity_profile_list);
 
         // Remote kill — ปิด APK แจกได้จากไฟล์ JSON บนเซิร์ฟเวอร์

@@ -1,5 +1,6 @@
 package com.example.vpn.util;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 
@@ -7,7 +8,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 
 /**
  * ธีมทั้งแอป: System / Light / Dark
- * มืด → values-night (ดำทั้งจอ) | สว่าง → values (ขาวทั้งจอ)
+ * ใช้ทั้ง AppCompatDelegate + setTheme แยก (กันบางเครื่องสลับมืด/สว่างผิด)
  */
 public final class ThemePrefs {
 
@@ -29,25 +30,44 @@ public final class ThemePrefs {
         return prefs.getInt(KEY_MODE, MODE_SYSTEM);
     }
 
-    /** บันทึก + ใช้ทันทีทั้ง process */
     public void setMode(int mode) {
         if (mode < MODE_SYSTEM || mode > MODE_DARK) mode = MODE_SYSTEM;
         prefs.edit().putInt(KEY_MODE, mode).apply();
         applyMode(mode);
     }
 
-    /** เรียกใน Application.onCreate() ก่อน Activity ใด ๆ */
     public void apply() {
         applyMode(getMode());
     }
 
-    /** alias ของ apply() — ใช้ใน App.java */
     public void applySaved() {
         apply();
     }
 
+    /**
+     * เรียกใน Activity.onCreate() ก่อน setContentView()
+     * บังคับสไตล์ให้ตรงโหมด — แก้เคส DayNight สลับผิดบนบาง OEM
+     */
+    public void applyToActivity(Activity activity) {
+        int mode = getMode();
+        switch (mode) {
+            case MODE_LIGHT:
+                activity.setTheme(com.example.vpn.R.style.Theme_MyApp_Light);
+                break;
+            case MODE_DARK:
+                activity.setTheme(com.example.vpn.R.style.Theme_MyApp_Dark);
+                break;
+            case MODE_SYSTEM:
+            default:
+                activity.setTheme(com.example.vpn.R.style.Theme_MyApp);
+                break;
+        }
+    }
+
     public static void applyMode(int mode) {
-        int nightMode;
+        // ถูกต้องตามมาตรฐาน AppCompat:
+        // LIGHT = ไม่ใช้ night resources | DARK = ใช้ night resources
+        final int nightMode;
         switch (mode) {
             case MODE_LIGHT:
                 nightMode = AppCompatDelegate.MODE_NIGHT_NO;
