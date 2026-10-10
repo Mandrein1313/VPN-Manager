@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- ⭐ Scanner -->
+    <com.journeyapps.barcodescanner.DecoratedBarcodeView
+        android:id="@+id/barcodeView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:zxing_use_texture_view="true"
+        app:zxing_scanner_layout="@layout/zxing_custom_scanner" />
+
+    <!-- ⭐ ปุ่มปิด -->
+    <ImageButton
+        android:id="@+id/btnClose"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:contentDescription="ปิด"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        app:tint="#FFFFFF" />
+
+    <!-- ⭐ ปุ่มแฟลช -->
+    <ImageButton
+        android:id="@+id/btnFlash"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:contentDescription="แฟลช"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@android:drawable/ic_menu_camera"
+        app:tint="#FFFFFF" />
+
+    <!-- ⭐ ปุ่มเลือกรูปจากแกลเลอรี่ -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnGallery"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="32dp"
+        android:text="🖼️  เลือกรูปจาก Gallery"
+        android:textColor="#FFFFFF"
+        app:backgroundTint="#CC00E676"
+        app:cornerRadius="24dp" />
+
+</FrameLayout>

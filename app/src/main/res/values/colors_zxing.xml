@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ⭐ สีของจุดที่ scanner มองเห็น (ขอบกรอบ) -->
+    <color name="zxing_possible_result_points">#00E676</color>
+
+    <!-- ⭐ สีตอนสแกนสำเร็จ (กรอบเขียวเข้มขึ้น) -->
+    <color name="zxing_result_view">#4CAF50</color>
+
+    <!-- ⭐ สีของเลเซอร์ (เส้นสีเขียวที่วิ่งขึ้นลง) -->
+    <color name="zxing_viewfinder_laser">#00E676</color>
+
+    <!-- ⭐ สีม่านทึบรอบกรอบ (ดำ 60%) -->
+    <color name="zxing_viewfinder_mask">#99000000</color>
+</resources>
