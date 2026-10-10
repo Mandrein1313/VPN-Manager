@@ -328,6 +328,22 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
+        if (id == R.id.action_add_subscription) {
+            showAddSubscriptionDialog();
+            return true;
+        }
+        if (id == R.id.action_update_subscriptions) {
+            updateAllSubscriptions();
+            return true;
+        }
+        if (id == R.id.action_manage_subscriptions) {
+            showManageSubscriptions();
+            return true;
+        }
+        if (id == R.id.action_remove_dup_names) {
+            removeDuplicateNames();
+            return true;
+        }
         if (id == R.id.action_auto_select) {
             autoSelectLowestPing();
             return true;
@@ -347,33 +363,12 @@ public class MainActivity extends AppCompatActivity
     // Bottom Nav "More"
     // ============================================================
     private void showMoreMenu() {
-        // ไม่มีนำเข้า/ส่งออก/สแกน QR — ใช้ FAB + และปุ่มแชร์รายการแทน
-        final String[] options = {
-                "🔗  เพิ่ม Subscription",
-                "🔄  อัปเดต Subscription ทั้งหมด",
-                "📋  จัดการ Subscription",
-                "🧹  ลบโปรไฟล์ชื่อซ้ำ",
-                "🎨  เปลี่ยนธีม",
-                "🐛  Crash Log",
-                "ℹ️  เกี่ยวกับ"
-        };
-
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("เมนูเพิ่มเติม")
-                .setItems(options, (d, which) -> {
-                    switch (which) {
-                        case 0: showAddSubscriptionDialog(); break;
-                        case 1: updateAllSubscriptions(); break;
-                        case 2: showManageSubscriptions(); break;
-                        case 3: removeDuplicateNames(); break;
-                        case 4: showThemeDialog(); break;
-                        case 5:
-                            startActivity(new Intent(this, CrashLogActivity.class));
-                            break;
-                        case 6: showAboutDialog(); break;
-                    }
-                })
-                .show();
+        // เปิดเมนู ⋮ บน toolbar (รายการเดียวกับมุมขวาบน)
+        try {
+            openOptionsMenu();
+        } catch (Exception e) {
+            StyledToast.info(this, "ใช้เมนู ⋮ มุมขวาบน");
+        }
     }
 
      private void removeDuplicateNames() {

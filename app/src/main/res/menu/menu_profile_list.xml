@@ -3,6 +3,26 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_add_subscription"
+        android:title="เพิ่ม Subscription"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_update_subscriptions"
+        android:title="อัปเดต Subscription ทั้งหมด"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_manage_subscriptions"
+        android:title="จัดการ Subscription"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_remove_dup_names"
+        android:title="ลบโปรไฟล์ชื่อซ้ำ"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_auto_select"
         android:title="Auto Select (ping ต่ำสุด)"
         app:showAsAction="never" />
