@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabAdd, fabImport, fabQr;
     private boolean fabMenuOpen = false;
 
-    private View navHome, navConfigs, navLogs, navMore;
+    private View navHome, navChart, navLogs, navConfigs;
     private DrawerLayout drawerLayout;
     private NavigationView navView;
 
@@ -155,9 +155,9 @@ public class MainActivity extends AppCompatActivity
         setupFabMenu();
 
         navHome = findViewById(R.id.navHome);
-        navConfigs = findViewById(R.id.navConfigs);
+        navChart = findViewById(R.id.navChart);
         navLogs = findViewById(R.id.navLogs);
-        navMore = findViewById(R.id.navMore);
+        navConfigs = findViewById(R.id.navConfigs);
         setupConfigsBottomNav();
 
         // ===== Toolbar =====
@@ -317,7 +317,7 @@ public class MainActivity extends AppCompatActivity
     protected void onResume() {
         super.onResume();
         RemoteGate.check(this);
-        setConfigsBottomNavSelected(1);
+        setConfigsBottomNavSelected(3); // CONFIGS
     }
 
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -1080,37 +1080,42 @@ public class MainActivity extends AppCompatActivity
     private void setupConfigsBottomNav() {
         if (navHome != null) {
             navHome.setOnClickListener(v -> {
-                setConfigsBottomNavSelected(0);
                 Intent i = new Intent(this, ConnectionActivity.class);
-                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                i.putExtra("open_tab", 0);
+                startActivity(i);
+                finish();
+            });
+        }
+        if (navChart != null) {
+            navChart.setOnClickListener(v -> {
+                Intent i = new Intent(this, ConnectionActivity.class);
+                i.putExtra("open_tab", 1); // CHART
+                startActivity(i);
+                finish();
+            });
+        }
+        if (navLogs != null) {
+            navLogs.setOnClickListener(v -> {
+                Intent i = new Intent(this, ConnectionActivity.class);
+                i.putExtra("open_tab", 2); // LOG
                 startActivity(i);
                 finish();
             });
         }
         if (navConfigs != null) {
-            navConfigs.setOnClickListener(v -> setConfigsBottomNavSelected(1));
+            navConfigs.setOnClickListener(v -> setConfigsBottomNavSelected(3));
         }
-        if (navLogs != null) {
-            navLogs.setOnClickListener(v -> {
-                setConfigsBottomNavSelected(2);
-                openConnectionLogTab();
-            });
-        }
-        if (navMore != null) {
-            navMore.setOnClickListener(v -> {
-                setConfigsBottomNavSelected(3);
-                showMoreMenu();
-            });
-        }
-        setConfigsBottomNavSelected(1);
+        // หน้านี้ = CONFIGS
+        setConfigsBottomNavSelected(3);
     }
 
-    /** 0=HOME 1=CONFIGS 2=LOGS 3=MORE */
+    /** 0=Home 1=CHART 2=Log 3=CONFIGS */
     private void setConfigsBottomNavSelected(int index) {
+        // 0=Home 1=CHART 2=Log 3=CONFIGS
         tintConfigsNavItem(navHome, index == 0);
-        tintConfigsNavItem(navConfigs, index == 1);
+        tintConfigsNavItem(navChart, index == 1);
         tintConfigsNavItem(navLogs, index == 2);
-        tintConfigsNavItem(navMore, index == 3);
+        tintConfigsNavItem(navConfigs, index == 3);
     }
 
     private void tintConfigsNavItem(View item, boolean active) {
