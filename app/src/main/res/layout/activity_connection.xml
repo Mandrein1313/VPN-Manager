@@ -29,29 +29,31 @@
                 app:navigationIconTint="@color/toolbar_icon"
                 app:title="VPN Manager"
                 app:titleTextColor="@color/toolbar_title" />
-
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/window_background"
-                app:tabIndicatorColor="@color/tab_indicator"
-                app:tabIndicatorFullWidth="false"
-                app:tabIndicatorHeight="3dp"
-                app:tabSelectedTextColor="@color/tab_selected"
-                app:tabTextColor="@color/tab_unselected">
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="MAIN" />
-
-                <com.google.android.material.tabs.TabItem
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="LOG" />
-            </com.google.android.material.tabs.TabLayout>
         </com.google.android.material.appbar.AppBarLayout>
+
+        <!-- ⭐ Tabs มืออาชีพ: MAIN / CHART / LOG -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@color/window_background"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            app:tabGravity="fill"
+            app:tabMode="fixed"
+            app:tabIndicatorColor="@color/tab_indicator"
+            app:tabIndicatorFullWidth="false"
+            app:tabIndicatorHeight="3dp"
+            app:tabIndicator="@drawable/bg_tab_indicator"
+            app:tabSelectedTextColor="@color/tab_selected"
+            app:tabTextColor="@color/tab_unselected"
+            app:tabRippleColor="@color/accent_green"
+            app:tabTextAppearance="@style/TextAppearance.TunnelMate.Tab" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider" />
 
         <!-- ⭐ ===== ViewPager2 — ปัดซ้าย-ขวาได้ ===== -->
         <androidx.viewpager2.widget.ViewPager2
@@ -60,13 +62,14 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- ===== Bottom Action Bar ===== -->
+                <!-- ===== Bottom Action Bar ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/window_background"
+            android:background="@drawable/bg_bottom_nav"
             android:orientation="horizontal"
-            android:paddingVertical="8dp">
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
 
             <!-- ⭐ Home — กลับแท็บ MAIN -->
             <LinearLayout

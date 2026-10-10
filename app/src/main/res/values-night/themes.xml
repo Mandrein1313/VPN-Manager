@@ -24,6 +24,14 @@
         <item name="android:statusBarColor">@color/status_bar</item>
         <item name="android:navigationBarColor">@color/bottom_nav_background</item>
         <item name="android:windowBackground">@color/window_background</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="TextAppearance.TunnelMate.Tab" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 </resources>
+
