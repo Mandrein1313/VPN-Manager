@@ -113,11 +113,9 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     /** โปรไฟล์ที่ถูกเลือก — แสดงแถบเขียวด้านซ้าย */
     public void setSelectedProfileId(long id) {
-        long old = selectedProfileId;
+        if (selectedProfileId == id) return;
         selectedProfileId = id;
-        if (old > 0) notifyLatencyChanged(old);
-        if (id > 0) notifyLatencyChanged(id);
-        if (old <= 0 || id <= 0) notifyDataSetChanged();
+        notifyDataSetChanged();
     }
 
     public long getSelectedProfileId() {
@@ -238,7 +236,10 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
                 });
             }
 
-            itemView.setOnClickListener(v -> listener.onConnect(p));
+            itemView.setOnClickListener(v -> {
+                setSelectedProfileId(p.id);
+                listener.onConnect(p);
+            });
             itemView.setOnLongClickListener(v -> {
                 listener.onEdit(p);
                 return true;
