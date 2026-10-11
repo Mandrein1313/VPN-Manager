@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <!-- ยังไม่เชื่อมต่อ = เทา -->
-    <solid android:color="#6B7280" />
+    <solid android:color="#FF455A64" />
+    <stroke
+        android:width="2dp"
+        android:color="#33455A64" />
 </shape>
