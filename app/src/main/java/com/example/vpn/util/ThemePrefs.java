@@ -4,11 +4,12 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 
 /**
  * ธีมทั้งแอป: System / Light / Dark
- * ใช้ทั้ง AppCompatDelegate + setTheme แยก (กันบางเครื่องสลับมืด/สว่างผิด)
+ * ใช้ setLocalNightMode บังคับทีละ Activity — แก้เคสสลับมืด/สว่างบน OEM
  */
 public final class ThemePrefs {
 
@@ -45,11 +46,21 @@ public final class ThemePrefs {
     }
 
     /**
-     * เรียกใน Activity.onCreate() ก่อน setContentView()
-     * บังคับสไตล์ให้ตรงโหมด — แก้เคส DayNight สลับผิดบนบาง OEM
+     * เรียกใน Activity.onCreate() ก่อน super.onCreate()
      */
     public void applyToActivity(Activity activity) {
         int mode = getMode();
+        int nightMode = toNightMode(mode);
+
+        // 1) global
+        AppCompatDelegate.setDefaultNightMode(nightMode);
+
+        // 2) บังคับเฉพาะ Activity นี้ (สำคัญ — กันสลับผิด)
+        if (activity instanceof AppCompatActivity) {
+            ((AppCompatActivity) activity).getDelegate().setLocalNightMode(nightMode);
+        }
+
+        // 3) theme แยก ตามโหมด
         switch (mode) {
             case MODE_LIGHT:
                 activity.setTheme(com.example.vpn.R.style.Theme_MyApp_Light);
@@ -65,22 +76,19 @@ public final class ThemePrefs {
     }
 
     public static void applyMode(int mode) {
-        // ถูกต้องตามมาตรฐาน AppCompat:
-        // LIGHT = ไม่ใช้ night resources | DARK = ใช้ night resources
-        final int nightMode;
+        AppCompatDelegate.setDefaultNightMode(toNightMode(mode));
+    }
+
+    private static int toNightMode(int mode) {
         switch (mode) {
             case MODE_LIGHT:
-                nightMode = AppCompatDelegate.MODE_NIGHT_NO;
-                break;
+                return AppCompatDelegate.MODE_NIGHT_NO;   // สว่างจริง
             case MODE_DARK:
-                nightMode = AppCompatDelegate.MODE_NIGHT_YES;
-                break;
+                return AppCompatDelegate.MODE_NIGHT_YES;  // มืดจริง
             case MODE_SYSTEM:
             default:
-                nightMode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
-                break;
+                return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
         }
-        AppCompatDelegate.setDefaultNightMode(nightMode);
     }
 
     public static String getModeName(int mode) {
