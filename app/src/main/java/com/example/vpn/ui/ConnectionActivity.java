@@ -1172,7 +1172,6 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     @Override
-    @Override
     protected void onPause() {
         try {
             mainHandler.removeCallbacks(periodicSyncRunnable);
