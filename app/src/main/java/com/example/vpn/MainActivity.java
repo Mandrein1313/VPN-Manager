@@ -202,6 +202,14 @@ public class MainActivity extends AppCompatActivity
             boolean empty = list == null || list.isEmpty();
             emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
             recycler.setVisibility(empty ? View.GONE : View.VISIBLE);
+            // ไฮไลต์โปรไฟล์ล่าสุดที่เลือก
+            if (!empty && adapter != null) {
+                long lastId = getSharedPreferences("vpn_ui", MODE_PRIVATE)
+                        .getLong("selected_profile_id", -1L);
+                if (lastId > 0) {
+                    adapter.setSelectedProfileId(lastId);
+                }
+            }
         });
     }
 

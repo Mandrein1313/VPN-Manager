@@ -34,6 +34,8 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     private final List<Profile> items = new ArrayList<>();
     /** profileId → latency ms (-1 fail, null = ยังไม่วัด) */
+    private long selectedProfileId = -1L;
+
     private final Map<Long, Integer> latencyMap = new HashMap<>();
     private final Listener listener;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -108,6 +110,20 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         }
     }
 
+
+    /** โปรไฟล์ที่ถูกเลือก — แสดงแถบเขียวด้านซ้าย */
+    public void setSelectedProfileId(long id) {
+        long old = selectedProfileId;
+        selectedProfileId = id;
+        if (old > 0) notifyLatencyChanged(old);
+        if (id > 0) notifyLatencyChanged(id);
+        if (old <= 0 || id <= 0) notifyDataSetChanged();
+    }
+
+    public long getSelectedProfileId() {
+        return selectedProfileId;
+    }
+
     public Profile getItem(int position) {
         if (position < 0 || position >= items.size()) return null;
         return items.get(position);
@@ -170,6 +186,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     class VH extends RecyclerView.ViewHolder {
         android.widget.ImageView flag;
         TextView name, host, protocol, ping;
+        View viewSelectedBar;
         ImageButton btnQr, btnSignal, btnEdit, btnDelete;
 
         VH(@NonNull View v) {
@@ -179,6 +196,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             host = v.findViewById(R.id.txtHost);
             protocol = v.findViewById(R.id.txtProtocol);
             ping = v.findViewById(R.id.txtPing);
+            viewSelectedBar = v.findViewById(R.id.viewSelectedBar);
             btnQr = v.findViewById(R.id.btnQr);
             btnSignal = v.findViewById(R.id.btnSignal);
             btnEdit = v.findViewById(R.id.btnEdit);
@@ -198,6 +216,11 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             }
 
             applyLatency(ping, latencyMs);
+
+            if (viewSelectedBar != null) {
+                boolean sel = (p.id == selectedProfileId);
+                viewSelectedBar.setVisibility(sel ? View.VISIBLE : View.GONE);
+            }
 
             if (btnSignal != null) {
                 btnSignal.setImageResource(signalIconFor(latencyMs));
