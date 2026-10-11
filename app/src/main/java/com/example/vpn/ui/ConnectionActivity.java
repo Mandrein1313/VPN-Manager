@@ -509,51 +509,44 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
 
-    /** แหล่งความจริงเดียว: flag + VPN interface ของระบบ */
+    /**
+     * แหล่งความจริง:
+     * 1) flag vpn_state.running ที่ service ตั้งตอน CONNECTED จริง (สำคัญสุด)
+     * 2) VPN interface ของระบบ (TRANSPORT_VPN)
+     * ห้ามใช้ getRunningServices เป็นตัวตัดสิน — บน OPPO/Android 8+ มักคืน false แม้ service ยังรัน
+     */
     private boolean isVpnReallyUp() {
         boolean flag = false;
         try {
             flag = ProxyVpnService.isServiceRunning(this);
         } catch (Exception ignored) {}
 
-        boolean vpnIface = false;
+        if (flag) return true;
+
+        // เสริม: ถ้ามี VPN interface ถือว่าต่ออยู่ (กัน flag หายแต่กุญแจยังอยู่)
         try {
             android.net.ConnectivityManager cm =
                     (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-            if (cm != null) {
-                if (android.os.Build.VERSION.SDK_INT >= 23) {
-                    android.net.Network active = cm.getActiveNetwork();
-                    if (active != null) {
-                        android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(active);
+            if (cm != null && android.os.Build.VERSION.SDK_INT >= 23) {
+                android.net.Network[] nets = cm.getAllNetworks();
+                if (nets != null) {
+                    for (android.net.Network n : nets) {
+                        android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(n);
                         if (caps != null && caps.hasTransport(
                                 android.net.NetworkCapabilities.TRANSPORT_VPN)) {
-                            vpnIface = true;
-                        }
-                    }
-                    if (!vpnIface) {
-                        android.net.Network[] nets = cm.getAllNetworks();
-                        if (nets != null) {
-                            for (android.net.Network n : nets) {
-                                android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(n);
-                                if (caps != null && caps.hasTransport(
-                                        android.net.NetworkCapabilities.TRANSPORT_VPN)) {
-                                    vpnIface = true;
-                                    break;
-                                }
-                            }
+                            return true;
                         }
                     }
                 }
             }
         } catch (Exception ignored) {}
 
-        boolean alive = isProxyVpnServiceAlive();
-        return flag || vpnIface || alive;
+        return false;
     }
+
 
     private void syncButtonState() {
         if (mainFragment == null || mainFragment.getConnectButton() == null) {
-            // Fragment ยังไม่พร้อม — ลองใหม่เร็วๆ
             try {
                 mainHandler.removeCallbacks(delayedSyncRunnable);
                 mainHandler.postDelayed(delayedSyncRunnable, 300);
@@ -561,9 +554,35 @@ public class ConnectionActivity extends AppCompatActivity
             return;
         }
 
-        boolean reallyUp = isVpnReallyUp();
         ConnectButtonView btn = mainFragment.getConnectButton();
         ConnectButtonView.State cur = btn.getState();
+
+        // กำลังเชื่อมจากที่ผู้ใช้กด — อย่าแย่ง
+        if (cur == ConnectButtonView.State.CONNECTING) {
+            return;
+        }
+
+        // StatusBus กำลัง connecting อยู่
+        try {
+            com.example.vpn.util.StatusBus.Status st = com.example.vpn.util.StatusBus.current();
+            if (st != null) {
+                switch (st.state) {
+                    case CONNECTING_SSH:
+                    case SSH_CONNECTED:
+                    case SOCKS_READY:
+                    case TUN2SOCKS_READY:
+                        if (cur != ConnectButtonView.State.CONNECTING) {
+                            btn.forceSetState(ConnectButtonView.State.CONNECTING);
+                            updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+                        }
+                        return;
+                    default:
+                        break;
+                }
+            }
+        } catch (Exception ignored) {}
+
+        boolean reallyUp = isVpnReallyUp();
 
         if (reallyUp) {
             if (cur != ConnectButtonView.State.CONNECTED) {
@@ -575,7 +594,6 @@ public class ConnectionActivity extends AppCompatActivity
             }
             startStatsUpdates();
 
-            // คืนการ์ดโปรไฟล์
             if (targetProfile == null) {
                 long lastId = getSharedPreferences("vpn_ui", MODE_PRIVATE)
                         .getLong("selected_profile_id", -1L);
@@ -593,28 +611,23 @@ public class ConnectionActivity extends AppCompatActivity
                     }));
                 }
             } else {
-                // อัปเดตการ์ดอย่างเดียว ไม่แตะ status
                 String hostLine = targetProfile.host != null ? targetProfile.host : "---";
                 String name = (targetProfile.name != null && !targetProfile.name.isEmpty())
                         ? targetProfile.name : hostLine;
                 updateConfigCard(name, hostLine, String.valueOf(targetProfile.port));
             }
-            VpnLogger.i("ConnectionActivity", "sync → CONNECTED");
             return;
         }
 
-        // ไม่ได้ต่อ — อย่าทับตอนผู้ใช้กำลังกดเชื่อม
-        if (cur == ConnectButtonView.State.CONNECTING) {
-            return;
-        }
+        // ไม่ได้ต่อ
         if (cur != ConnectButtonView.State.IDLE) {
             btn.forceSetState(ConnectButtonView.State.IDLE);
         }
         updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
         stopStatsUpdates();
         sessionStartTime = 0L;
-        VpnLogger.i("ConnectionActivity", "sync → IDLE");
     }
+
 
 
 
@@ -887,28 +900,11 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
      * จะเจอ UI ยังเป็น NOT CONNECTED ชั่วคราว แล้วไป STOP VPN ผิด → เน็ตค้าง
      */
     private void tryCleanupOrphanVpn() {
-        try {
-            // ถ้ามี VPN interface ของระบบอยู่ ห้ามหยุดเด็ดขาด
-            if (isVpnReallyUp()) return;
-
-            boolean flagRunning = ProxyVpnService.isServiceRunning(this);
-            if (!flagRunning) return;
-
-            // flag = true แต่ไม่มี VPN จริง = orphan
-            android.util.Log.w("ConnectionActivity",
-                    "Orphan VPN flag — clearing");
-            getSharedPreferences("vpn_state", MODE_PRIVATE)
-                    .edit().putBoolean("running", false).apply();
-            try {
-                Intent stop = new Intent(this, ProxyVpnService.class);
-                stop.setAction(ProxyVpnService.ACTION_STOP);
-                startService(stop);
-            } catch (Exception ignored) {}
-        } catch (Exception e) {
-            android.util.Log.w("ConnectionActivity",
-                    "tryCleanupOrphanVpn: " + e.getMessage());
-        }
+        // ไม่หยุด VPN อัตโนมัติจาก UI อีกต่อไป
+        // การหยุดทำได้เฉพาะผู้ใช้กดปุ่ม หรือ service เรียก stop เอง
+        // เดิม: ใช้ getRunningServices แล้วคิดว่า orphan → ล้าง flag → ปุ่มเทาทั้งที่กุญแจยังอยู่
     }
+
 
     /** ตรวจจาก ActivityManager ว่า ProxyVpnService ยังรันอยู่หรือไม่ */
     private boolean isProxyVpnServiceAlive() {
@@ -1074,11 +1070,11 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     private void startVpnService(Profile p) {
-        // จำโปรไฟล์ที่ใช้อยู่ — เปิดแอปใหม่แล้วยังโชว์ Active Configuration ได้
+        // จำเฉพาะโปรไฟล์ — ห้าม set running=true ที่นี่
+        // (service จะ set เองตอน CONNECTED จริง กันปุ่มเขียวก่อนต่อสำเร็จ)
         try {
             getSharedPreferences("vpn_state", MODE_PRIVATE).edit()
                     .putLong("profile_id", p.id)
-                    .putBoolean("running", true)
                     .apply();
             getSharedPreferences("vpn_ui", MODE_PRIVATE).edit()
                     .putLong("selected_profile_id", p.id)
@@ -1107,6 +1103,12 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     private void stopVpnService() {
+        // ล้าง flag ทันที — ปุ่มเทาทันที ไม่รอ service
+        try {
+            getSharedPreferences("vpn_state", MODE_PRIVATE).edit()
+                    .putBoolean("running", false)
+                    .apply();
+        } catch (Exception ignored) {}
         Intent svc = new Intent(this, ProxyVpnService.class);
         svc.setAction(ProxyVpnService.ACTION_STOP);
         try {
@@ -1188,7 +1190,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 bytes / (1024.0 * 1024 * 1024));
     }
 
-    
+    @Override
     @Override
     protected void onPause() {
         try {
