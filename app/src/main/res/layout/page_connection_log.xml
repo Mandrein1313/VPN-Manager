@@ -2,29 +2,141 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
 
-    <ScrollView
-        android:id="@+id/scrollLogView"
+    <!-- Empty state -->
+    <LinearLayout
+        android:id="@+id/emptyLogState"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/window_background"
-        android:paddingHorizontal="8dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
 
         <TextView
-            android:id="@+id/txtLogContent"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:textColor="@color/text_primary"
-            android:textIsSelectable="true"
-            android:textSize="10sp" />
-    </ScrollView>
+            android:text="📋"
+            android:textSize="40sp" />
 
-    <!-- ปุ่มถูกย้ายไป Toolbar หลักของ Activity แล้ว
-         เก็บ id ไว้ (gone) เพื่อไม่ให้ findViewById พังถ้าโค้ดเก่า -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="ยังไม่มี Log"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="เมื่อเชื่อมต่อ VPN รายละเอียด\nจะแสดงที่นี่"
+            android:textColor="#88FFFFFF"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- Log content card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardLog"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="10dp"
+        app:cardBackgroundColor="#0D0D0D"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="#222222">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <!-- subtle top status strip -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:background="#151515"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/bg_dot_green" />
+
+                <TextView
+                    android:id="@+id/txtLogMeta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Live log"
+                    android:textColor="#88FFFFFF"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/txtLogCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#1A00E676"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="2dp"
+                    android:text="0 lines"
+                    android:textColor="#00E676"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ScrollView
+                android:id="@+id/scrollLogView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="36dp"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                android:overScrollMode="ifContentScrolls"
+                android:paddingHorizontal="10dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="56dp"
+                android:scrollbars="vertical">
+
+                <TextView
+                    android:id="@+id/txtLogContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.01"
+                    android:lineSpacingExtra="3dp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textIsSelectable="true"
+                    android:textSize="11sp" />
+            </ScrollView>
+
+            <!-- Floating scroll-to-bottom -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btnLogScrollBottom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="12dp"
+                android:contentDescription="Scroll to bottom"
+                app:backgroundTint="#1B5E20"
+                app:elevation="4dp"
+                app:fabSize="mini"
+                app:srcCompat="@android:drawable/arrow_down_float"
+                app:tint="#FFFFFF" />
+        </FrameLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- ปุ่มเก่า (gone) กัน findViewById พัง -->
     <ImageButton
         android:id="@+id/btnLogCopy"
         android:layout_width="0dp"
@@ -32,11 +144,6 @@
         android:visibility="gone" />
     <ImageButton
         android:id="@+id/btnLogClear"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone" />
-    <ImageButton
-        android:id="@+id/btnLogScrollBottom"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone" />

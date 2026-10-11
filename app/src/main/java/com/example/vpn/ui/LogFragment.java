@@ -28,6 +28,10 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
 
     private ScrollView scrollLogView;
     private TextView txtLogContent;
+    private TextView txtLogMeta;
+    private TextView txtLogCount;
+    private View emptyLogState;
+    private View cardLog;
     private View root;
 
     @Nullable
@@ -45,11 +49,15 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
 
         scrollLogView = v.findViewById(R.id.scrollLogView);
         txtLogContent = v.findViewById(R.id.txtLogContent);
+        txtLogMeta = v.findViewById(R.id.txtLogMeta);
+        txtLogCount = v.findViewById(R.id.txtLogCount);
+        emptyLogState = v.findViewById(R.id.emptyLogState);
+        cardLog = v.findViewById(R.id.cardLog);
 
         // ปุ่มใน layout อาจถูกซ่อน (ย้ายไป Toolbar แล้ว) — ผูกถ้ายังมี
         ImageButton btnLogCopy = v.findViewById(R.id.btnLogCopy);
         ImageButton btnLogClear = v.findViewById(R.id.btnLogClear);
-        ImageButton btnLogScrollBottom = v.findViewById(R.id.btnLogScrollBottom);
+        View btnLogScrollBottom = v.findViewById(R.id.btnLogScrollBottom);
         if (btnLogCopy != null) btnLogCopy.setOnClickListener(v1 -> copyLogToClipboard());
         if (btnLogClear != null) btnLogClear.setOnClickListener(v1 -> confirmClearLog());
         if (btnLogScrollBottom != null) btnLogScrollBottom.setOnClickListener(v1 -> scrollLogToBottom());
@@ -81,7 +89,26 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
     private void refreshLog() {
         if (txtLogContent == null) return;
         List<String> lines = VpnLogger.snapshot();
+        int n = lines != null ? lines.size() : 0;
+
+        if (n == 0) {
+            if (emptyLogState != null) emptyLogState.setVisibility(View.VISIBLE);
+            if (cardLog != null) cardLog.setVisibility(View.GONE);
+            if (txtLogCount != null) txtLogCount.setText("0 lines");
+            if (txtLogMeta != null) txtLogMeta.setText("รอการเชื่อมต่อ...");
+            txtLogContent.setText("");
+            return;
+        }
+
+        if (emptyLogState != null) emptyLogState.setVisibility(View.GONE);
+        if (cardLog != null) cardLog.setVisibility(View.VISIBLE);
         txtLogContent.setText(LogColors.build(lines));
+        if (txtLogCount != null) txtLogCount.setText(n + " lines");
+        if (txtLogMeta != null) {
+            String last = lines.get(n - 1);
+            if (last != null && last.length() > 48) last = last.substring(0, 48) + "…";
+            txtLogMeta.setText(last != null ? last : "Live log");
+        }
         scrollLogToBottom();
     }
 
@@ -109,7 +136,7 @@ public class LogFragment extends Fragment implements VpnLogger.Listener {
                 .setMessage("ลบ log ทั้งหมดใช่หรือไม่?")
                 .setPositiveButton("ล้าง", (d, w) -> {
                     VpnLogger.clear();
-                    if (txtLogContent != null) txtLogContent.setText("");
+                    refreshLog();
                     Toast.makeText(getContext(), "ล้าง log แล้ว", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("ยกเลิก", null)
