@@ -1188,7 +1188,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 bytes / (1024.0 * 1024 * 1024));
     }
 
-    @Override
+    
     @Override
     protected void onPause() {
         try {
