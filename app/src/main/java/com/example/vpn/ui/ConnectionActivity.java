@@ -228,6 +228,7 @@ public class ConnectionActivity extends AppCompatActivity
             }
 
             if (mainFragment != null && mainFragment.getConnectButton() != null) {
+                // StatusBus จาก service ของเราเท่านั้น — ใช้ force เสมอ
                 mainFragment.getConnectButton().forceSetState(mapStatus(status.state));
             }
 
@@ -510,39 +511,19 @@ public class ConnectionActivity extends AppCompatActivity
 
 
     /**
-     * แหล่งความจริง:
-     * 1) flag vpn_state.running ที่ service ตั้งตอน CONNECTED จริง (สำคัญสุด)
-     * 2) VPN interface ของระบบ (TRANSPORT_VPN)
-     * ห้ามใช้ getRunningServices เป็นตัวตัดสิน — บน OPPO/Android 8+ มักคืน false แม้ service ยังรัน
+     * เชื่อเฉพาะ flag ของ Tunnel Mate เท่านั้น
+     * ห้ามใช้ TRANSPORT_VPN — แอป VPN อื่น (เช่น WORLD VPN) จะทำให้ขึ้นเขียวผิด
+     * flag ถูก set เฉพาะตอน ProxyVpnService ประกาศ CONNECTED จริง
+     * และถูก clear ตอน STOP
      */
     private boolean isVpnReallyUp() {
-        boolean flag = false;
         try {
-            flag = ProxyVpnService.isServiceRunning(this);
-        } catch (Exception ignored) {}
-
-        if (flag) return true;
-
-        // เสริม: ถ้ามี VPN interface ถือว่าต่ออยู่ (กัน flag หายแต่กุญแจยังอยู่)
-        try {
-            android.net.ConnectivityManager cm =
-                    (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-            if (cm != null && android.os.Build.VERSION.SDK_INT >= 23) {
-                android.net.Network[] nets = cm.getAllNetworks();
-                if (nets != null) {
-                    for (android.net.Network n : nets) {
-                        android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(n);
-                        if (caps != null && caps.hasTransport(
-                                android.net.NetworkCapabilities.TRANSPORT_VPN)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-
-        return false;
+            return ProxyVpnService.isServiceRunning(this);
+        } catch (Exception e) {
+            return false;
+        }
     }
+
 
 
     private void syncButtonState() {
@@ -1190,6 +1171,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 bytes / (1024.0 * 1024 * 1024));
     }
 
+    @Override
     @Override
     protected void onPause() {
         try {
