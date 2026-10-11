@@ -4,13 +4,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:scrollbars="none">
+    android:scrollbars="none"
+    android:background="@color/window_background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingBottom="16dp">
+        android:paddingHorizontal="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="24dp">
 
         <!-- ===== Circular Connect Button ===== -->
         <com.example.vpn.ui.ConnectButtonView
@@ -18,40 +21,43 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="12dp" />
+            android:layout_marginTop="8dp" />
 
-        <!-- ===== Status Text ===== -->
+        <!-- ===== Status ===== -->
         <TextView
             android:id="@+id/txtStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:fontFamily="monospace"
+            android:layout_marginTop="18dp"
+            android:fontFamily="sans-serif-medium"
             android:gravity="center"
-            android:letterSpacing="0.15"
+            android:letterSpacing="0.12"
             android:text="[ NOT CONNECTED ]"
             android:textColor="@color/accent_green"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
-        <!-- ===== Ad-free time card ===== -->
+        <!-- ===== Ad-free ===== -->
         <LinearLayout
             android:id="@+id/adFreeCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_dark_card"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_card_soft"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingHorizontal="16dp"
-            android:paddingVertical="14dp">
+            android:paddingVertical="14dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:src="@android:drawable/star_big_on"
-                app:tint="@color/accent_green" />
+                app:tint="@color/accent_green"
+                android:contentDescription="adfree" />
 
             <TextView
                 android:layout_width="0dp"
@@ -60,7 +66,8 @@
                 android:layout_weight="1"
                 android:text="Ad-free time"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium" />
 
             <TextView
                 android:id="@+id/txtAdFreeTime"
@@ -68,39 +75,41 @@
                 android:layout_height="wrap_content"
                 android:text="0 pts"
                 android:textColor="@color/accent_green"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
 
             <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
                 android:layout_marginStart="8dp"
-                android:src="@android:drawable/arrow_down_float"
-                android:rotation="-90"
-                app:tint="@color/text_muted" />
+                android:src="@android:drawable/ic_media_play"
+                app:tint="@color/text_muted"
+                android:contentDescription="go" />
         </LinearLayout>
 
-        <!-- ===== Active Configuration Card ===== -->
+        <!-- ===== Active Configuration ===== -->
         <LinearLayout
             android:id="@+id/configCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_dark_card"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card_soft"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.15"
+                android:letterSpacing="0.1"
                 android:text="ACTIVE CONFIGURATION"
+                android:textAllCaps="true"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp"
-                android:textStyle="bold" />
+                android:fontFamily="sans-serif-medium" />
 
-            <!-- แถวโปรไฟล์: ไอคอน | ชื่อ+โฮสต์ | ssh+ping+สัญญาณ | เล่น -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -110,23 +119,24 @@
 
                 <ImageView
                     android:id="@+id/imgConfigIcon"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:src="@android:drawable/ic_lock_lock"
-                    app:tint="@color/accent_green" />
+                    app:tint="@color/accent_green"
+                    android:contentDescription="lock" />
 
                 <ImageView
                     android:id="@+id/imgConfigFlag"
                     android:layout_width="28dp"
                     android:layout_height="20dp"
-                    android:layout_marginStart="6dp"
-                    android:scaleType="fitCenter"
+                    android:layout_marginStart="10dp"
+                    android:scaleType="centerCrop"
                     android:contentDescription="flag" />
 
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="10dp"
                     android:layout_weight="1"
                     android:orientation="vertical">
 
@@ -138,27 +148,28 @@
                         android:maxLines="1"
                         android:text="Not Set"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/txtConfigLeft"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
                         android:ellipsize="end"
                         android:maxLines="1"
-                        android:text="---"
+                        android:text="—"
                         android:textColor="@color/text_muted"
-                        android:textSize="11sp" />
+                        android:textSize="12sp" />
                 </LinearLayout>
 
                 <TextView
                     android:id="@+id/txtConfigProtocol"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="ssh"
-                    android:textColor="@color/vpn_connecting"
+                    android:layout_marginStart="6dp"
+                    android:text=""
+                    android:textColor="@color/accent_green"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -167,15 +178,15 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:text="--"
-                    android:textColor="@color/accent_green"
-                    android:textSize="11sp" />
+                    android:text=""
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
 
                 <ImageView
                     android:id="@+id/imgConfigSignal"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginStart="6dp"
                     android:src="@drawable/ic_signal_0"
                     android:contentDescription="signal" />
 
@@ -184,31 +195,30 @@
                     android:layout_width="28dp"
                     android:layout_height="28dp"
                     android:layout_marginStart="4dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="4dp"
                     android:src="@android:drawable/ic_media_play"
-                    app:tint="@color/accent_green" />
-
-                <!-- เก็บ id เดิมไว้ให้โค้ดเก่าไม่พัง -->
-                <TextView
-                    android:id="@+id/txtConfigRight"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:visibility="gone"
-                    android:text="---" />
+                    app:tint="@color/accent_green"
+                    android:contentDescription="select" />
             </LinearLayout>
+
+            <!-- Hidden legacy field still referenced -->
+            <TextView
+                android:id="@+id/txtConfigRight"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="14dp"
+                android:layout_marginBottom="12dp"
                 android:background="@color/divider" />
 
-            <!-- DOWNLINK / UPLINK -->
+            <!-- Traffic -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <LinearLayout
@@ -220,35 +230,21 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:letterSpacing="0.1"
+                        android:letterSpacing="0.08"
                         android:text="DOWNLINK"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"
-                        android:textStyle="bold" />
+                        android:fontFamily="sans-serif-medium" />
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/txtDownload"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:src="@android:drawable/arrow_down_float"
-                            app:tint="@color/accent_green" />
-
-                        <TextView
-                            android:id="@+id/txtDownload"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:text="0 B"
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                        android:text="▼  0 B"
+                        android:textColor="@color/accent_green"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -260,35 +256,21 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:letterSpacing="0.1"
+                        android:letterSpacing="0.08"
                         android:text="UPLINK"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"
-                        android:textStyle="bold" />
+                        android:fontFamily="sans-serif-medium" />
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/txtUpload"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:src="@android:drawable/arrow_up_float"
-                            app:tint="@color/accent_green" />
-
-                        <TextView
-                            android:id="@+id/txtUpload"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:text="0 B"
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                        android:text="▲  0 B"
+                        android:textColor="@color/accent_green"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
@@ -298,7 +280,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="14dp"
             android:fontFamily="monospace"
             android:text="00:00:00"
             android:textColor="@color/text_muted"
