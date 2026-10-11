@@ -78,6 +78,14 @@ public class ConnectionActivity extends AppCompatActivity
 
     private final Handler statsHandler = new Handler(Looper.getMainLooper());
     private final Runnable statsRunnable = this::updateStats;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable delayedSyncRunnable = this::syncButtonState;
+    private final Runnable periodicSyncRunnable = new Runnable() {
+        @Override public void run() {
+            syncButtonState();
+            mainHandler.postDelayed(this, 2000);
+        }
+    };
 
     // ============================================================
     // Launchers
@@ -220,7 +228,7 @@ public class ConnectionActivity extends AppCompatActivity
             }
 
             if (mainFragment != null && mainFragment.getConnectButton() != null) {
-                mainFragment.getConnectButton().setState(mapStatus(status.state));
+                mainFragment.getConnectButton().forceSetState(mapStatus(status.state));
             }
 
             if (status.state == StatusBus.State.CONNECTED) {
@@ -501,91 +509,113 @@ public class ConnectionActivity extends AppCompatActivity
     }
 
 
-    private void syncButtonState() {
-        if (mainFragment == null || mainFragment.getConnectButton() == null) return;
+    /** แหล่งความจริงเดียว: flag + VPN interface ของระบบ */
+    private boolean isVpnReallyUp() {
+        boolean flag = false;
+        try {
+            flag = ProxyVpnService.isServiceRunning(this);
+        } catch (Exception ignored) {}
 
-        boolean flagRunning = ProxyVpnService.isServiceRunning(this);
-        boolean serviceAlive = isProxyVpnServiceAlive();
-        boolean reallyUp = flagRunning && serviceAlive;
-
-        // ตรวจจากระบบด้วย (key VPN) — บางเครื่อง flag หายแต่ service ยังอยู่
-        boolean vpnInterfaceUp = false;
+        boolean vpnIface = false;
         try {
             android.net.ConnectivityManager cm =
                     (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-            if (cm != null && android.os.Build.VERSION.SDK_INT >= 23) {
-                android.net.Network[] nets = cm.getAllNetworks();
-                if (nets != null) {
-                    for (android.net.Network n : nets) {
-                        android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(n);
+            if (cm != null) {
+                if (android.os.Build.VERSION.SDK_INT >= 23) {
+                    android.net.Network active = cm.getActiveNetwork();
+                    if (active != null) {
+                        android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(active);
                         if (caps != null && caps.hasTransport(
                                 android.net.NetworkCapabilities.TRANSPORT_VPN)) {
-                            vpnInterfaceUp = true;
-                            break;
+                            vpnIface = true;
+                        }
+                    }
+                    if (!vpnIface) {
+                        android.net.Network[] nets = cm.getAllNetworks();
+                        if (nets != null) {
+                            for (android.net.Network n : nets) {
+                                android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(n);
+                                if (caps != null && caps.hasTransport(
+                                        android.net.NetworkCapabilities.TRANSPORT_VPN)) {
+                                    vpnIface = true;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
             }
         } catch (Exception ignored) {}
 
-        if (vpnInterfaceUp) reallyUp = true;
+        boolean alive = isProxyVpnServiceAlive();
+        return flag || vpnIface || alive;
+    }
 
-        ConnectButtonView btn = mainFragment.getConnectButton();
-
-        if (!reallyUp) {
-            if (flagRunning && !serviceAlive) {
-                try {
-                    getSharedPreferences("vpn_state", MODE_PRIVATE)
-                            .edit().putBoolean("running", false).apply();
-                    VpnLogger.i("ConnectionActivity", "Cleared stale running flag");
-                } catch (Exception ignored) {}
-            }
-            // ไม่รบกวนตอนผู้ใช้กำลังกดเชื่อม (CONNECTING)
-            if (btn.getState() == ConnectButtonView.State.CONNECTED
-                    || btn.getState() == ConnectButtonView.State.IDLE) {
-                if (btn.getState() == ConnectButtonView.State.CONNECTED) {
-                    btn.forceSetState(ConnectButtonView.State.IDLE);
-                    updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
-                    stopStatsUpdates();
-                    sessionStartTime = 0L;
-                    VpnLogger.i("ConnectionActivity", "Synced to IDLE (not really up)");
-                }
-            }
+    private void syncButtonState() {
+        if (mainFragment == null || mainFragment.getConnectButton() == null) {
+            // Fragment ยังไม่พร้อม — ลองใหม่เร็วๆ
+            try {
+                mainHandler.removeCallbacks(delayedSyncRunnable);
+                mainHandler.postDelayed(delayedSyncRunnable, 300);
+            } catch (Exception ignored) {}
             return;
         }
 
-        // Service / VPN interface ขึ้นจริง → บังคับ UI ให้ตรง (แก้เคสเปิดแอปแล้วเทาทั้งที่ต่ออยู่)
-        if (btn.getState() != ConnectButtonView.State.CONNECTED) {
-            btn.forceSetState(ConnectButtonView.State.CONNECTED);
+        boolean reallyUp = isVpnReallyUp();
+        ConnectButtonView btn = mainFragment.getConnectButton();
+        ConnectButtonView.State cur = btn.getState();
+
+        if (reallyUp) {
+            if (cur != ConnectButtonView.State.CONNECTED) {
+                btn.forceSetState(ConnectButtonView.State.CONNECTED);
+            }
             updateStatusText("[ CONNECTED ]", 0xFF00E676);
             if (sessionStartTime == 0L) {
                 sessionStartTime = System.currentTimeMillis();
             }
             startStatsUpdates();
-            VpnLogger.i("ConnectionActivity", "Synced to CONNECTED (service/vpn up)");
+
+            // คืนการ์ดโปรไฟล์
+            if (targetProfile == null) {
+                long lastId = getSharedPreferences("vpn_ui", MODE_PRIVATE)
+                        .getLong("selected_profile_id", -1L);
+                if (lastId <= 0) {
+                    lastId = getSharedPreferences("vpn_state", MODE_PRIVATE)
+                            .getLong("profile_id", -1L);
+                }
+                if (lastId > 0) {
+                    final long id = lastId;
+                    viewModel.getRepo().getById(id, prof -> runOnUiThread(() -> {
+                        if (prof != null) {
+                            targetProfile = prof;
+                            bindProfile(prof);
+                        }
+                    }));
+                }
+            } else {
+                // อัปเดตการ์ดอย่างเดียว ไม่แตะ status
+                String hostLine = targetProfile.host != null ? targetProfile.host : "---";
+                String name = (targetProfile.name != null && !targetProfile.name.isEmpty())
+                        ? targetProfile.name : hostLine;
+                updateConfigCard(name, hostLine, String.valueOf(targetProfile.port));
+            }
+            VpnLogger.i("ConnectionActivity", "sync → CONNECTED");
+            return;
         }
 
-        // คืนการ์ด Active Configuration จากโปรไฟล์ล่าสุด
-        if (targetProfile == null) {
-            long lastId = getSharedPreferences("vpn_ui", MODE_PRIVATE)
-                    .getLong("selected_profile_id", -1L);
-            if (lastId <= 0) {
-                lastId = getSharedPreferences("vpn_state", MODE_PRIVATE)
-                        .getLong("profile_id", -1L);
-            }
-            if (lastId > 0) {
-                final long id = lastId;
-                viewModel.getRepo().getById(id, prof -> runOnUiThread(() -> {
-                    if (prof != null) {
-                        targetProfile = prof;
-                        bindProfile(prof);
-                    }
-                }));
-            }
-        } else {
-            bindProfile(targetProfile);
+        // ไม่ได้ต่อ — อย่าทับตอนผู้ใช้กำลังกดเชื่อม
+        if (cur == ConnectButtonView.State.CONNECTING) {
+            return;
         }
+        if (cur != ConnectButtonView.State.IDLE) {
+            btn.forceSetState(ConnectButtonView.State.IDLE);
+        }
+        updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+        stopStatsUpdates();
+        sessionStartTime = 0L;
+        VpnLogger.i("ConnectionActivity", "sync → IDLE");
     }
+
 
 
     private void reloadProfiles() {
@@ -828,6 +858,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         tryCleanupOrphanVpn();
 
         syncButtonState();
+        mainHandler.removeCallbacks(periodicSyncRunnable);
+        mainHandler.postDelayed(periodicSyncRunnable, 1200);
 
         if (skipNextResumeReload) {
             skipNextResumeReload = false;
@@ -856,18 +888,15 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
      */
     private void tryCleanupOrphanVpn() {
         try {
+            // ถ้ามี VPN interface ของระบบอยู่ ห้ามหยุดเด็ดขาด
+            if (isVpnReallyUp()) return;
+
             boolean flagRunning = ProxyVpnService.isServiceRunning(this);
             if (!flagRunning) return;
 
-            boolean serviceAlive = isProxyVpnServiceAlive();
-            if (serviceAlive) {
-                // VPN กำลังทำงานจริง — อย่าหยุด แค่ sync ปุ่ม
-                return;
-            }
-
-            // flag = true แต่ process/service ไม่อยู่ = orphan จริง
+            // flag = true แต่ไม่มี VPN จริง = orphan
             android.util.Log.w("ConnectionActivity",
-                    "Orphan VPN flag (service not alive) — clearing");
+                    "Orphan VPN flag — clearing");
             getSharedPreferences("vpn_state", MODE_PRIVATE)
                     .edit().putBoolean("running", false).apply();
             try {
@@ -961,10 +990,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         targetProfile = p;
         toolbar.setTitle("VPN Manager");
 
-        // มีโปรไฟล์แล้ว — อย่าค้างข้อความ NO PROFILE
-        if (!ProxyVpnService.isServiceRunning(this)) {
-            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
-        }
+        // ห้ามแตะ status / ปุ่มที่นี่ — syncButtonState เป็นคนเดียวที่คุมสี
 
         String hostLine = (p.host != null ? p.host : "---");
         String name = (p.name != null && !p.name.isEmpty()) ? p.name : hostLine;
@@ -1163,8 +1189,22 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     }
 
     @Override
+    @Override
+    protected void onPause() {
+        try {
+            mainHandler.removeCallbacks(periodicSyncRunnable);
+            mainHandler.removeCallbacks(delayedSyncRunnable);
+        } catch (Exception ignored) {}
+        super.onPause();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+        try {
+            mainHandler.removeCallbacks(periodicSyncRunnable);
+            mainHandler.removeCallbacks(delayedSyncRunnable);
+        } catch (Exception ignored) {}
         statsHandler.removeCallbacks(statsRunnable);
         VpnLogger.setListener(null);
     }
