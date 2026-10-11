@@ -390,12 +390,16 @@ public class ConnectionActivity extends AppCompatActivity
 
     /** ตอบสนองทันทีบน UI ตอนเริ่มเชื่อม — กันรู้สึกว่าค้าง */
     private void showConnectingUi(boolean connecting) {
-        if (mainFragment != null && mainFragment.getConnectButton() != null) {
-            if (connecting) {
-                mainFragment.getConnectButton()
-                        .forceSetState(ConnectButtonView.State.CONNECTING);
-                updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
-            }
+        if (mainFragment == null || mainFragment.getConnectButton() == null) return;
+        if (connecting) {
+            mainFragment.getConnectButton()
+                    .forceSetState(ConnectButtonView.State.CONNECTING);
+            updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+        } else {
+            // ต้องเคลียร์ส้มด้วย — กันค้าง CONNECTING แต่ข้อความเป็น NOT CONNECTED
+            mainFragment.getConnectButton()
+                    .forceSetState(ConnectButtonView.State.IDLE);
+            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
         }
     }
 
@@ -1126,3 +1130,4 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         }
     }
 }
+ 

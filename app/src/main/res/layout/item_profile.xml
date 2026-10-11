@@ -22,11 +22,11 @@
         <!-- แถบเขียวชิดซ้าย — ความสูงเต็มการ์ด -->
         <View
             android:id="@+id/viewSelectedBar"
-            android:layout_width="4dp"
+            android:layout_width="5dp"
             android:layout_height="match_parent"
-            android:layout_gravity="start"
+            android:layout_gravity="start|fill_vertical"
             android:background="@color/accent_green"
-            android:visibility="gone"
+            android:visibility="invisible"
             android:minHeight="72dp" />
 
         <LinearLayout

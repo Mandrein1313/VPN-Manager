@@ -48,6 +48,12 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         items.clear();
         if (newItems != null) items.addAll(newItems);
         notifyDataSetChanged();
+        // คงแถบเขียวหลังรายการรีเฟรช
+        if (selectedProfileId > 0) {
+            long keep = selectedProfileId;
+            selectedProfileId = -1L;
+            setSelectedProfileId(keep);
+        }
         pingAll();
     }
 
@@ -216,8 +222,18 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             applyLatency(ping, latencyMs);
 
             if (viewSelectedBar != null) {
-                boolean sel = (p.id == selectedProfileId);
-                viewSelectedBar.setVisibility(sel ? View.VISIBLE : View.GONE);
+                boolean sel = (selectedProfileId > 0 && p.id == selectedProfileId);
+                viewSelectedBar.setVisibility(sel ? View.VISIBLE : View.INVISIBLE);
+                // บังคับความสูงเท่าการ์ด
+                viewSelectedBar.post(() -> {
+                    if (viewSelectedBar == null) return;
+                    int h = itemView.getHeight();
+                    if (h > 0) {
+                        ViewGroup.LayoutParams lp = viewSelectedBar.getLayoutParams();
+                        lp.height = h;
+                        viewSelectedBar.setLayoutParams(lp);
+                    }
+                });
             }
 
             if (btnSignal != null) {
