@@ -167,14 +167,17 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         if (ms == null) {
             tv.setText("…");
             tv.setTextColor(0xFF888888);
+            tv.setBackgroundResource(R.drawable.bg_latency_chip);
             return;
         }
         if (ms < 0) {
-            tv.setText("—");
-            tv.setTextColor(0xFFEF5350);
+            tv.setText("Timeout");
+            tv.setTextColor(0xFFFF8A80);
+            tv.setBackgroundResource(R.drawable.bg_latency_chip_fail);
             return;
         }
         tv.setText(ms + "ms");
+        tv.setBackgroundResource(R.drawable.bg_latency_chip);
         if (ms < 80) {
             tv.setTextColor(0xFF00E676);
         } else if (ms < 150) {
@@ -214,27 +217,38 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
             name.setText(p.name != null ? p.name : "");
             host.setText(p.host + ":" + p.port);
 
-            if (protocol != null) {
-                String proto = p.protocol != null ? p.protocol.name().toLowerCase() : "ssh";
-                protocol.setText(proto);
-            }
-
             applyLatency(ping, latencyMs);
 
+            boolean sel = (selectedProfileId > 0 && p.id == selectedProfileId);
+
+            // แถบโปรโตคอล + สีการ์ดเมื่อเลือก (แบบแอปอ้างอิง)
             if (viewSelectedBar != null) {
-                boolean sel = (selectedProfileId > 0 && p.id == selectedProfileId);
-                viewSelectedBar.setVisibility(sel ? View.VISIBLE : View.INVISIBLE);
-                // บังคับความสูงเท่าการ์ด
-                viewSelectedBar.post(() -> {
-                    if (viewSelectedBar == null) return;
-                    int h = itemView.getHeight();
-                    if (h > 0) {
-                        ViewGroup.LayoutParams lp = viewSelectedBar.getLayoutParams();
-                        lp.height = h;
-                        viewSelectedBar.setLayoutParams(lp);
-                    }
-                });
+                viewSelectedBar.setBackgroundColor(sel ? 0xFF00BCD4 : 0xFF2A2A2A);
             }
+            if (protocol != null) {
+                String proto = p.protocol != null ? p.protocol.name() : "SSH";
+                // แสดงสั้น ๆ แนวตั้ง: SSH / VLESS / VMESS / TROJAN
+                if (proto.length() > 6) proto = proto.substring(0, 5);
+                protocol.setText(proto.toUpperCase());
+                protocol.setTextColor(sel ? 0xFF000000 : 0xFFB0BEC5);
+            }
+            try {
+                com.google.android.material.card.MaterialCardView card =
+                        itemView instanceof com.google.android.material.card.MaterialCardView
+                                ? (com.google.android.material.card.MaterialCardView) itemView
+                                : itemView.findViewById(com.example.vpn.R.id.cardProfile);
+                if (card != null) {
+                    if (sel) {
+                        card.setCardBackgroundColor(0xFF1A3A3A); // teal tint
+                        card.setStrokeColor(0xFF00BCD4);
+                        card.setStrokeWidth(2);
+                    } else {
+                        card.setCardBackgroundColor(0xFF1E1E1E);
+                        card.setStrokeColor(0xFF2A2A2A);
+                        card.setStrokeWidth(1);
+                    }
+                }
+            } catch (Exception ignored) {}
 
             if (btnSignal != null) {
                 btnSignal.setImageResource(signalIconFor(latencyMs));

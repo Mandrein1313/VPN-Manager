@@ -2,165 +2,179 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardProfile"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="4dp"
+    android:layout_marginHorizontal="10dp"
     android:layout_marginVertical="5dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="@color/card_background"
-    app:cardCornerRadius="18dp"
+    app:cardBackgroundColor="#1E1E1E"
+    app:cardCornerRadius="14dp"
     app:cardElevation="0dp"
-    app:strokeColor="@color/divider"
+    app:strokeColor="#2A2A2A"
     app:strokeWidth="1dp">
 
-    <FrameLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:minHeight="72dp"
+        android:gravity="center_vertical">
 
-        <!-- แถบเขียวชิดซ้าย — ความสูงเต็มการ์ด -->
-        <View
-            android:id="@+id/viewSelectedBar"
-            android:layout_width="5dp"
+        <!-- แถบโปรโตคอลแนวตั้งด้านซ้าย (แบบแอปอ้างอิง) -->
+        <FrameLayout
+            android:layout_width="36dp"
             android:layout_height="match_parent"
-            android:layout_gravity="start|fill_vertical"
-            android:background="@color/accent_green"
-            android:visibility="invisible"
-            android:minHeight="72dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="14dp"
-            android:paddingEnd="8dp"
-            android:paddingVertical="12dp"
             android:minHeight="72dp">
 
-            <FrameLayout
-                android:layout_width="42dp"
-                android:layout_height="30dp"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/bg_flag_frame"
-                android:padding="2.5dp">
+            <View
+                android:id="@+id/viewSelectedBar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#2A2A2A" />
 
-                <ImageView
-                    android:id="@+id/imgFlag"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:contentDescription="flag" />
-            </FrameLayout>
+            <TextView
+                android:id="@+id/txtProtocol"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:rotation="0"
+                android:text="SSH"
+                android:textAllCaps="true"
+                android:textColor="#B0BEC5"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:fontFamily="sans-serif-medium"
+                android:paddingVertical="8dp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </FrameLayout>
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/txtName"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="Profile"
-                    android:textColor="@color/text_primary"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/txtHost"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="host:port"
-                    android:textColor="@color/text_muted"
-                    android:textSize="12sp" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/txtProtocol"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_proto_chip"
-                        android:paddingHorizontal="8dp"
-                        android:paddingVertical="2dp"
-                        android:text="ssh"
-                        android:textColor="@color/accent_green"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/txtPing"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:text="--"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-            </LinearLayout>
+        <!-- เนื้อหา -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="8dp"
+            android:paddingVertical="12dp">
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <ImageButton
-                    android:id="@+id/btnQr"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="แชร์"
-                    android:padding="8dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_action_share"
-                    app:tint="#7E8A9A" />
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_flag_frame"
+                    android:padding="1.5dp">
 
-                <ImageButton
-                    android:id="@+id/btnSignal"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="สัญญาณ"
-                    android:padding="6dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_signal_0" />
+                    <ImageView
+                        android:id="@+id/imgFlag"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="flag" />
+                </FrameLayout>
 
-                <ImageButton
-                    android:id="@+id/btnEdit"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="แก้ไข"
-                    android:padding="8dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_action_edit"
-                    app:tint="#7E8A9A" />
+                <TextView
+                    android:id="@+id/txtName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Name"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
 
-                <ImageButton
-                    android:id="@+id/btnDelete"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="ลบ"
-                    android:padding="8dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_action_delete"
-                    app:tint="#C62828" />
+                <!-- latency / status chip -->
+                <TextView
+                    android:id="@+id/txtPing"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_latency_chip"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp"
+                    android:text="…"
+                    android:textColor="#00E676"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/txtHost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="middle"
+                android:maxLines="1"
+                android:text="host:port"
+                android:textColor="#88FFFFFF"
+                android:textSize="12sp" />
         </LinearLayout>
-    </FrameLayout>
+
+        <!-- ปุ่มวงกลม: edit / share / delete -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingEnd="8dp"
+            android:paddingStart="4dp"
+            android:background="#141414">
+
+            <ImageButton
+                android:id="@+id/btnEdit"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/bg_action_circle"
+                android:contentDescription="Edit"
+                android:padding="7dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_action_edit"
+                app:tint="#FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/btnQr"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/bg_action_circle"
+                android:contentDescription="Share"
+                android:padding="7dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_action_share"
+                app:tint="#FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/btnDelete"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_action_circle"
+                android:contentDescription="Delete"
+                android:padding="7dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_action_delete"
+                app:tint="#EF5350" />
+
+            <!-- signal ซ่อนใน layout แต่เก็บ id ไว้ -->
+            <ImageButton
+                android:id="@+id/btnSignal"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone"
+                android:contentDescription="Signal" />
+        </LinearLayout>
+    </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
