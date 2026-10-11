@@ -53,121 +53,151 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-                <!-- ===== Bottom Action Bar ===== -->
-        <LinearLayout
+        <!-- ===== Bottom Nav + FAB (เชื่อมต่อ) ===== -->
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_bottom_nav"
-            android:orientation="horizontal"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp">
+            android:layout_height="72dp"
+            android:background="@color/bottom_nav_background">
 
-            <!-- ⭐ Home — กลับแท็บ MAIN -->
+            <!-- แถบเมนู -->
             <LinearLayout
-                android:id="@+id/actionHome"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="vertical">
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_gravity="bottom"
+                android:background="@drawable/bg_bottom_nav"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingTop="6dp"
+                android:paddingBottom="4dp">
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_nav_home"
-                    app:tint="@color/bottom_nav_icon" />
+                <LinearLayout
+                    android:id="@+id/actionHome"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Home"
-                    android:textColor="@color/bottom_nav_icon"
-                    android:textSize="10sp" />
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_nav_home"
+                        app:tint="@color/bottom_nav_icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Home"
+                        android:textColor="@color/bottom_nav_icon"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/actionChart"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_nav_chart"
+                        app:tint="@color/bottom_nav_icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="CHART"
+                        android:textColor="@color/bottom_nav_icon"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <!-- ช่องว่างกลางให้ FAB -->
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1.15" />
+
+                <LinearLayout
+                    android:id="@+id/actionLog"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_nav_log"
+                        app:tint="@color/bottom_nav_icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Log"
+                        android:textColor="@color/bottom_nav_icon"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/actionAdd"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_nav_configs"
+                        app:tint="@color/bottom_nav_icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="CONFIGS"
+                        android:textColor="@color/bottom_nav_icon"
+                        android:textSize="10sp" />
+                </LinearLayout>
             </LinearLayout>
 
-            <!-- ⭐ CHART (แทนปุ่มแชร์) -->
-            <LinearLayout
-                android:id="@+id/actionChart"
-                android:layout_width="0dp"
+            <!-- FAB เชื่อมต่อ กลางล่าง -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabConnect"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="vertical">
+                android:layout_gravity="center_horizontal|bottom"
+                android:layout_marginBottom="18dp"
+                android:contentDescription="เชื่อมต่อ / ตัดการเชื่อมต่อ"
+                android:src="@android:drawable/ic_lock_power_off"
+                app:backgroundTint="#6B7280"
+                app:borderWidth="0dp"
+                app:elevation="8dp"
+                app:fabCustomSize="58dp"
+                app:maxImageSize="28dp"
+                app:tint="#FFFFFF" />
+        </FrameLayout>
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_nav_chart"
-                    app:tint="@color/bottom_nav_icon" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="CHART"
-                    android:textColor="@color/bottom_nav_icon"
-                    android:textSize="10sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/actionLog"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_nav_log"
-                    app:tint="@color/bottom_nav_icon" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Log"
-                    android:textColor="@color/bottom_nav_icon"
-                    android:textSize="10sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/actionAdd"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_nav_configs"
-                    app:tint="@color/bottom_nav_icon" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="CONFIGS"
-                    android:textColor="@color/bottom_nav_icon"
-                    android:textSize="10sp" />
-            </LinearLayout>
-        </LinearLayout>
     </LinearLayout>
 
     <!-- ===== NAVIGATION DRAWER ===== -->

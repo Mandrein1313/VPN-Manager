@@ -61,6 +61,7 @@ public class ConnectionActivity extends AppCompatActivity
 
     // Bottom nav
     private View actionHome, actionLog, actionChart, actionAdd;
+    private com.google.android.material.floatingactionbutton.FloatingActionButton fabConnect;
     // ค่าการ์ด ACTIVE CONFIG — กัน mainFragment ยังไม่พร้อม
     private String pendingConfigName;
     private String pendingConfigLeft;
@@ -230,6 +231,7 @@ public class ConnectionActivity extends AppCompatActivity
             if (mainFragment != null && mainFragment.getConnectButton() != null) {
                 // StatusBus จาก service ของเราเท่านั้น — ใช้ force เสมอ
                 mainFragment.getConnectButton().forceSetState(mapStatus(status.state));
+                updateFabFromState(mapStatus(status.state));
             }
 
             if (status.state == StatusBus.State.CONNECTED) {
@@ -256,6 +258,7 @@ public class ConnectionActivity extends AppCompatActivity
         actionLog = findViewById(R.id.actionLog);
         actionChart = findViewById(R.id.actionChart);
         actionAdd = findViewById(R.id.actionAdd);
+        fabConnect = findViewById(R.id.fabConnect);
         setupBottomNav();
     }
 
@@ -288,6 +291,10 @@ public class ConnectionActivity extends AppCompatActivity
                 tintBottomItem(actionAdd, true);
                 startActivity(new Intent(this, MainActivity.class));
             });
+        }
+        if (fabConnect != null) {
+            fabConnect.setOnClickListener(v -> onMainConnectClick());
+            updateFabFromState(ConnectButtonView.State.IDLE);
         }
         setBottomNavSelected(0);
     }
@@ -380,6 +387,7 @@ public class ConnectionActivity extends AppCompatActivity
                 VpnLogger.i("ConnectionActivity", "Service is running — stopping");
                 showConnectingUi(false);
                 if (btn != null) btn.forceSetState(ConnectButtonView.State.IDLE);
+                    updateFabFromState(ConnectButtonView.State.IDLE);
                 updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
                 stopVpnService();
                 return;
@@ -403,11 +411,13 @@ public class ConnectionActivity extends AppCompatActivity
         if (connecting) {
             mainFragment.getConnectButton()
                     .forceSetState(ConnectButtonView.State.CONNECTING);
+            updateFabFromState(ConnectButtonView.State.CONNECTING);
             updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
         } else {
             // ต้องเคลียร์ส้มด้วย — กันค้าง CONNECTING แต่ข้อความเป็น NOT CONNECTED
             mainFragment.getConnectButton()
                     .forceSetState(ConnectButtonView.State.IDLE);
+            updateFabFromState(ConnectButtonView.State.IDLE);
             updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
         }
     }
@@ -554,6 +564,7 @@ public class ConnectionActivity extends AppCompatActivity
                     case TUN2SOCKS_READY:
                         if (cur != ConnectButtonView.State.CONNECTING) {
                             btn.forceSetState(ConnectButtonView.State.CONNECTING);
+                    updateFabFromState(ConnectButtonView.State.CONNECTING);
                             updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
                         }
                         return;
@@ -568,6 +579,7 @@ public class ConnectionActivity extends AppCompatActivity
         if (reallyUp) {
             if (cur != ConnectButtonView.State.CONNECTED) {
                 btn.forceSetState(ConnectButtonView.State.CONNECTED);
+                    updateFabFromState(ConnectButtonView.State.CONNECTED);
             }
             updateStatusText("[ CONNECTED ]", 0xFF00E676);
             if (sessionStartTime == 0L) {
@@ -603,6 +615,7 @@ public class ConnectionActivity extends AppCompatActivity
         // ไม่ได้ต่อ
         if (cur != ConnectButtonView.State.IDLE) {
             btn.forceSetState(ConnectButtonView.State.IDLE);
+                    updateFabFromState(ConnectButtonView.State.IDLE);
         }
         updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
         stopStatsUpdates();
@@ -1171,6 +1184,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 bytes / (1024.0 * 1024 * 1024));
     }
 
+    @Override
     @Override
     protected void onPause() {
         try {

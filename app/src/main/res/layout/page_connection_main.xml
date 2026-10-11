@@ -15,13 +15,35 @@
         android:paddingTop="8dp"
         android:paddingBottom="24dp">
 
-        <!-- ===== Circular Connect Button ===== -->
+        <!-- ปุ่มวงกลมใหญ่ถูกย้ายไป FAB กลางเมนูด้านล่าง — เก็บ view ไว้ (gone) เพื่อ state machine -->
         <com.example.vpn.ui.ConnectButtonView
             android:id="@+id/btnConnect"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
+
+        <!-- สถานะวงกลมเล็ก ๆ แทนปุ่มใหญ่ -->
+        <FrameLayout
+            android:layout_width="96dp"
+            android:layout_height="96dp"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="16dp">
+
+            <View
+                android:id="@+id/statusRingOuter"
+                android:layout_width="96dp"
+                android:layout_height="96dp"
+                android:background="@drawable/bg_status_ring_idle" />
+
+            <ImageView
+                android:id="@+id/imgStatusPower"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                android:src="@android:drawable/ic_lock_power_off"
+                android:contentDescription="status"
+                app:tint="#88FFFFFF" />
+        </FrameLayout>
 
         <!-- ===== Status ===== -->
         <TextView
