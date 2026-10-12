@@ -53,150 +53,163 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- ===== Bottom Nav + FAB (เชื่อมต่อ) ===== -->
-        <FrameLayout
+        <!-- ===== Bottom Nav + FAB โค้ง cradle ===== -->
+        <androidx.coordinatorlayout.widget.CoordinatorLayout
             android:layout_width="match_parent"
-            android:layout_height="72dp"
-            android:background="@color/bottom_nav_background">
+            android:layout_height="80dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
-            <!-- แถบเมนู -->
-            <LinearLayout
+            <com.google.android.material.bottomappbar.BottomAppBar
+                android:id="@+id/bottomAppBar"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:layout_gravity="bottom"
-                android:background="@drawable/bg_bottom_nav"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingTop="6dp"
-                android:paddingBottom="4dp">
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                app:backgroundTint="@color/bottom_nav_background"
+                app:elevation="10dp"
+                app:fabAlignmentMode="center"
+                app:fabAnimationMode="scale"
+                app:fabCradleMargin="10dp"
+                app:fabCradleRoundedCornerRadius="14dp"
+                app:fabCradleVerticalOffset="6dp">
 
                 <LinearLayout
-                    android:id="@+id/actionHome"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="2dp">
 
-                    <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_nav_home"
-                        app:tint="@color/bottom_nav_icon" />
+                    <LinearLayout
+                        android:id="@+id/actionHome"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Home"
-                        android:textColor="@color/bottom_nav_icon"
-                        android:textSize="10sp" />
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_nav_home"
+                            app:tint="@color/bottom_nav_icon" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Home"
+                            android:textColor="@color/bottom_nav_icon"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/actionChart"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_nav_chart"
+                            app:tint="@color/bottom_nav_icon" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="CHART"
+                            android:textColor="@color/bottom_nav_icon"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <!-- ช่องว่างกลางให้ cradle + FAB -->
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1.2" />
+
+                    <LinearLayout
+                        android:id="@+id/actionLog"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_nav_log"
+                            app:tint="@color/bottom_nav_icon" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Log"
+                            android:textColor="@color/bottom_nav_icon"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/actionAdd"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_nav_configs"
+                            app:tint="@color/bottom_nav_icon" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="CONFIGS"
+                            android:textColor="@color/bottom_nav_icon"
+                            android:textSize="10sp" />
+                    </LinearLayout>
                 </LinearLayout>
+            </com.google.android.material.bottomappbar.BottomAppBar>
 
-                <LinearLayout
-                    android:id="@+id/actionChart"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_nav_chart"
-                        app:tint="@color/bottom_nav_icon" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="CHART"
-                        android:textColor="@color/bottom_nav_icon"
-                        android:textSize="10sp" />
-                </LinearLayout>
-
-                <!-- ช่องว่างกลางให้ FAB -->
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1.15" />
-
-                <LinearLayout
-                    android:id="@+id/actionLog"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_nav_log"
-                        app:tint="@color/bottom_nav_icon" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Log"
-                        android:textColor="@color/bottom_nav_icon"
-                        android:textSize="10sp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actionAdd"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:src="@drawable/ic_nav_configs"
-                        app:tint="@color/bottom_nav_icon" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="CONFIGS"
-                        android:textColor="@color/bottom_nav_icon"
-                        android:textSize="10sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- FAB เชื่อมต่อ กลางล่าง -->
+            <!-- FAB เชื่อมต่อ — ยึดกับ BottomAppBar ให้โค้ง cradle -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fabConnect"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal|bottom"
-                android:layout_marginBottom="18dp"
                 android:contentDescription="เชื่อมต่อ / ตัดการเชื่อมต่อ"
                 android:src="@android:drawable/ic_lock_power_off"
                 app:backgroundTint="#6B7280"
                 app:borderWidth="0dp"
-                app:elevation="8dp"
-                app:fabCustomSize="58dp"
-                app:maxImageSize="28dp"
+                app:elevation="12dp"
+                app:fabCustomSize="56dp"
+                app:layout_anchor="@id/bottomAppBar"
+                app:maxImageSize="26dp"
                 app:tint="#FFFFFF" />
-        </FrameLayout>
+        </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     </LinearLayout>
 
