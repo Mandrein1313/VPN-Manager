@@ -317,27 +317,6 @@ public class ConnectionActivity extends AppCompatActivity
             bg = 0xFF6B7280;
         }
         fabConnect.setBackgroundTintList(android.content.res.ColorStateList.valueOf(bg));
-        try {
-            if (mainFragment != null && mainFragment.getView() != null) {
-                android.view.View ring = mainFragment.getView().findViewById(R.id.statusRingOuter);
-                android.widget.ImageView power = mainFragment.getView().findViewById(R.id.imgStatusPower);
-                if (ring != null) {
-                    if (state == ConnectButtonView.State.CONNECTED) {
-                        ring.setBackgroundResource(R.drawable.bg_status_ring_connected);
-                    } else if (state == ConnectButtonView.State.CONNECTING) {
-                        ring.setBackgroundResource(R.drawable.bg_status_ring_connecting);
-                    } else {
-                        ring.setBackgroundResource(R.drawable.bg_status_ring_idle);
-                    }
-                }
-                if (power != null) {
-                    int tc = (state == ConnectButtonView.State.CONNECTED
-                            || state == ConnectButtonView.State.CONNECTING)
-                            ? 0xFFFFFFFF : 0x88FFFFFF;
-                    power.setColorFilter(tc);
-                }
-            }
-        } catch (Exception ignored) {}
     }
 
     private void setBottomNavSelected(int tab) {
