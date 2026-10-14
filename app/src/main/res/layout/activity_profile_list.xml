@@ -94,13 +94,30 @@
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="10dp"
                 android:text="Ping ↓"
                 android:textAllCaps="false"
                 android:textSize="12sp"
                 app:cornerRadius="12dp"
                 app:strokeColor="#2A2A2A"
                 app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAutoBest"
+                android:layout_width="wrap_content"
+                android:layout_height="42dp"
+                android:layout_marginStart="6dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="ใช้ดีสุด"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                app:backgroundTint="#00C853"
+                app:cornerRadius="12dp"
+                app:elevation="0dp" />
         </LinearLayout>
 
         <!-- ===== Content ===== -->

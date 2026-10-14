@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity
     private EditText edtSearch;
     private ImageButton btnClearSearch;
     private MaterialButton btnSortPing;
+    private MaterialButton btnAutoBest;
 
     // FAB Speed Dial
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabMain;
@@ -262,6 +263,11 @@ public class MainActivity extends AppCompatActivity
                 }
             });
             updateSortButtonUi();
+        }
+
+        btnAutoBest = findViewById(R.id.btnAutoBest);
+        if (btnAutoBest != null) {
+            btnAutoBest.setOnClickListener(v -> autoSelectLowestPing());
         }
     }
 
@@ -554,10 +560,18 @@ public class MainActivity extends AppCompatActivity
             StyledToast.warning(this, "ยังไม่มีโปรไฟล์");
             return;
         }
-        StyledToast.info(this, "กำลังวัด latency...");
+        StyledToast.info(this, "กำลังหาเซิร์ฟ ping ต่ำสุด...");
         if (fabMenuOpen) closeFabMenu();
+        if (btnAutoBest != null) btnAutoBest.setEnabled(false);
 
-        adapter.pingAll(() -> {
+        // เปิดโหมดเรียงตาม ping ให้เห็นผลชัด
+        if (!adapter.isSortByPing()) {
+            adapter.setSortByPing(true);
+            updateSortButtonUi();
+        }
+
+        adapter.pingAll(() -> runOnUiThread(() -> {
+            if (btnAutoBest != null) btnAutoBest.setEnabled(true);
             Profile best = adapter.getLowestLatencyProfile();
             if (best == null) {
                 StyledToast.error(this, "วัด ping ไม่สำเร็จ — ลองใหม่");
@@ -565,19 +579,17 @@ public class MainActivity extends AppCompatActivity
             }
             Integer ms = adapter.getLatencyMs(best.id);
             String label = best.name != null ? best.name : best.host;
+            adapter.setSelectedProfileId(best.id);
+            try {
+                getSharedPreferences("vpn_ui", MODE_PRIVATE).edit()
+                        .putLong("selected_profile_id", best.id)
+                        .apply();
+            } catch (Exception ignored) {}
             StyledToast.success(this,
-                    "Auto Select: " + label + (ms != null ? " (" + ms + "ms)" : ""));
-
-            // เลือกโปรไฟล์นี้ (กลับหน้าหลัก + ตั้งเป็นตัวเชื่อมต่อ)
-            Intent result = new Intent();
-            result.putExtra(EXTRA_PROFILE_ID, best.id);
-            setResult(RESULT_OK, result);
-
-            // ถ้าเปิดจาก ConnectionActivity ด้วย launcher จะได้ profile กลับ
-            // ถ้าอยู่หน้า CONFIGS เฉย ๆ ก็ highlight โดย set favorite ชั่วคราวไม่ได้บังคับ
-            // เชื่อมต่อทันทีเมื่อผู้ใช้กดการ์ด — หรือเรียก onConnect
+                    "ใช้ " + label + (ms != null && ms > 0 ? " (" + ms + "ms)" : ""));
+            // กลับหน้าหลัก + ตั้งเป็นโปรไฟล์เชื่อมต่อ
             onConnect(best);
-        });
+        }));
     }
 
     private void exportAllProfiles() {
