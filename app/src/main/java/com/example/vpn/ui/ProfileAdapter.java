@@ -32,9 +32,14 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         void onShareQr(Profile p);
     }
 
+    /** แหล่งข้อมูลเต็ม */
+    private final List<Profile> allItems = new ArrayList<>();
+    /** รายการที่แสดง (หลังกรอง/เรียง) */
     private final List<Profile> items = new ArrayList<>();
     /** profileId → latency ms (-1 fail, null = ยังไม่วัด) */
     private long selectedProfileId = -1L;
+    private String searchQuery = "";
+    private boolean sortByPing = false;
 
     private final Map<Long, Integer> latencyMap = new HashMap<>();
     private final Listener listener;
@@ -45,9 +50,9 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     }
 
     public void submit(List<Profile> newItems) {
-        items.clear();
-        if (newItems != null) items.addAll(newItems);
-        notifyDataSetChanged();
+        allItems.clear();
+        if (newItems != null) allItems.addAll(newItems);
+        applyFilterAndSort();
         // คงแถบเขียวหลังรายการรีเฟรช
         if (selectedProfileId > 0) {
             long keep = selectedProfileId;
@@ -57,18 +62,78 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         pingAll();
     }
 
+    public void setSearchQuery(String q) {
+        String n = (q == null) ? "" : q.trim().toLowerCase();
+        if (n.equals(searchQuery)) return;
+        searchQuery = n;
+        applyFilterAndSort();
+    }
+
+    public String getSearchQuery() {
+        return searchQuery;
+    }
+
+    public void setSortByPing(boolean enabled) {
+        if (sortByPing == enabled) return;
+        sortByPing = enabled;
+        applyFilterAndSort();
+    }
+
+    public boolean isSortByPing() {
+        return sortByPing;
+    }
+
+    public void toggleSortByPing() {
+        setSortByPing(!sortByPing);
+    }
+
+    private void applyFilterAndSort() {
+        items.clear();
+        for (Profile p : allItems) {
+            if (p == null) continue;
+            if (!searchQuery.isEmpty()) {
+                String name = p.name != null ? p.name.toLowerCase() : "";
+                String host = p.host != null ? p.host.toLowerCase() : "";
+                if (!name.contains(searchQuery) && !host.contains(searchQuery)) {
+                    continue;
+                }
+            }
+            items.add(p);
+        }
+        if (sortByPing) {
+            items.sort((a, b) -> {
+                int la = latencyRank(a != null ? a.id : -1);
+                int lb = latencyRank(b != null ? b.id : -1);
+                if (la != lb) return Integer.compare(la, lb);
+                // เท่ากัน → ชื่อ
+                String na = (a != null && a.name != null) ? a.name : "";
+                String nb = (b != null && b.name != null) ? b.name : "";
+                return na.compareToIgnoreCase(nb);
+            });
+        }
+        notifyDataSetChanged();
+    }
+
+    /** ค่าสำหรับเรียง: ตัวเลข ms จริง; ยังไม่วัด/ล้มเหลวไปท้าย */
+    private int latencyRank(long id) {
+        Integer ms = latencyMap.get(id);
+        if (ms == null) return Integer.MAX_VALUE - 1; // ยังไม่วัด
+        if (ms < 0) return Integer.MAX_VALUE;         // fail
+        return ms;
+    }
+
     public void pingAll() {
         pingAll(null);
     }
 
     public void pingAll(Runnable onComplete) {
         final List<Profile> targets = new ArrayList<>();
-        for (Profile p : items) {
+        for (Profile p : allItems) {
             if (p == null || p.host == null || p.host.isEmpty()) continue;
             targets.add(p);
             latencyMap.put(p.id, null);
         }
-        notifyDataSetChanged();
+        applyFilterAndSort();
 
         if (targets.isEmpty()) {
             if (onComplete != null) main.post(onComplete);
@@ -108,6 +173,10 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     }
 
     private void notifyLatencyChanged(long profileId) {
+        if (sortByPing) {
+            applyFilterAndSort();
+            return;
+        }
         for (int i = 0; i < items.size(); i++) {
             if (items.get(i).id == profileId) {
                 notifyItemChanged(i);

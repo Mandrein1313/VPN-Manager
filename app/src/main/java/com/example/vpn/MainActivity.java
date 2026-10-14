@@ -13,8 +13,13 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+import android.text.Editable;
+import android.text.TextWatcher;
+import com.google.android.material.button.MaterialButton;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -69,6 +74,9 @@ public class MainActivity extends AppCompatActivity
     private ProfileAdapter adapter;
     private LinearLayout emptyState;
     private RecyclerView recycler;
+    private EditText edtSearch;
+    private ImageButton btnClearSearch;
+    private MaterialButton btnSortPing;
 
     // FAB Speed Dial
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabMain;
@@ -191,9 +199,7 @@ public class MainActivity extends AppCompatActivity
         adapter = new ProfileAdapter(this);
         recycler.setAdapter(adapter);
 
-        // ===== Empty state buttons =====
-
-
+        setupSearchAndSort();
 
         // ===== Observe profiles =====
         viewModel.getProfiles().observe(this, list -> {
@@ -211,6 +217,71 @@ public class MainActivity extends AppCompatActivity
                 }
             }
         });
+    }
+
+
+    // ============================================================
+    // Search + Sort by ping
+    // ============================================================
+    private void setupSearchAndSort() {
+        edtSearch = findViewById(R.id.edtSearch);
+        btnClearSearch = findViewById(R.id.btnClearSearch);
+        btnSortPing = findViewById(R.id.btnSortPing);
+
+        if (edtSearch != null) {
+            edtSearch.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+                @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+                @Override
+                public void afterTextChanged(Editable e) {
+                    String q = e != null ? e.toString() : "";
+                    if (adapter != null) adapter.setSearchQuery(q);
+                    if (btnClearSearch != null) {
+                        btnClearSearch.setVisibility(
+                                (q != null && !q.isEmpty()) ? View.VISIBLE : View.GONE);
+                    }
+                }
+            });
+        }
+        if (btnClearSearch != null) {
+            btnClearSearch.setOnClickListener(v -> {
+                if (edtSearch != null) edtSearch.setText("");
+            });
+        }
+        if (btnSortPing != null) {
+            btnSortPing.setOnClickListener(v -> {
+                if (adapter == null) return;
+                adapter.toggleSortByPing();
+                updateSortButtonUi();
+                if (adapter.isSortByPing()) {
+                    // วัด ping ใหม่แล้วเรียง
+                    adapter.pingAll(() -> runOnUiThread(this::updateSortButtonUi));
+                    StyledToast.info(this, "เรียงตาม ping ต่ำสุด");
+                } else {
+                    StyledToast.info(this, "เรียงตามรายการเดิม");
+                }
+            });
+            updateSortButtonUi();
+        }
+    }
+
+    private void updateSortButtonUi() {
+        if (btnSortPing == null || adapter == null) return;
+        if (adapter.isSortByPing()) {
+            btnSortPing.setText("Ping ↓");
+            btnSortPing.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(0xFF1B5E20));
+            btnSortPing.setTextColor(0xFF00E676);
+            btnSortPing.setStrokeColor(
+                    android.content.res.ColorStateList.valueOf(0xFF00E676));
+        } else {
+            btnSortPing.setText("Ping");
+            btnSortPing.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(0x00000000));
+            btnSortPing.setTextColor(0xFFB0BEC5);
+            btnSortPing.setStrokeColor(
+                    android.content.res.ColorStateList.valueOf(0xFF2A2A2A));
+        }
     }
 
     // ============================================================
