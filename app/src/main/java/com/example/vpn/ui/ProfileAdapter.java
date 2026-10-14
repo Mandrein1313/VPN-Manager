@@ -5,8 +5,11 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import java.util.HashSet;
+import java.util.Set;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -30,6 +33,8 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
         void onDelete(Profile p);
         void onToggleFavorite(Profile p);
         void onShareQr(Profile p);
+        /** โหมดเลือกหลายอัน: active + จำนวนที่เลือก */
+        void onSelectionModeChanged(boolean active, int count);
     }
 
     /** แหล่งข้อมูลเต็ม */
@@ -40,6 +45,8 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
     private long selectedProfileId = -1L;
     private String searchQuery = "";
     private boolean sortByPing = false;
+    private boolean multiSelectMode = false;
+    private final Set<Long> selectedIds = new HashSet<>();
 
     private final Map<Long, Integer> latencyMap = new HashMap<>();
     private final Listener listener;
@@ -85,6 +92,66 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     public void toggleSortByPing() {
         setSortByPing(!sortByPing);
+    }
+
+    public boolean isMultiSelectMode() {
+        return multiSelectMode;
+    }
+
+    public void setMultiSelectMode(boolean on) {
+        if (multiSelectMode == on) return;
+        multiSelectMode = on;
+        if (!on) selectedIds.clear();
+        notifyDataSetChanged();
+        if (listener != null) {
+            listener.onSelectionModeChanged(multiSelectMode, selectedIds.size());
+        }
+    }
+
+    public void toggleSelection(long id) {
+        if (!multiSelectMode) return;
+        if (selectedIds.contains(id)) selectedIds.remove(id);
+        else selectedIds.add(id);
+        notifyDataSetChanged();
+        if (listener != null) {
+            listener.onSelectionModeChanged(true, selectedIds.size());
+        }
+        // ถ้าไม่เหลือรายการที่เลือก — ออกจากโหมด
+        if (selectedIds.isEmpty()) {
+            setMultiSelectMode(false);
+        }
+    }
+
+    public void selectAllVisible() {
+        if (!multiSelectMode) setMultiSelectMode(true);
+        for (Profile p : items) {
+            if (p != null) selectedIds.add(p.id);
+        }
+        notifyDataSetChanged();
+        if (listener != null) {
+            listener.onSelectionModeChanged(true, selectedIds.size());
+        }
+    }
+
+    public int getSelectedCount() {
+        return selectedIds.size();
+    }
+
+    public List<Profile> getSelectedProfiles() {
+        List<Profile> out = new ArrayList<>();
+        for (Profile p : allItems) {
+            if (p != null && selectedIds.contains(p.id)) out.add(p);
+        }
+        return out;
+    }
+
+    public void clearSelection() {
+        selectedIds.clear();
+        multiSelectMode = false;
+        notifyDataSetChanged();
+        if (listener != null) {
+            listener.onSelectionModeChanged(false, 0);
+        }
     }
 
     private void applyFilterAndSort() {
@@ -260,6 +327,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
     // non-static เพื่อเข้าถึง latencyMap / main / notify ของ adapter ได้
     class VH extends RecyclerView.ViewHolder {
+        CheckBox chkSelect;
         android.widget.ImageView flag;
         TextView name, host, protocol, ping;
         View viewSelectedBar;
@@ -267,6 +335,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
         VH(@NonNull View v) {
             super(v);
+            chkSelect = v.findViewById(R.id.chkSelect);
             flag = v.findViewById(R.id.imgFlag);
             name = v.findViewById(R.id.txtName);
             host = v.findViewById(R.id.txtHost);
@@ -335,23 +404,64 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
                 });
             }
 
+            // multi-select UI
+            boolean multiSel = multiSelectMode && selectedIds.contains(p.id);
+            if (chkSelect != null) {
+                chkSelect.setVisibility(multiSelectMode ? View.VISIBLE : View.GONE);
+                chkSelect.setChecked(multiSel);
+            }
+            // เน้นการ์ดที่ถูกเลือกในโหมด multi
+            try {
+                com.google.android.material.card.MaterialCardView card =
+                        itemView instanceof com.google.android.material.card.MaterialCardView
+                                ? (com.google.android.material.card.MaterialCardView) itemView
+                                : itemView.findViewById(R.id.cardProfile);
+                if (card != null && multiSelectMode) {
+                    if (multiSel) {
+                        card.setStrokeColor(0xFF00E676);
+                        card.setStrokeWidth(2);
+                    } else {
+                        card.setStrokeColor(0xFF2A2A2A);
+                        card.setStrokeWidth(1);
+                    }
+                }
+            } catch (Exception ignored) {}
+
             itemView.setOnClickListener(v -> {
+                if (multiSelectMode) {
+                    toggleSelection(p.id);
+                    return;
+                }
                 setSelectedProfileId(p.id);
                 listener.onConnect(p);
             });
             itemView.setOnLongClickListener(v -> {
-                listener.onEdit(p);
+                if (!multiSelectMode) {
+                    setMultiSelectMode(true);
+                    toggleSelection(p.id);
+                } else {
+                    toggleSelection(p.id);
+                }
                 return true;
             });
 
             if (btnQr != null) {
-                btnQr.setOnClickListener(v -> listener.onShareQr(p));
+                btnQr.setOnClickListener(v -> {
+                    if (multiSelectMode) { toggleSelection(p.id); return; }
+                    listener.onShareQr(p);
+                });
             }
             if (btnEdit != null) {
-                btnEdit.setOnClickListener(v -> listener.onEdit(p));
+                btnEdit.setOnClickListener(v -> {
+                    if (multiSelectMode) { toggleSelection(p.id); return; }
+                    listener.onEdit(p);
+                });
             }
             if (btnDelete != null) {
-                btnDelete.setOnClickListener(v -> listener.onDelete(p));
+                btnDelete.setOnClickListener(v -> {
+                    if (multiSelectMode) { toggleSelection(p.id); return; }
+                    listener.onDelete(p);
+                });
             }
         }
     }

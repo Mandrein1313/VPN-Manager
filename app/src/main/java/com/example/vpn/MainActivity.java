@@ -78,6 +78,9 @@ public class MainActivity extends AppCompatActivity
     private ImageButton btnClearSearch;
     private MaterialButton btnSortPing;
     private MaterialButton btnAutoBest;
+    private MaterialButton btnSubscription;
+    private View multiSelectBar;
+    private android.widget.TextView txtMultiCount;
 
     // FAB Speed Dial
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabMain;
@@ -269,6 +272,13 @@ public class MainActivity extends AppCompatActivity
         if (btnAutoBest != null) {
             btnAutoBest.setOnClickListener(v -> autoSelectLowestPing());
         }
+
+        btnSubscription = findViewById(R.id.btnSubscription);
+        if (btnSubscription != null) {
+            btnSubscription.setOnClickListener(v -> showSubscriptionMenu());
+        }
+
+        setupMultiSelectBar();
     }
 
     private void updateSortButtonUi() {
@@ -293,6 +303,81 @@ public class MainActivity extends AppCompatActivity
     // ============================================================
     // ⭐ Adapter callbacks
     // ============================================================
+
+
+    private void setupMultiSelectBar() {
+        multiSelectBar = findViewById(R.id.multiSelectBar);
+        txtMultiCount = findViewById(R.id.txtMultiCount);
+        View btnSelectAll = findViewById(R.id.btnSelectAll);
+        View btnDeleteSelected = findViewById(R.id.btnDeleteSelected);
+        View btnCancelMulti = findViewById(R.id.btnCancelMulti);
+
+        if (btnSelectAll != null) {
+            btnSelectAll.setOnClickListener(v -> {
+                if (adapter != null) adapter.selectAllVisible();
+            });
+        }
+        if (btnDeleteSelected != null) {
+            btnDeleteSelected.setOnClickListener(v -> confirmDeleteSelected());
+        }
+        if (btnCancelMulti != null) {
+            btnCancelMulti.setOnClickListener(v -> {
+                if (adapter != null) adapter.clearSelection();
+            });
+        }
+    }
+
+    @Override
+    public void onSelectionModeChanged(boolean active, int count) {
+        if (multiSelectBar != null) {
+            multiSelectBar.setVisibility(active ? View.VISIBLE : View.GONE);
+        }
+        if (txtMultiCount != null) {
+            txtMultiCount.setText("เลือก " + count + " รายการ");
+        }
+        if (fabMain != null) {
+            fabMain.setVisibility(active ? View.GONE : View.VISIBLE);
+        }
+        if (active && fabMenuOpen) closeFabMenu();
+    }
+
+    private void confirmDeleteSelected() {
+        if (adapter == null) return;
+        final java.util.List<Profile> selected = adapter.getSelectedProfiles();
+        if (selected.isEmpty()) {
+            StyledToast.warning(this, "ยังไม่ได้เลือกรายการ");
+            return;
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("ลบ " + selected.size() + " โปรไฟล์?")
+                .setMessage("รายการที่เลือกจะถูกลบถาวร")
+                .setPositiveButton("ลบ", (d, w) -> {
+                    for (Profile p : selected) {
+                        viewModel.delete(p);
+                    }
+                    adapter.clearSelection();
+                    StyledToast.delete(this, "ลบแล้ว " + selected.size() + " รายการ");
+                })
+                .setNegativeButton("ยกเลิก", null)
+                .show();
+    }
+
+    private void showSubscriptionMenu() {
+        final String[] items = {
+                "➕ เพิ่ม Subscription URL",
+                "🔄 อัปเดตทั้งหมด",
+                "📋 จัดการ Subscription"
+        };
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Subscription")
+                .setItems(items, (d, which) -> {
+                    if (which == 0) showAddSubscriptionDialog();
+                    else if (which == 1) updateAllSubscriptions();
+                    else showManageSubscriptions();
+                })
+                .setNegativeButton("ปิด", null)
+                .show();
+    }
 
     @Override
     public void onConnect(Profile p) {
@@ -1154,6 +1239,10 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onBackPressed() {
+        if (adapter != null && adapter.isMultiSelectMode()) {
+            adapter.clearSelection();
+            return;
+        }
         if (drawerLayout != null && drawerLayout.isDrawerOpen(GravityCompat.START)) {
             drawerLayout.closeDrawer(GravityCompat.START);
         } else {
