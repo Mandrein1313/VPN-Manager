@@ -18,6 +18,8 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.nio.charset.StandardCharsets;
 
 /**
  * SOCKS5 ผ่าน SSH
@@ -42,26 +44,45 @@ public class Socks5Server {
     private final SshTunnel ssh;
     private final boolean bindLocalOnly;
     private final int udpgwPort;
+    private final String authUser;   // null/empty = no auth
+    private final String authPass;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private ServerSocket server;
     private Thread acceptThread;
     private final ExecutorService pool = Executors.newCachedThreadPool();
     private String listenAddress = "127.0.0.1";
+    /** จำนวน client ที่กำลังใช้ proxy อยู่ */
+    private static final AtomicInteger ACTIVE_CLIENTS = new AtomicInteger(0);
 
     private UdpgwClient udpgw;
 
     public Socks5Server(SshTunnel ssh) {
-        this(ssh, true, 0);
+        this(ssh, true, 0, null, null);
     }
 
     public Socks5Server(SshTunnel ssh, boolean bindLocalOnly) {
-        this(ssh, bindLocalOnly, 0);
+        this(ssh, bindLocalOnly, 0, null, null);
     }
 
     public Socks5Server(SshTunnel ssh, boolean bindLocalOnly, int udpgwPort) {
+        this(ssh, bindLocalOnly, udpgwPort, null, null);
+    }
+
+    public Socks5Server(SshTunnel ssh, boolean bindLocalOnly, int udpgwPort,
+                        String authUser, String authPass) {
         this.ssh = ssh;
         this.bindLocalOnly = bindLocalOnly;
         this.udpgwPort = udpgwPort > 0 ? udpgwPort : 0;
+        this.authUser = (authUser != null && !authUser.isEmpty()) ? authUser : null;
+        this.authPass = authPass != null ? authPass : "";
+    }
+
+    public static int getActiveClients() {
+        return ACTIVE_CLIENTS.get();
+    }
+
+    public boolean isAuthEnabled() {
+        return authUser != null;
     }
 
     public void start() throws IOException {
@@ -91,6 +112,7 @@ public class Socks5Server {
 
         Log.i(TAG, "SOCKS5 listening on " + host + ":" + LOCAL_PORT
                 + (bindLocalOnly ? " (local)" : " (shared / LAN)")
+                + (authUser != null ? " auth=ON user=" + authUser : " auth=OFF")
                 + " udp=" + (udpgw != null));
     }
 
@@ -129,13 +151,58 @@ public class Socks5Server {
             OutputStream out = client.getOutputStream();
             DataInputStream din = new DataInputStream(in);
 
-            // greeting
+            // greeting + method negotiation
             int ver = din.readUnsignedByte();
             if (ver != VER) return;
             int nMethods = din.readUnsignedByte();
-            din.readFully(new byte[nMethods]);
-            out.write(new byte[]{(byte) VER, 0x00}); // NO AUTH
-            out.flush();
+            byte[] methods = new byte[nMethods];
+            din.readFully(methods);
+
+            boolean wantAuth = authUser != null;
+            boolean clientHasNoAuth = false;
+            boolean clientHasUserPass = false;
+            for (byte m : methods) {
+                if (m == 0x00) clientHasNoAuth = true;
+                if (m == 0x02) clientHasUserPass = true;
+            }
+
+            if (wantAuth) {
+                if (!clientHasUserPass) {
+                    out.write(new byte[]{(byte) VER, (byte) 0xFF}); // no acceptable
+                    out.flush();
+                    return;
+                }
+                out.write(new byte[]{(byte) VER, 0x02}); // username/password
+                out.flush();
+                // RFC 1929
+                int aVer = din.readUnsignedByte();
+                if (aVer != 0x01) return;
+                int uLen = din.readUnsignedByte();
+                byte[] uBytes = new byte[uLen];
+                din.readFully(uBytes);
+                int pLen = din.readUnsignedByte();
+                byte[] pBytes = new byte[pLen];
+                din.readFully(pBytes);
+                String u = new String(uBytes, StandardCharsets.UTF_8);
+                String pw = new String(pBytes, StandardCharsets.UTF_8);
+                if (!authUser.equals(u) || !authPass.equals(pw)) {
+                    out.write(new byte[]{0x01, 0x01}); // failure
+                    out.flush();
+                    Log.w(TAG, "SOCKS auth failed from " + client.getInetAddress());
+                    return;
+                }
+                out.write(new byte[]{0x01, 0x00}); // success
+                out.flush();
+            } else {
+                if (!clientHasNoAuth && clientHasUserPass) {
+                    // client only offered auth but we don't need it — still reject if no 0x00
+                    out.write(new byte[]{(byte) VER, (byte) 0xFF});
+                    out.flush();
+                    return;
+                }
+                out.write(new byte[]{(byte) VER, 0x00}); // NO AUTH
+                out.flush();
+            }
 
             // request
             ver = din.readUnsignedByte();
@@ -169,13 +236,18 @@ public class Socks5Server {
                     sendReply(out, REP_SUCCESS);
                     client.setSoTimeout(0);
 
-                    final ChannelDirectTCPIP ch = channel;
-                    Thread t1 = new Thread(() -> pipe(client, ch), "socks-up");
-                    Thread t2 = new Thread(() -> pipe(ch, client), "socks-down");
-                    t1.start();
-                    t2.start();
-                    t1.join();
-                    t2.join();
+                    ACTIVE_CLIENTS.incrementAndGet();
+                    try {
+                        final ChannelDirectTCPIP ch = channel;
+                        Thread t1 = new Thread(() -> pipe(client, ch), "socks-up");
+                        Thread t2 = new Thread(() -> pipe(ch, client), "socks-down");
+                        t1.start();
+                        t2.start();
+                        t1.join();
+                        t2.join();
+                    } finally {
+                        ACTIVE_CLIENTS.decrementAndGet();
+                    }
                 } catch (Exception e) {
                     Log.w(TAG, "CONNECT " + destHost + ":" + destPort + " fail: " + e.getMessage());
                     sendReply(out, REP_GENERAL_FAIL);
@@ -195,19 +267,21 @@ public class Socks5Server {
     }
 
     /**
-     * SOCKS5 UDP ASSOCIATE → relay ผ่าน udpgw
+     * SOCKS5 UDP ASSOCIATE → relay ผ่าน badvpn-udpgw
+     * hev-socks5-tunnel จะยิง UDP มาที่พอร์ตนี้
      */
     private void handleUdpAssociate(Socket tcpControl, OutputStream out) throws Exception {
         if (udpgw == null || !udpgw.isEnabled()) {
+            Log.w(TAG, "UDP ASSOCIATE rejected — udpgw disabled");
             sendReply(out, REP_CMD_NOT_SUPPORTED);
             return;
         }
 
-        DatagramSocket udpSock = new DatagramSocket(0, InetAddress.getByName("127.0.0.1"));
+        final DatagramSocket udpSock = new DatagramSocket(0, InetAddress.getByName("127.0.0.1"));
         udpSock.setSoTimeout(300_000);
+        final int bindPort = udpSock.getLocalPort();
 
-        // reply: bind 127.0.0.1:port
-        int bindPort = udpSock.getLocalPort();
+        // SOCKS5 reply: BND.ADDR = 127.0.0.1, BND.PORT = bindPort
         byte[] rep = new byte[]{
                 (byte) VER, (byte) REP_SUCCESS, 0x00, (byte) ATYP_IPV4,
                 127, 0, 0, 1,
@@ -215,55 +289,38 @@ public class Socks5Server {
         };
         out.write(rep);
         out.flush();
-
-        Log.i(TAG, "UDP ASSOCIATE relay on 127.0.0.1:" + bindPort);
+        Log.i(TAG, "UDP ASSOCIATE OK — relay 127.0.0.1:" + bindPort);
 
         final AtomicBoolean alive = new AtomicBoolean(true);
+        final InetSocketAddress[] clientAddr = { null };
+        final Object clientLock = new Object();
 
-        // udpgw → client UDP
+        // udpgw → มือถือ (หุ้ม SOCKS5 UDP header แล้วส่งกลับ client)
         udpgw.setListener((src, port, data, offset, length) -> {
             try {
-                // SOCKS5 UDP header: RSV RSV FRAG ATYP ADDR PORT DATA
+                InetSocketAddress dest;
+                synchronized (clientLock) {
+                    dest = clientAddr[0];
+                }
+                if (dest == null || !alive.get()) return;
                 byte[] ip = src.getAddress();
-                byte[] packet = new byte[4 + 4 + 2 + length];
-                packet[0] = 0;
-                packet[1] = 0;
-                packet[2] = 0; // frag
-                packet[3] = ATYP_IPV4;
-                System.arraycopy(ip, 0, packet, 4, 4);
-                packet[8] = (byte) ((port >> 8) & 0xFF);
-                packet[9] = (byte) (port & 0xFF);
-                System.arraycopy(data, offset, packet, 10, length);
-                DatagramPacket dp = new DatagramPacket(
-                        packet, packet.length,
-                        InetAddress.getByName("127.0.0.1"), 0);
-                // ส่งกลับหา last client — ใช้ connected peer ถ้ามี
-                // เก็บ remote จากแพ็กเก็ตล่าสุดด้านล่าง
-            } catch (Exception ignored) {}
-        });
+                if (ip == null || ip.length != 4) return;
 
-        // เก็บที่อยู่ client ล่าสุด
-        final InetSocketAddress[] clientAddr = {null};
-
-        udpgw.setListener((src, port, data, offset, length) -> {
-            try {
-                if (clientAddr[0] == null) return;
-                byte[] ip = src.getAddress();
-                if (ip.length != 4) return;
                 byte[] packet = new byte[10 + length];
                 packet[0] = 0;
                 packet[1] = 0;
-                packet[2] = 0;
-                packet[3] = ATYP_IPV4;
+                packet[2] = 0; // FRAG
+                packet[3] = (byte) ATYP_IPV4;
                 System.arraycopy(ip, 0, packet, 4, 4);
                 packet[8] = (byte) ((port >> 8) & 0xFF);
                 packet[9] = (byte) (port & 0xFF);
                 System.arraycopy(data, offset, packet, 10, length);
-                DatagramPacket dp = new DatagramPacket(
-                        packet, packet.length,
-                        clientAddr[0].getAddress(), clientAddr[0].getPort());
-                udpSock.send(dp);
-            } catch (Exception ignored) {}
+
+                udpSock.send(new DatagramPacket(
+                        packet, packet.length, dest.getAddress(), dest.getPort()));
+            } catch (Exception e) {
+                Log.w(TAG, "udp downstream: " + e.getMessage());
+            }
         });
 
         Thread udpThread = new Thread(() -> {
@@ -272,14 +329,13 @@ public class Socks5Server {
                 try {
                     DatagramPacket dp = new DatagramPacket(buf, buf.length);
                     udpSock.receive(dp);
-                    clientAddr[0] = new InetSocketAddress(dp.getAddress(), dp.getPort());
-                    parseAndForwardUdp(buf, dp.getLength());
-                } catch (SocketTimeoutException e) {
-                    // keep waiting
-                } catch (Exception e) {
-                    if (alive.get()) {
-                        Log.w(TAG, "udp relay: " + e.getMessage());
+                    synchronized (clientLock) {
+                        clientAddr[0] = new InetSocketAddress(dp.getAddress(), dp.getPort());
                     }
+                    parseAndForwardUdp(buf, dp.getLength());
+                } catch (SocketTimeoutException ignored) {
+                } catch (Exception e) {
+                    if (alive.get()) Log.w(TAG, "udp relay: " + e.getMessage());
                     break;
                 }
             }
@@ -288,11 +344,11 @@ public class Socks5Server {
         udpThread.setDaemon(true);
         udpThread.start();
 
-        // ค้าง TCP control ไว้จน client ปิด
+        // ค้าง TCP control ไว้จนกว่า client ปิด (ตามสเปก SOCKS5)
         try {
             InputStream in = tcpControl.getInputStream();
             byte[] tmp = new byte[256];
-            while (running.get()) {
+            while (running.get() && alive.get()) {
                 int n = in.read(tmp);
                 if (n < 0) break;
             }
@@ -300,7 +356,8 @@ public class Socks5Server {
         } finally {
             alive.set(false);
             try { udpSock.close(); } catch (Exception ignored) {}
-            try { udpThread.join(500); } catch (Exception ignored) {}
+            try { udpThread.join(800); } catch (Exception ignored) {}
+            Log.i(TAG, "UDP ASSOCIATE closed port=" + bindPort);
         }
     }
 

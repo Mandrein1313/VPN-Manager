@@ -548,7 +548,14 @@ public class ProxyVpnService extends VpnService
             VpnLogger.i(TAG, "Starting SOCKS5 server...");
             boolean shareWifi = prefs != null && prefs.isShareWifi();
             // shareWifi=true → bind 0.0.0.0 ให้เครื่องอื่นใน Hotspot/LAN ใช้ได้
-            socks5Server = new Socks5Server(sshTunnel, !shareWifi, profile.udpgwPort);
+            String shareUser = null;
+            String sharePass = null;
+            if (shareWifi && prefs != null && prefs.isShareAuthEnabled()) {
+                shareUser = prefs.getShareUsername();
+                sharePass = prefs.getSharePassword();
+            }
+            socks5Server = new Socks5Server(sshTunnel, !shareWifi, profile.udpgwPort,
+                    shareUser, sharePass);
             socks5Server.start();
             if (profile.udpgwPort > 0) {
                 VpnLogger.i(TAG, "UDP enabled via udpgw port " + profile.udpgwPort

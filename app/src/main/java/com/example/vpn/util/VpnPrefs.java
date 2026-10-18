@@ -62,6 +62,30 @@ public class VpnPrefs {
         prefs.edit().putBoolean(KEY_SHARE_WIFI, value).apply();
     }
 
+    public boolean isShareAuthEnabled() {
+        return prefs.getBoolean("share_auth", false);
+    }
+
+    public void setShareAuthEnabled(boolean v) {
+        prefs.edit().putBoolean("share_auth", v).apply();
+    }
+
+    public String getShareUsername() {
+        return prefs.getString("share_user", "vpnshare");
+    }
+
+    public void setShareUsername(String v) {
+        prefs.edit().putString("share_user", v != null ? v.trim() : "").apply();
+    }
+
+    public String getSharePassword() {
+        return prefs.getString("share_pass", "");
+    }
+
+    public void setSharePassword(String v) {
+        prefs.edit().putString("share_pass", v != null ? v : "").apply();
+    }
+
     public long getLastProfileId() {
         return prefs.getLong(KEY_LAST_PROFILE_ID, -1L);
     }
