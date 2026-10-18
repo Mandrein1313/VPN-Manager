@@ -56,6 +56,8 @@ public class ShareWifiActivity extends AppCompatActivity {
     private MaterialButton btnRefresh;
     private MaterialButton btnSaveAuth;
     private ImageView imgQr;
+    private TextView txtManualHost, txtManualPort, txtManualUser, txtManualPass;
+    private MaterialButton btnCopyHost, btnCopyPass, btnShareText;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable clientPoll = new Runnable() {
@@ -90,6 +92,13 @@ public class ShareWifiActivity extends AppCompatActivity {
         btnRefresh = findViewById(R.id.btnRefresh);
         btnSaveAuth = findViewById(R.id.btnSaveAuth);
         imgQr = findViewById(R.id.imgQr);
+        txtManualHost = findViewById(R.id.txtManualHost);
+        txtManualPort = findViewById(R.id.txtManualPort);
+        txtManualUser = findViewById(R.id.txtManualUser);
+        txtManualPass = findViewById(R.id.txtManualPass);
+        btnCopyHost = findViewById(R.id.btnCopyHost);
+        btnCopyPass = findViewById(R.id.btnCopyPass);
+        btnShareText = findViewById(R.id.btnShareText);
 
         // load auth
         if (switchAuth != null) switchAuth.setChecked(prefs.isShareAuthEnabled());
@@ -138,6 +147,21 @@ public class ShareWifiActivity extends AppCompatActivity {
 
         btnCopy.setOnClickListener(v -> copyAddress());
         btnRefresh.setOnClickListener(v -> refreshUi());
+        if (btnCopyHost != null) {
+            btnCopyHost.setOnClickListener(v -> copyPlain(currentHost()));
+        }
+        if (btnCopyPass != null) {
+            btnCopyPass.setOnClickListener(v -> {
+                if (!prefs.isShareAuthEnabled()) {
+                    StyledToast.info(this, "ยังไม่ได้เปิดรหัสผ่าน SOCKS5");
+                    return;
+                }
+                copyPlain(prefs.getSharePassword());
+            });
+        }
+        if (btnShareText != null) {
+            btnShareText.setOnClickListener(v -> shareSetupText());
+        }
 
         txtGuide.setText(
                 "วิธีใช้\n\n"
@@ -208,6 +232,7 @@ public class ShareWifiActivity extends AppCompatActivity {
         String addr = ip + ":" + Socks5Server.LOCAL_PORT;
 
         if (txtAddress != null) txtAddress.setText(addr);
+        updateManualCard(ip);
 
         StringBuilder st = new StringBuilder();
         st.append(shareOn ? "แชร์: เปิด" : "แชร์: ปิด");
@@ -297,6 +322,76 @@ public class ShareWifiActivity extends AppCompatActivity {
             cm.setPrimaryClip(ClipData.newPlainText("socks5", copy));
             StyledToast.success(this, "คัดลอก " + copy + " แล้ว");
         }
+    }
+
+
+    private String currentHost() {
+        NetworkShareHelper.ShareInfo info = NetworkShareHelper.collect(this);
+        return info.primary != null ? info.primary : "";
+    }
+
+    private void updateManualCard(String ip) {
+        if (txtManualHost != null) {
+            txtManualHost.setText("โฮสต์: " + (ip != null && !ip.isEmpty() && !ip.equals("—") ? ip : "—"));
+        }
+        if (txtManualPort != null) {
+            txtManualPort.setText("พอร์ต: " + Socks5Server.LOCAL_PORT);
+        }
+        if (txtManualUser != null) {
+            if (prefs.isShareAuthEnabled()) {
+                txtManualUser.setText("Username: " + prefs.getShareUsername());
+            } else {
+                txtManualUser.setText("Username: (ไม่ใช้)");
+            }
+        }
+        if (txtManualPass != null) {
+            if (prefs.isShareAuthEnabled()) {
+                String pass = prefs.getSharePassword();
+                String mask = pass.isEmpty() ? "(ว่าง)" : "********";
+                txtManualPass.setText("Password: " + mask + "  (กดคัดลอกรหัสได้)");
+            } else {
+                txtManualPass.setText("Password: (ไม่ใช้)");
+            }
+        }
+    }
+
+    private void copyPlain(String text) {
+        if (text == null || text.isEmpty() || text.equals("—")) {
+            StyledToast.warning(this, "ยังไม่มีค่าให้คัดลอก");
+            return;
+        }
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm != null) {
+            cm.setPrimaryClip(ClipData.newPlainText("proxy", text));
+            StyledToast.success(this, "คัดลอกแล้ว: " + text);
+        }
+    }
+
+    /** แชร์ข้อความตั้งค่า — ใช้เมื่อเครื่องลูกสแกน QR ไม่ได้ */
+    private void shareSetupText() {
+        String ip = currentHost();
+        if (ip.isEmpty()) {
+            StyledToast.warning(this, "ยังไม่มี IP — เปิด Hotspot หรือ Wi‑Fi ก่อน");
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("ตั้งค่า Proxy SOCKS5\n\n");
+        sb.append("ประเภท: SOCKS5\n");
+        sb.append("โฮสต์: ").append(ip).append("\n");
+        sb.append("พอร์ต: ").append(Socks5Server.LOCAL_PORT).append("\n");
+        if (prefs.isShareAuthEnabled()) {
+            sb.append("Username: ").append(prefs.getShareUsername()).append("\n");
+            sb.append("Password: ").append(prefs.getSharePassword()).append("\n");
+        } else {
+            sb.append("Username/Password: ไม่ต้องใส่\n");
+        }
+        sb.append("\nหรือ URI:\n").append(buildProxyUri(ip));
+
+        Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType("text/plain");
+        send.putExtra(Intent.EXTRA_SUBJECT, "SOCKS5 Proxy");
+        send.putExtra(Intent.EXTRA_TEXT, sb.toString());
+        startActivity(Intent.createChooser(send, "แชร์การตั้งค่า Proxy"));
     }
 
     private void promptReconnectForShare(boolean shareEnabled) {
