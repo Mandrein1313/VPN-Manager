@@ -351,8 +351,6 @@ public class BypassActivity extends AppCompatActivity
     // ============================================================
     // Menu
     // ============================================================
-    @Override
-
     private void showBypassMenu(android.view.View anchor) {
         android.widget.PopupMenu pm = new android.widget.PopupMenu(this, anchor);
         pm.inflate(R.menu.menu_bypass);
@@ -369,6 +367,7 @@ public class BypassActivity extends AppCompatActivity
         pm.show();
     }
 
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_bypass, menu);
         MenuItem hideItem = menu.findItem(R.id.action_hide_system);
