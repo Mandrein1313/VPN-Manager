@@ -19,17 +19,29 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:clipToPadding="false">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="16dp"
+            android:paddingBottom="32dp">
+
+            <!-- ========== 1. เปิดแชร์ ========== -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1. เปิดแชร์"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_dark_card"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
@@ -54,44 +66,95 @@
                 android:id="@+id/txtStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="2dp"
                 android:textColor="@color/accent_green"
                 android:textSize="13sp" />
 
+            <!-- ========== 2. ที่อยู่ Proxy ========== -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="ที่อยู่ Proxy (SOCKS5)"
+                android:text="2. ที่อยู่ Proxy"
                 android:textColor="@color/text_muted"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/txtAddress"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:fontFamily="monospace"
-                android:text="—:1080"
-                android:textColor="@color/text_primary"
-                android:textSize="22sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
-
-            <TextView
-                android:id="@+id/txtClients"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Client ที่เชื่อมอยู่: 0"
-                android:textColor="@color/text_muted"
-                android:textSize="13sp" />
-
-            <!-- Auth -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_dark_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="SOCKS5"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/txtAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="monospace"
+                    android:text="—:1080"
+                    android:textColor="@color/text_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/txtClients"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Client ที่เชื่อมอยู่: 0"
+                    android:textColor="@color/text_muted"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCopy"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:text="คัดลอก" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRefresh"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="รีเฟรช IP" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ========== 3. ความปลอดภัย ========== -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="3. ความปลอดภัย (แนะนำ)"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_dark_card"
                 android:orientation="vertical"
                 android:padding="14dp">
@@ -116,6 +179,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="กันคนในวง Wi‑Fi ใช้ Proxy โดยไม่ได้รับอนุญาต"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/tilUser"
@@ -157,57 +228,76 @@
                     android:text="บันทึกรหัส (แล้ว Reconnect)" />
             </LinearLayout>
 
-            <!-- QR -->
+            <!-- ========== 4. ส่งค่าไปเครื่องลูก ========== -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="QR ตั้งค่า Proxy"
+                android:text="4. ส่งค่าไปเครื่องลูก"
                 android:textColor="@color/text_muted"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
-            <ImageView
-                android:id="@+id/imgQr"
-                android:layout_width="200dp"
-                android:layout_height="200dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="10dp"
-                android:background="#FFFFFF"
-                android:contentDescription="QR"
-                android:padding="10dp"
-                android:scaleType="fitCenter" />
-
-            <TextView
-                android:id="@+id/txtQrHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:gravity="center"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
-
-
-            <!-- ตั้งค่ามือ (เครื่องที่สแกน QR ไม่ได้) -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="ตั้งค่ามือ (ไม่ต้องสแกน QR)"
-                android:textColor="@color/text_muted"
-                android:textSize="12sp" />
-
+            <!-- QR -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:background="@drawable/bg_dark_card"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="สแกนด้วยแอป Tunnel Mate Client"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/imgQr"
+                    android:layout_width="200dp"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="12dp"
+                    android:background="#FFFFFF"
+                    android:contentDescription="QR"
+                    android:padding="10dp"
+                    android:scaleType="fitCenter" />
+
+                <TextView
+                    android:id="@+id/txtQrHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <!-- Manual + Share text -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_dark_card"
                 android:orientation="vertical"
                 android:padding="14dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ตั้งค่ามือ (ไม่ต้องสแกน QR)"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/txtManualHost"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
                     android:fontFamily="monospace"
                     android:text="โฮสต์: —"
                     android:textColor="@color/text_primary"
@@ -254,7 +344,7 @@
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="6dp"
+                        android:layout_marginEnd="8dp"
                         android:layout_weight="1"
                         android:text="คัดลอกโฮสต์"
                         android:textSize="11sp" />
@@ -278,35 +368,21 @@
                     android:text="แชร์ข้อความตั้งค่าไปเครื่องอื่น" />
             </LinearLayout>
 
-            <LinearLayout
+            <!-- ========== 5. วิธีใช้ ========== -->
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnCopy"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1"
-                    android:text="คัดลอก" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnRefresh"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="รีเฟรช IP" />
-            </LinearLayout>
+                android:layout_marginTop="20dp"
+                android:text="5. วิธีใช้"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/txtGuide"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="8dp"
                 android:lineSpacingExtra="3dp"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
