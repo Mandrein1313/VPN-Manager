@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/window_background"
-            app:title="Configs"
+            app:title="CONFIGS"
             app:titleTextColor="@color/text_primary"
             app:titleCentered="false" />
 

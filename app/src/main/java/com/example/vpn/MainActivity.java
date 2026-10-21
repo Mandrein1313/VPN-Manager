@@ -192,7 +192,8 @@ public class MainActivity extends AppCompatActivity
                 navView.setNavigationItemSelectedListener(this);
             }
             if (getSupportActionBar() != null) {
-                getSupportActionBar().setDisplayShowTitleEnabled(false);
+                getSupportActionBar().setDisplayShowTitleEnabled(true);
+                getSupportActionBar().setTitle("CONFIGS");
             }
         }
 
@@ -499,24 +500,8 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_add_subscription) {
-            showAddSubscriptionDialog();
-            return true;
-        }
-        if (id == R.id.action_update_subscriptions) {
-            updateAllSubscriptions();
-            return true;
-        }
-        if (id == R.id.action_manage_subscriptions) {
-            showManageSubscriptions();
-            return true;
-        }
         if (id == R.id.action_remove_dup_names) {
             removeDuplicateNames();
-            return true;
-        }
-        if (id == R.id.action_auto_select) {
-            autoSelectLowestPing();
             return true;
         }
         if (id == R.id.action_export_all) {
