@@ -82,8 +82,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         viewModel = new ViewModelProvider(this, new ProfileViewModelFactory(repo))
                 .get(ProfileViewModel.class);
 
-        MaterialToolbar tb = findViewById(R.id.toolbar);
-        tb.setNavigationOnClickListener(v -> finish());
+        android.view.View btnClose = findViewById(R.id.btnClose);
+        if (btnClose != null) btnClose.setOnClickListener(v -> finish());
+        android.widget.TextView txtHeaderTitle = findViewById(R.id.txtHeaderTitle);
 
         edtName = findViewById(R.id.edtName);
         edtHost = findViewById(R.id.edtHost);
@@ -186,17 +187,17 @@ public class ProfileEditActivity extends AppCompatActivity {
         Intent intent = getIntent();
 
         if (id > 0) {
-            tb.setTitle("แก้ไขโปรไฟล์");
+            if (txtHeaderTitle != null) txtHeaderTitle.setText("แก้ไขโปรไฟล์");
             viewModel.getRepo().getById(id, loaded -> {
                 if (loaded == null) { finish(); return; }
                 existing = loaded;
                 bindProfile(loaded);
             });
         } else if (intent.hasExtra(EXTRA_PREFILL_HOST)) {
-            tb.setTitle("เพิ่มโปรไฟล์ (จาก Clipboard)");
+            if (txtHeaderTitle != null) txtHeaderTitle.setText("เพิ่มโปรไฟล์ (จาก Clipboard)");
             prefillFromIntent(intent);
         } else {
-            tb.setTitle("เพิ่มโปรไฟล์");
+            if (txtHeaderTitle != null) txtHeaderTitle.setText("เพิ่มโปรไฟล์");
             fillDefaults();
         }
 
