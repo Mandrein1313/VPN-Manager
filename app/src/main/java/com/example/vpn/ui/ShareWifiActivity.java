@@ -75,9 +75,13 @@ public class ShareWifiActivity extends AppCompatActivity {
 
         prefs = new VpnPrefs(this);
 
-        MaterialToolbar tb = findViewById(R.id.toolbar);
-        tb.setNavigationOnClickListener(v -> finish());
-        setSupportActionBar(tb);
+        android.view.View btnClose = findViewById(R.id.btnClose);
+        if (btnClose != null) {
+            btnClose.setOnClickListener(v -> finish());
+        } else {
+            com.google.android.material.appbar.MaterialToolbar tb = findViewById(R.id.toolbar);
+            if (tb != null) tb.setNavigationOnClickListener(v -> finish());
+        }
 
         switchShare = findViewById(R.id.switchShare);
         switchAuth = findViewById(R.id.switchAuth);

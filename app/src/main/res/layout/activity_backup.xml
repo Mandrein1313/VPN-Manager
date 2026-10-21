@@ -6,15 +6,69 @@
     android:background="@color/window_background"
     android:orientation="vertical">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- ===== Modern header ===== -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/toolbar_background"
-        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
-        app:navigationIconTint="@color/toolbar_icon"
-        app:title="สำรอง/กู้คืนข้อมูล"
-        app:titleTextColor="@color/toolbar_title" />
+        android:layout_height="wrap_content"
+        android:background="@color/window_background"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp">
+
+            <ImageButton
+                android:id="@+id/btnClose"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_close_circle"
+                android:contentDescription="ปิด"
+                android:padding="8dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_close_24" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="สำรอง / กู้คืน"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Backup &amp; Restore"
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#2A2A2A" />
+        <View
+            android:layout_width="48dp"
+            android:layout_height="2dp"
+            android:layout_marginStart="16dp"
+            android:background="#00C853" />
+    </LinearLayout>
+
 
     <ScrollView
         android:layout_width="match_parent"

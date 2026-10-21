@@ -72,8 +72,13 @@ public class BackupActivity extends AppCompatActivity {
 
         backupManager = new BackupManager(this);
 
-        MaterialToolbar tb = findViewById(R.id.toolbar);
-        tb.setNavigationOnClickListener(v -> finish());
+        android.view.View btnClose = findViewById(R.id.btnClose);
+        if (btnClose != null) {
+            btnClose.setOnClickListener(v -> finish());
+        } else {
+            com.google.android.material.appbar.MaterialToolbar tb = findViewById(R.id.toolbar);
+            if (tb != null) tb.setNavigationOnClickListener(v -> finish());
+        }
 
         txtProfileCount = findViewById(R.id.txtProfileCount);
         txtBypassCount = findViewById(R.id.txtBypassCount);
@@ -177,7 +182,7 @@ public class BackupActivity extends AppCompatActivity {
 
         Intent share = new Intent(Intent.ACTION_SEND);
         share.setType("text/plain");
-        share.putExtra(Intent.EXTRA_SUBJECT, "Tunnel Mate Backup");
+        share.putExtra(Intent.EXTRA_SUBJECT, "VPN Manager Backup");
         share.putExtra(Intent.EXTRA_TEXT, json);
         startActivity(Intent.createChooser(share, "แชร์ Backup"));
     }
