@@ -48,7 +48,7 @@
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Scroll"
-            android:src="@android:drawable/arrow_down_float"
+            android:src="@drawable/ic_scroll_down"
             app:tint="@color/accent_green" />
     </LinearLayout>
 

@@ -820,10 +820,6 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             if (logFragment != null) logFragment.confirmClearLog();
             return true;
         }
-        if (id == R.id.action_log_scroll) {
-            if (logFragment != null) logFragment.scrollLogToBottom();
-            return true;
-        }
         return super.onOptionsItemSelected(item);
     }
 

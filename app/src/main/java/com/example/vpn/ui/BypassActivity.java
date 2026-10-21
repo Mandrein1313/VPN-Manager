@@ -62,9 +62,14 @@ public class BypassActivity extends AppCompatActivity
         prefs = new BypassPrefs(this);
         hideSystem = prefs.isHideSystemApps();
 
-        MaterialToolbar tb = findViewById(R.id.toolbar);
-        tb.setNavigationOnClickListener(v -> finish());
-        setSupportActionBar(tb);
+        android.view.View btnClose = findViewById(R.id.btnClose);
+        if (btnClose != null) {
+            btnClose.setOnClickListener(v -> finish());
+        }
+        android.view.View btnMore = findViewById(R.id.btnMore);
+        if (btnMore != null) {
+            btnMore.setOnClickListener(v -> showBypassMenu(v));
+        }
 
         recycler = findViewById(R.id.recyclerApps);
         loadingView = findViewById(R.id.loadingView);
@@ -347,6 +352,23 @@ public class BypassActivity extends AppCompatActivity
     // Menu
     // ============================================================
     @Override
+
+    private void showBypassMenu(android.view.View anchor) {
+        android.widget.PopupMenu pm = new android.widget.PopupMenu(this, anchor);
+        pm.inflate(R.menu.menu_bypass);
+        android.view.Menu menu = pm.getMenu();
+        android.view.MenuItem hideSys = menu.findItem(R.id.action_hide_system);
+        if (hideSys != null) {
+            hideSys.setChecked(hideSystem);
+        }
+        android.view.MenuItem onlyBy = menu.findItem(R.id.action_show_bypassed_only);
+        if (onlyBy != null) {
+            onlyBy.setChecked(showBypassedOnly);
+        }
+        pm.setOnMenuItemClickListener(this::onOptionsItemSelected);
+        pm.show();
+    }
+
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_bypass, menu);
         MenuItem hideItem = menu.findItem(R.id.action_hide_system);
