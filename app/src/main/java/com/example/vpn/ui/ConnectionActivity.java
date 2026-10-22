@@ -685,16 +685,6 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     } else if (id == R.id.nav_profiles) {
         openProfilePicker();
 
-    } else if (id == R.id.nav_auto_select) {
-            autoSelectLowestPing();
-        } else if (id == R.id.nav_chart) {
-        viewPager.setCurrentItem(1, true);
-        setBottomNavSelected(1);
-
-    } else if (id == R.id.nav_log) {
-        viewPager.setCurrentItem(2, true);
-        setBottomNavSelected(2);
-
     } else if (id == R.id.nav_crash) {
         startActivity(new Intent(this, CrashLogActivity.class));
 

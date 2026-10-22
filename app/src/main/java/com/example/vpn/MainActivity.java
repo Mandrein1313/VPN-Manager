@@ -1196,8 +1196,6 @@ public class MainActivity extends AppCompatActivity
             // อยู่หน้า CONFIGS อยู่แล้ว
         } else if (id == R.id.nav_backup) {
             startActivity(new Intent(this, BackupActivity.class));
-        } else if (id == R.id.nav_log) {
-            openConnectionLogTab();
         } else if (id == R.id.nav_crash) {
             startActivity(new Intent(this, CrashLogActivity.class));
         } else if (id == R.id.nav_bypass) {

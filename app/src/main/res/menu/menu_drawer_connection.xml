@@ -4,64 +4,54 @@
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_home"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_nav_home"
             android:title="หน้าแรก" />
 
         <item
             android:id="@+id/nav_profiles"
-            android:icon="@android:drawable/ic_menu_sort_by_size"
+            android:icon="@drawable/ic_nav_profiles"
             android:title="จัดการโปรไฟล์" />
-        <item
-            android:id="@+id/nav_auto_select"
-            android:icon="@android:drawable/ic_menu_compass"
-            android:title="Auto Select (ping ต่ำสุด)" />
     </group>
 
     <item android:title="เครื่องมือ">
         <menu>
-        <item
-    android:id="@+id/nav_backup"
-    android:icon="@android:drawable/ic_menu_save"
-    android:title="สำรอง/กู้คืน" />
             <item
-                android:id="@+id/nav_log"
-                android:icon="@android:drawable/ic_menu_info_details"
-                android:title="Log (แท็บ LOG)" />
+                android:id="@+id/nav_backup"
+                android:icon="@drawable/ic_nav_backup"
+                android:title="สำรอง/กู้คืน" />
 
             <item
                 android:id="@+id/nav_crash"
-                android:icon="@android:drawable/ic_menu_report_image"
+                android:icon="@drawable/ic_nav_crash"
                 android:title="Crash Log" />
-           <item  
+
+            <item
                 android:id="@+id/nav_bypass"
-                android:icon="@android:drawable/ic_menu_manage"
+                android:icon="@drawable/ic_nav_bypass"
                 android:title="Bypass Mode" />
 
             <item
-                 android:id="@+id/nav_share_wifi"
-                 android:icon="@android:drawable/ic_menu_share"
-                 android:title="แชร์ VPN (Wi‑Fi)" />
+                android:id="@+id/nav_share_wifi"
+                android:icon="@drawable/ic_nav_share"
+                android:title="แชร์ VPN (Wi‑Fi)" />
         </menu>
     </item>
 
     <item android:title="อื่นๆ">
         <menu>
-        <item
-    android:id="@+id/nav_theme"
-    android:icon="@android:drawable/ic_menu_day"
-    android:title="เปลี่ยนธีม" />
-    <item
-    android:id="@+id/nav_chart"
-    android:icon="@android:drawable/ic_menu_gallery"
-    android:title="กราฟการใช้งาน" />
+            <item
+                android:id="@+id/nav_theme"
+                android:icon="@drawable/ic_nav_theme"
+                android:title="เปลี่ยนธีม" />
+
             <item
                 android:id="@+id/nav_about"
-                android:icon="@android:drawable/ic_menu_help"
+                android:icon="@drawable/ic_nav_about"
                 android:title="เกี่ยวกับ" />
 
             <item
                 android:id="@+id/nav_exit"
-                android:icon="@android:drawable/ic_lock_power_off"
+                android:icon="@drawable/ic_nav_exit"
                 android:title="ออกจากแอป" />
         </menu>
     </item>
