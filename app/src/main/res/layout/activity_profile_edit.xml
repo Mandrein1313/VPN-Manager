@@ -751,7 +751,7 @@
                         android:padding="16dp">
 
                         <TextView
-ปีandroid:layout_width="wrap_content"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="V2Ray / VLESS"
                             android:textColor="#00E676"
