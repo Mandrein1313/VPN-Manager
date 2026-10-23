@@ -30,7 +30,6 @@
     <color name="tab_selected">#00A854</color>
     <color name="tab_unselected">#8A9A90</color>
     <color name="card_background">#FFFFFF</color>
-    <color name="card_stroke">#D7E6DC</color>
     <color name="bottom_nav_background">#EAF4ED</color>
     <color name="bottom_nav_icon">#5C6B62</color>
     <color name="bottom_nav_icon_active">#00A854</color>
