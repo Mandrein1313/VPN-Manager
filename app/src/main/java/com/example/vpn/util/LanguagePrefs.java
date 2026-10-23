@@ -11,7 +11,8 @@ import java.util.Locale;
 
 /**
  * ภาษาแอป: ไทย / English
- * เรียก wrap() ใน attachBaseContext และ apply ใน Application
+ * เรียก wrap() ใน Activity.attachBaseContext เท่านั้น
+ * (อย่า wrap Application.attachBaseContext — เสี่ยง NPE getApplicationContext)
  */
 public final class LanguagePrefs {
 
@@ -24,8 +25,21 @@ public final class LanguagePrefs {
     private final SharedPreferences prefs;
 
     public LanguagePrefs(Context context) {
-        prefs = context.getApplicationContext()
-                .getSharedPreferences(PREF, Context.MODE_PRIVATE);
+        Context store = safeAppContext(context);
+        prefs = store.getSharedPreferences(PREF, Context.MODE_PRIVATE);
+    }
+
+    /** กัน NPE ตอน Application ยัง attach ไม่เสร็จ */
+    private static Context safeAppContext(Context context) {
+        if (context == null) {
+            throw new IllegalArgumentException("context is null");
+        }
+        try {
+            Context app = context.getApplicationContext();
+            if (app != null) return app;
+        } catch (Exception ignored) {
+        }
+        return context;
     }
 
     public String getLanguage() {
@@ -45,11 +59,20 @@ public final class LanguagePrefs {
 
     /** ห่อ Context ให้ใช้ locale ที่เลือก — เรียกใน Activity.attachBaseContext */
     public static Context wrap(Context context) {
-        String lang = new LanguagePrefs(context).getLanguage();
-        return updateResources(context, lang);
+        if (context == null) return null;
+        try {
+            String lang = new LanguagePrefs(context).getLanguage();
+            return updateResources(context, lang);
+        } catch (Exception e) {
+            // อย่าทำให้แอปเด้งตอนเปิด — ใช้ context เดิม
+            return context;
+        }
     }
 
     public static Context updateResources(Context context, String language) {
+        if (context == null) return null;
+        if (language == null || language.isEmpty()) language = LANG_TH;
+
         Locale locale = new Locale(language);
         Locale.setDefault(locale);
 
@@ -60,7 +83,9 @@ public final class LanguagePrefs {
             config.setLocale(locale);
             return context.createConfigurationContext(config);
         } else {
+            //noinspection deprecation
             config.locale = locale;
+            //noinspection deprecation
             res.updateConfiguration(config, res.getDisplayMetrics());
             return context;
         }

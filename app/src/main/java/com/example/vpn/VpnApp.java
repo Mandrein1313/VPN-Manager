@@ -3,24 +3,38 @@ package com.example.vpn;
 import android.app.Application;
 import android.content.Context;
 
+import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.LanguagePrefs;
 import com.example.vpn.util.ThemePrefs;
 
 /**
- * ใช้ธีม + ภาษาตั้งแต่ process เริ่ม — ก่อน Activity ใด ๆ
+ * Application — ธีม + ภาษา
+ * สำคัญ: อย่า LanguagePrefs.wrap() ใน attachBaseContext ของ Application
+ * (getApplicationContext ยังไม่พร้อม → NPE ตอนเปิดแอป)
  */
 public class VpnApp extends Application {
 
     @Override
     protected void attachBaseContext(Context base) {
-        super.attachBaseContext(LanguagePrefs.wrap(base));
+        // ใช้ base ตรง ๆ — locale จะถูก apply ใน Activity.attachBaseContext
+        super.attachBaseContext(base);
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        new ThemePrefs(this).apply();
-        // locale ถูก apply แล้วใน attachBaseContext
-        LanguagePrefs.updateResources(this, new LanguagePrefs(this).getLanguage());
+        try {
+            CrashHandler.install(this);
+        } catch (Exception ignored) {
+        }
+        try {
+            new ThemePrefs(this).apply();
+        } catch (Exception ignored) {
+        }
+        try {
+            // ตั้ง default locale ของ process (Activity ยัง wrap อีกชั้น)
+            LanguagePrefs.updateResources(this, new LanguagePrefs(this).getLanguage());
+        } catch (Exception ignored) {
+        }
     }
 }
