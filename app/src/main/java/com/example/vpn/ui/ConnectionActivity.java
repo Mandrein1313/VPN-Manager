@@ -217,21 +217,21 @@ public class ConnectionActivity extends AppCompatActivity
 
             switch (status.state) {
                 case CONNECTED:
-                    updateStatusText("[ CONNECTED ]", 0xFF00E676);
+                    updateStatusText(getString(R.string.status_connected), 0xFF00E676);
                     break;
                 case ERROR:
-                    updateStatusText("[ ERROR ]", 0xFFEF5350);
+                    updateStatusText(getString(R.string.status_error), 0xFFEF5350);
                     break;
                 case CONNECTING_SSH:
                 case SSH_CONNECTED:
                 case SOCKS_READY:
                 case TUN2SOCKS_READY:
-                    updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+                    updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
                     break;
                 case STOPPED:
                 case IDLE:
                 default:
-                    updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+                    updateStatusText(getString(R.string.status_not_connected), 0xFF00E676);
                     break;
             }
 
@@ -412,7 +412,7 @@ public class ConnectionActivity extends AppCompatActivity
                 showConnectingUi(false);
                 if (btn != null) btn.forceSetState(ConnectButtonView.State.IDLE);
             updateFabFromState(ConnectButtonView.State.IDLE);
-                updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+                updateStatusText(getString(R.string.status_not_connected), 0xFF00E676);
                 stopVpnService();
                 return;
             }
@@ -436,13 +436,13 @@ public class ConnectionActivity extends AppCompatActivity
             mainFragment.getConnectButton()
                     .forceSetState(ConnectButtonView.State.CONNECTING);
             updateFabFromState(ConnectButtonView.State.CONNECTING);
-            updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+            updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
         } else {
             // ต้องเคลียร์ส้มด้วย — กันค้าง CONNECTING แต่ข้อความเป็น NOT CONNECTED
             mainFragment.getConnectButton()
                     .forceSetState(ConnectButtonView.State.IDLE);
             updateFabFromState(ConnectButtonView.State.IDLE);
-            updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+            updateStatusText(getString(R.string.status_not_connected), 0xFF00E676);
         }
     }
 
@@ -467,7 +467,7 @@ public class ConnectionActivity extends AppCompatActivity
 
     private void refreshAdFreeCard() {
         if (mainFragment != null) {
-            mainFragment.setAdFreeLabel(adFree().getCardLabel());
+            mainFragment.setAdFreeLabel(adFree().getCardLabel(this));
         }
     }
 
@@ -519,8 +519,22 @@ public class ConnectionActivity extends AppCompatActivity
     // ============================================================
     private void updateStatusText(String text, int color) {
         if (mainFragment == null || mainFragment.getTxtStatus() == null) return;
-        mainFragment.getTxtStatus().setText(text);
-        mainFragment.getTxtStatus().setTextColor(color);
+        android.widget.TextView tv = mainFragment.getTxtStatus();
+        tv.setText(text);
+        tv.setTextColor(color);
+        // soft chip tint ตามสีสถานะ
+        try {
+            android.graphics.drawable.GradientDrawable bg =
+                    new android.graphics.drawable.GradientDrawable();
+            bg.setCornerRadius(48f);
+            int a = (color & 0x00FFFFFF) | 0x22000000;
+            bg.setColor(a);
+            bg.setStroke(2, (color & 0x00FFFFFF) | 0x55000000);
+            tv.setBackground(bg);
+            int padH = (int) (18 * getResources().getDisplayMetrics().density);
+            int padV = (int) (8 * getResources().getDisplayMetrics().density);
+            tv.setPadding(padH, padV, padH, padV);
+        } catch (Exception ignored) {}
     }
 
     private void updateConfigCard(String name, String left, String right) {
@@ -589,7 +603,7 @@ public class ConnectionActivity extends AppCompatActivity
                         if (cur != ConnectButtonView.State.CONNECTING) {
                             btn.forceSetState(ConnectButtonView.State.CONNECTING);
             updateFabFromState(ConnectButtonView.State.CONNECTING);
-                            updateStatusText("[ CONNECTING... ]", 0xFFFFA726);
+                            updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
                         }
                         return;
                     default:
@@ -605,7 +619,7 @@ public class ConnectionActivity extends AppCompatActivity
                 btn.forceSetState(ConnectButtonView.State.CONNECTED);
             updateFabFromState(ConnectButtonView.State.CONNECTED);
             }
-            updateStatusText("[ CONNECTED ]", 0xFF00E676);
+            updateStatusText(getString(R.string.status_connected), 0xFF00E676);
             if (sessionStartTime == 0L) {
                 sessionStartTime = System.currentTimeMillis();
             }
@@ -641,7 +655,7 @@ public class ConnectionActivity extends AppCompatActivity
             btn.forceSetState(ConnectButtonView.State.IDLE);
             updateFabFromState(ConnectButtonView.State.IDLE);
         }
-        updateStatusText("[ NOT CONNECTED ]", 0xFF00E676);
+        updateStatusText(getString(R.string.status_not_connected), 0xFF00E676);
         stopStatsUpdates();
         sessionStartTime = 0L;
     }
@@ -655,8 +669,8 @@ public class ConnectionActivity extends AppCompatActivity
             if (isFinishing() || isDestroyed()) return;
             if (list == null || list.isEmpty()) {
                 targetProfile = null;
-                updateStatusText("[ NO PROFILE ]", 0xFF00E676);
-                updateConfigCard("Not Set", "---", "---");
+                updateStatusText(getString(R.string.status_no_profile), 0xFF00E676);
+                updateConfigCard(getString(R.string.profile_not_set), "---", "---");
                 if (mainFragment != null) {
                     try { mainFragment.bindActiveProfile(null, null); } catch (Exception ignored) {}
                 }
@@ -717,9 +731,9 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
     } else if (id == R.id.nav_exit) {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("ออกจากแอป?")
-                .setMessage("คุณต้องการปิดแอปทั้งหมดหรือไม่?")
-                .setPositiveButton("ออก", (d, w) -> {
+                .setTitle(R.string.exit_confirm_title)
+                .setMessage(R.string.exit_confirm_message)
+                .setPositiveButton(R.string.nav_exit, (d, w) -> {
                     stopVpnService();
                     finishAffinity();
                 })
@@ -732,12 +746,9 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 }
     private void showAboutDialog() {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("เกี่ยวกับ VPN Manager")
-                .setMessage("VPN Manager v1.0\n\n" +
-                        "แอป VPN ที่รองรับ SSH Tunnel\n" +
-                        "และหลาย protocol\n\n" +
-                        "สร้างด้วย ❤️ ในประเทศไทย")
-                .setPositiveButton("ตกลง", null)
+                .setTitle(R.string.about_title)
+                .setMessage(R.string.about_message)
+                .setPositiveButton(R.string.ok, null)
                 .show();
     }
 
@@ -1126,7 +1137,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 mainFragment.getConnectButton()
                         .forceSetState(ConnectButtonView.State.ERROR);
             }
-            updateStatusText("[ ERROR ]", 0xFFEF5350);
+            updateStatusText(getString(R.string.status_error), 0xFFEF5350);
             StyledToast.error(this, "ผิดพลาด: " + e.getMessage());
         }
     }

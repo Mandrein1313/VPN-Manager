@@ -58,17 +58,22 @@ public final class AdFreePrefs {
         return Math.max(0L, left);
     }
 
-    /** ข้อความสั้น ๆ บนการ์ด เช่น "12 นาที" / "0 pts" */
-    public String getCardLabel() {
+    /** ข้อความสั้น ๆ บนการ์ด — ตามภาษาแอป */
+    public String getCardLabel(Context ctx) {
         if (isAdFreeActive()) {
             long min = (getRemainingMs() + 59_999L) / 60_000L; // ปัดขึ้น
             if (min >= 60) {
                 long h = min / 60;
                 long m = min % 60;
-                return h + " ชม. " + m + " น.";
+                return ctx.getString(com.example.vpn.R.string.adfree_hours_mins, h, m);
             }
-            return min + " นาที";
+            return ctx.getString(com.example.vpn.R.string.adfree_minutes, min);
         }
+        return ctx.getString(com.example.vpn.R.string.pts_format, getPoints());
+    }
+
+    /** @deprecated ใช้ getCardLabel(Context) */
+    public String getCardLabel() {
         return getPoints() + " pts";
     }
 

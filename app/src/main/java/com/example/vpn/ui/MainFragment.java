@@ -123,7 +123,7 @@ public class MainFragment extends Fragment {
      */
     public void bindActiveProfile(@Nullable Profile p, @Nullable Integer latencyMs) {
         if (p == null) {
-            if (txtConfigName != null) txtConfigName.setText("Not Set");
+            if (txtConfigName != null) txtConfigName.setText(R.string.profile_not_set);
             if (txtConfigLeft != null) txtConfigLeft.setText("---");
             if (imgConfigFlag != null) CountryFlag.applyTo(imgConfigFlag, null, null);
             if (txtConfigProtocol != null) txtConfigProtocol.setText("---");

@@ -83,4 +83,39 @@
     <string name="title_profile_edit">แก้ไขโปรไฟล์</string>
     <string name="title_profile_add">เพิ่มโปรไฟล์</string>
     <string name="title_profile_subtitle">SSH / Proxy / V2Ray</string>
+
+    <string name="ad_free_time">เวลาปลอดโฆษณา</string>
+    <string name="pts">คะแนน</string>
+    <string name="not_connected_bracket">[ ยังไม่เชื่อมต่อ ]</string>
+    <string name="connected_bracket">[ เชื่อมต่อแล้ว ]</string>
+    <string name="share_section_1">1. เปิดแชร์</string>
+    <string name="share_section_2">2. ที่อยู่ Proxy</string>
+    <string name="share_section_3">3. ความปลอดภัย (แนะนำ)</string>
+    <string name="share_section_4">4. ส่งค่าไปเครื่องลูก</string>
+    <string name="share_section_5">5. วิธีใช้</string>
+    <string name="share_enable">เปิดแชร์ SOCKS5 ให้เครื่องอื่น</string>
+    <string name="share_auth">รหัสผ่าน SOCKS5</string>
+    <string name="share_auth_hint">กันคนในวง Wi‑Fi ใช้ Proxy โดยไม่ได้รับอนุญาต</string>
+    <string name="btn_copy">คัดลอก</string>
+    <string name="btn_refresh_ip">รีเฟรช IP</string>
+    <string name="btn_save_auth">บันทึกรหัส (แล้ว Reconnect)</string>
+    <string name="clients_connected">Client ที่เชื่อมอยู่: %1$d</string>
+    <string name="log_empty">ยังไม่มี Log</string>
+    <string name="log_empty_hint">เมื่อเชื่อมต่อ VPN รายละเอียดจะแสดงที่นี่</string>
+    <string name="bypass_count">Bypass: %1$d แอป</string>
+    <string name="search_apps">ค้นหาแอป</string>
+    <string name="loading_apps">กำลังโหลดรายชื่อแอป…</string>
+    <string name="bypass_footer">แอปที่เลือกจะใช้อินเทอร์เน็ตโดยตรง ไม่ผ่าน VPN</string>
+
+
+    <string name="profile_not_set">ยังไม่ได้ตั้งค่า</string>
+    <string name="pts_format">%1$d คะแนน</string>
+    <string name="status_error">[ ผิดพลาด ]</string>
+    <string name="status_no_profile">[ ไม่มีโปรไฟล์ ]</string>
+
+    <string name="pts_zero">0 คะแนน</string>
+
+    <string name="adfree_minutes">%1$d นาที</string>
+    <string name="adfree_hours_mins">%1$d ชม. %2$d น.</string>
 </resources>
+ 

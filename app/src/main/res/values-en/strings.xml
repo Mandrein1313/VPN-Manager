@@ -71,7 +71,7 @@
     <string name="language_english">English</string>
     <string name="language_changed">Language updated</string>
     <string name="about_title">About Tunnel Mate</string>
-    <string name="about_message">Tunnel Mate (VPN Manager)\nSSH / Proxy / V2Ray\nVersion 1.0</string>
+    <string name="about_message">Tunnel Mate (VPN Manager)\nSupports SSH / Proxy / V2Ray\nVersion 1.0</string>
 
     <!-- Share / Backup / Bypass titles -->
     <string name="title_share_vpn">Share VPN</string>
@@ -83,4 +83,38 @@
     <string name="title_profile_edit">Edit profile</string>
     <string name="title_profile_add">Add profile</string>
     <string name="title_profile_subtitle">SSH / Proxy / V2Ray</string>
+
+    <string name="ad_free_time">Ad-free time</string>
+    <string name="pts">pts</string>
+    <string name="not_connected_bracket">[ NOT CONNECTED ]</string>
+    <string name="connected_bracket">[ CONNECTED ]</string>
+    <string name="share_section_1">1. Enable sharing</string>
+    <string name="share_section_2">2. Proxy address</string>
+    <string name="share_section_3">3. Security (recommended)</string>
+    <string name="share_section_4">4. Send to client devices</string>
+    <string name="share_section_5">5. How to use</string>
+    <string name="share_enable">Share SOCKS5 with other devices</string>
+    <string name="share_auth">SOCKS5 password</string>
+    <string name="share_auth_hint">Prevent others on Wi‑Fi from using your proxy</string>
+    <string name="btn_copy">Copy</string>
+    <string name="btn_refresh_ip">Refresh IP</string>
+    <string name="btn_save_auth">Save password (then Reconnect)</string>
+    <string name="clients_connected">Connected clients: %1$d</string>
+    <string name="log_empty">No logs yet</string>
+    <string name="log_empty_hint">Details appear here when VPN is connected</string>
+    <string name="bypass_count">Bypass: %1$d apps</string>
+    <string name="search_apps">Search apps</string>
+    <string name="loading_apps">Loading app list…</string>
+    <string name="bypass_footer">Selected apps use the internet directly, not through VPN</string>
+
+
+    <string name="profile_not_set">Not Set</string>
+    <string name="pts_format">%1$d pts</string>
+    <string name="status_error">[ ERROR ]</string>
+    <string name="status_no_profile">[ NO PROFILE ]</string>
+
+    <string name="pts_zero">0 pts</string>
+
+    <string name="adfree_minutes">%1$d min</string>
+    <string name="adfree_hours_mins">%1$d h %2$d m</string>
 </resources>

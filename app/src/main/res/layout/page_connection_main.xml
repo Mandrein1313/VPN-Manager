@@ -22,19 +22,28 @@
             android:layout_height="0dp"
             android:visibility="gone" />
 
-        <!-- ===== Status ===== -->
-        <TextView
-            android:id="@+id/txtStatus"
+        <!-- ===== Status (chip) ===== -->
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:fontFamily="sans-serif-medium"
-            android:gravity="center"
-            android:letterSpacing="0.12"
-            android:text="[ NOT CONNECTED ]"
-            android:textColor="@color/accent_green"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="22dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/txtStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_status_chip"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:letterSpacing="0.08"
+                android:minWidth="160dp"
+                android:text="@string/status_not_connected"
+                android:textColor="@color/accent_green"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <!-- ===== Ad-free ===== -->
         <LinearLayout
@@ -63,7 +72,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="Ad-free time"
+                android:text="@string/ad_free_time"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium" />
@@ -72,7 +81,7 @@
                 android:id="@+id/txtAdFreeTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0 pts"
+                android:text="@string/pts_zero"
                 android:textColor="@color/accent_green"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -103,7 +112,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.1"
-                android:text="ACTIVE CONFIGURATION"
+                android:text="@string/active_configuration"
                 android:textAllCaps="true"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp"
@@ -145,7 +154,7 @@
                         android:layout_height="wrap_content"
                         android:ellipsize="end"
                         android:maxLines="1"
-                        android:text="Not Set"
+                        android:text="@string/profile_not_set"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -230,7 +239,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.08"
-                        android:text="DOWNLINK"
+                        android:text="@string/downlink"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"
                         android:fontFamily="sans-serif-medium" />
@@ -256,7 +265,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.08"
-                        android:text="UPLINK"
+                        android:text="@string/uplink"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"
                         android:fontFamily="sans-serif-medium" />
