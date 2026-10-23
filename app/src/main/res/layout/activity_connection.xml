@@ -202,7 +202,7 @@
                 android:layout_height="wrap_content"
                 android:contentDescription="เชื่อมต่อ / ตัดการเชื่อมต่อ"
                 android:src="@android:drawable/ic_lock_power_off"
-                app:backgroundTint="#6B7280"
+                app:backgroundTint="@color/connect_btn_idle"
                 app:borderWidth="0dp"
                 app:elevation="12dp"
                 app:fabCustomSize="56dp"

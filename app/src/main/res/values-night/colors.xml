@@ -38,6 +38,7 @@
     <color name="text_primary">#E4E2E9</color>
     <color name="text_secondary">#B0BEC5</color>
     <color name="text_muted">#888888</color>
+    <color name="card_stroke">#2A2A2A</color>
     <color name="divider">#2C2C2C</color>
     <color name="status_bar">#121212</color>
 
@@ -53,6 +54,7 @@
     <color name="proto_wireguard">#81C784</color>
     <color name="proto_shadowsocks">#FFB74D</color>
 
+    <color name="accent_green_soft">#1B3D2A</color>
     <color name="accent_green">#00E676</color>
     <color name="connect_btn_idle">#6B7280</color>
 </resources>
