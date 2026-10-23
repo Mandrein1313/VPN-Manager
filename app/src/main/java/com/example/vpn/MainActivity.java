@@ -62,10 +62,17 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.example.vpn.util.LanguagePrefs;
 
 public class MainActivity extends AppCompatActivity
         implements ProfileAdapter.Listener,
         NavigationView.OnNavigationItemSelectedListener {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(LanguagePrefs.wrap(newBase));
+    }
+
 
     public static final String EXTRA_PROFILE_ID = "profile_id";
     public static final int REQ_EDIT = 100;
@@ -1188,7 +1195,27 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+    
+    private void showLanguageDialog() {
+        LanguagePrefs lp = new LanguagePrefs(this);
+        final String[] codes = { LanguagePrefs.LANG_TH, LanguagePrefs.LANG_EN };
+        final String[] names = {
+                getString(R.string.language_thai),
+                getString(R.string.language_english)
+        };
+        int checked = lp.isEnglish() ? 1 : 0;
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.language_title)
+                .setSingleChoiceItems(names, checked, (d, which) -> {
+                    lp.setLanguage(codes[which]);
+                    d.dismiss();
+                    recreate();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.nav_home) {
             finish(); // กลับหน้าหลัก
@@ -1203,8 +1230,9 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.nav_share_wifi) {
             startActivity(new Intent(this, ShareWifiActivity.class));
         } else if (id == R.id.nav_theme) {
-            // เปิด theme จากหน้าหลักถ้ามี — ตอนนี้แค่ปิด drawer
-            StyledToast.info(this, "เปลี่ยนธีมได้จากหน้าแรก");
+            StyledToast.info(this, getString(R.string.theme_title));
+        } else if (id == R.id.nav_language) {
+            showLanguageDialog();
         } else if (id == R.id.nav_about) {
             new MaterialAlertDialogBuilder(this)
                     .setTitle("เกี่ยวกับ VPN Manager")

@@ -5,54 +5,59 @@
         <item
             android:id="@+id/nav_home"
             android:icon="@drawable/ic_nav_home"
-            android:title="หน้าแรก" />
+            android:title="@string/nav_home" />
 
         <item
             android:id="@+id/nav_profiles"
             android:icon="@drawable/ic_nav_profiles"
-            android:title="จัดการโปรไฟล์" />
+            android:title="@string/nav_profiles" />
     </group>
 
-    <item android:title="เครื่องมือ">
+    <item android:title="@string/nav_tools">
         <menu>
             <item
                 android:id="@+id/nav_backup"
                 android:icon="@drawable/ic_nav_backup"
-                android:title="สำรอง/กู้คืน" />
+                android:title="@string/nav_backup" />
 
             <item
                 android:id="@+id/nav_crash"
                 android:icon="@drawable/ic_nav_crash"
-                android:title="Crash Log" />
+                android:title="@string/nav_crash" />
 
             <item
                 android:id="@+id/nav_bypass"
                 android:icon="@drawable/ic_nav_bypass"
-                android:title="Bypass Mode" />
+                android:title="@string/nav_bypass" />
 
             <item
                 android:id="@+id/nav_share_wifi"
                 android:icon="@drawable/ic_nav_share"
-                android:title="แชร์ VPN (Wi‑Fi)" />
+                android:title="@string/nav_share_wifi" />
         </menu>
     </item>
 
-    <item android:title="อื่นๆ">
+    <item android:title="@string/nav_other">
         <menu>
             <item
                 android:id="@+id/nav_theme"
                 android:icon="@drawable/ic_nav_theme"
-                android:title="เปลี่ยนธีม" />
+                android:title="@string/nav_theme" />
+
+            <item
+                android:id="@+id/nav_language"
+                android:icon="@drawable/ic_nav_language"
+                android:title="@string/nav_language" />
 
             <item
                 android:id="@+id/nav_about"
                 android:icon="@drawable/ic_nav_about"
-                android:title="เกี่ยวกับ" />
+                android:title="@string/nav_about" />
 
             <item
                 android:id="@+id/nav_exit"
                 android:icon="@drawable/ic_nav_exit"
-                android:title="ออกจากแอป" />
+                android:title="@string/nav_exit" />
         </menu>
     </item>
 

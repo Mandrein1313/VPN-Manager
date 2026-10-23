@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tunnel Mate</string>
+    <string name="navigation_drawer_open">เปิดเมนู</string>
+    <string name="navigation_drawer_close">ปิดเมนู</string>
+
+    <!-- Drawer -->
+    <string name="nav_header_title">จัดการ VPN ทั้งหมด</string>
+    <string name="nav_home">หน้าแรก</string>
+    <string name="nav_profiles">จัดการโปรไฟล์</string>
+    <string name="nav_tools">เครื่องมือ</string>
+    <string name="nav_backup">สำรอง/กู้คืน</string>
+    <string name="nav_crash">Crash Log</string>
+    <string name="nav_bypass">Bypass Mode</string>
+    <string name="nav_share_wifi">แชร์ VPN (Wi‑Fi)</string>
+    <string name="nav_other">อื่นๆ</string>
+    <string name="nav_theme">เปลี่ยนธีม</string>
+    <string name="nav_language">ภาษา / Language</string>
+    <string name="nav_about">เกี่ยวกับ</string>
+    <string name="nav_exit">ออกจากแอป</string>
+
+    <!-- Connection -->
+    <string name="status_not_connected">[ ยังไม่เชื่อมต่อ ]</string>
+    <string name="status_connected">[ เชื่อมต่อแล้ว ]</string>
+    <string name="status_connecting">[ กำลังเชื่อมต่อ… ]</string>
+    <string name="status_disconnecting">[ กำลังตัดการเชื่อมต่อ… ]</string>
+    <string name="active_configuration">การตั้งค่าที่ใช้งาน</string>
+    <string name="downlink">ดาวน์ลิงก์</string>
+    <string name="uplink">อัปลิงก์</string>
+    <string name="tab_main">MAIN</string>
+    <string name="tab_chart">CHART</string>
+    <string name="tab_log">LOG</string>
+    <string name="nav_bottom_home">Home</string>
+    <string name="nav_bottom_chart">CHART</string>
+    <string name="nav_bottom_log">Log</string>
+    <string name="nav_bottom_configs">CONFIGS</string>
+    <string name="connect">เชื่อมต่อ</string>
+    <string name="disconnect">ตัดการเชื่อมต่อ</string>
+
+    <!-- Configs -->
+    <string name="title_configs">CONFIGS</string>
+    <string name="search_hint">ค้นหาชื่อ / host…</string>
+    <string name="btn_ping">Ping</string>
+    <string name="btn_best_ping">ดีสุด</string>
+    <string name="btn_sub">Sub</string>
+    <string name="empty_profiles">ยังไม่มีโปรไฟล์</string>
+    <string name="empty_profiles_hint">ยังไม่ได้ตั้งค่าคอนฟิก\nกดปุ่ม + มุมล่างขวาเพื่อเพิ่ม</string>
+    <string name="menu_remove_dup">ลบโปรไฟล์ชื่อซ้ำ</string>
+    <string name="menu_export_all">ส่งออกทั้งหมด</string>
+    <string name="menu_import">นำเข้า</string>
+
+    <!-- Common -->
+    <string name="ok">ตกลง</string>
+    <string name="cancel">ยกเลิก</string>
+    <string name="save">บันทึก</string>
+    <string name="delete">ลบ</string>
+    <string name="edit">แก้ไข</string>
+    <string name="share">แชร์</string>
+    <string name="close">ปิด</string>
+    <string name="loading">กำลังโหลด…</string>
+    <string name="exit_confirm_title">ออกจากแอป?</string>
+    <string name="exit_confirm_message">ต้องการปิด Tunnel Mate หรือไม่</string>
+
+    <!-- Theme / Language -->
+    <string name="theme_title">เลือกธีม</string>
+    <string name="theme_system">ตามระบบ (System)</string>
+    <string name="theme_light">สว่าง (Light)</string>
+    <string name="theme_dark">มืด (Dark)</string>
+    <string name="language_title">เลือกภาษา</string>
+    <string name="language_thai">ไทย</string>
+    <string name="language_english">English</string>
+    <string name="language_changed">เปลี่ยนภาษาแล้ว</string>
+    <string name="about_title">เกี่ยวกับ Tunnel Mate</string>
+    <string name="about_message">Tunnel Mate (VPN Manager)\nรองรับ SSH / Proxy / V2Ray\nเวอร์ชัน 1.0</string>
+
+    <!-- Share / Backup / Bypass titles -->
+    <string name="title_share_vpn">แชร์ VPN</string>
+    <string name="title_share_subtitle">Wi‑Fi / Hotspot · SOCKS5</string>
+    <string name="title_backup">สำรอง / กู้คืน</string>
+    <string name="title_backup_subtitle">Backup &amp; Restore</string>
+    <string name="title_bypass">Bypass Mode</string>
+    <string name="title_bypass_subtitle">แอปที่ใช้เน็ตตรง ไม่ผ่าน VPN</string>
+    <string name="title_profile_edit">แก้ไขโปรไฟล์</string>
+    <string name="title_profile_add">เพิ่มโปรไฟล์</string>
+    <string name="title_profile_subtitle">SSH / Proxy / V2Ray</string>
+</resources>

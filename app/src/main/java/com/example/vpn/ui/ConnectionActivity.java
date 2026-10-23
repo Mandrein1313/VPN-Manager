@@ -42,10 +42,17 @@ import com.google.android.material.tabs.TabLayoutMediator;
 
 import java.util.List;
 import java.util.Locale;
+import com.example.vpn.util.LanguagePrefs;
 
 public class ConnectionActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
                    MainFragment.Listener {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(LanguagePrefs.wrap(newBase));
+    }
+
 
     public static final String EXTRA_PROFILE_ID = "profile_id";
 
@@ -702,6 +709,9 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     } else if (id == R.id.nav_theme) {
         showThemeDialog();
 
+    } else if (id == R.id.nav_language) {
+        showLanguageDialog();
+
     } else if (id == R.id.nav_about) {
         showAboutDialog();
 
@@ -713,7 +723,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                     stopVpnService();
                     finishAffinity();
                 })
-                .setNegativeButton("ยกเลิก", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -731,6 +741,28 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 .show();
     }
 
+
+    private void showLanguageDialog() {
+        LanguagePrefs lp = new LanguagePrefs(this);
+        final String[] codes = { LanguagePrefs.LANG_TH, LanguagePrefs.LANG_EN };
+        final String[] names = {
+                getString(R.string.language_thai),
+                getString(R.string.language_english)
+        };
+        int checked = lp.isEnglish() ? 1 : 0;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.language_title)
+                .setSingleChoiceItems(names, checked, (d, which) -> {
+                    lp.setLanguage(codes[which]);
+                    d.dismiss();
+                    StyledToast.info(this, getString(R.string.language_changed)
+                            + ": " + LanguagePrefs.getDisplayName(codes[which]));
+                    recreate();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
     // ============================================================
     // ⭐ Theme Picker Dialog
     // ============================================================
@@ -741,9 +773,9 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 ThemePrefs.MODE_DARK
         };
         final String[] names = {
-                "🌗  ตามระบบ (System)",
-                "☀️  สว่าง (Light)",
-                "🌙  มืด (Dark)"
+                "🌗  " + getString(R.string.theme_system),
+                "☀️  " + getString(R.string.theme_light),
+                "🌙  " + getString(R.string.theme_dark)
         };
 
         int current = themePrefs.getMode();
@@ -756,7 +788,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         }
 
         new MaterialAlertDialogBuilder(this)
-                .setTitle("เลือกธีม")
+                .setTitle(R.string.theme_title)
                 .setSingleChoiceItems(names, checkedItem, (d, which) -> {
                     themePrefs.setMode(modes[which]);
                     d.dismiss();
@@ -764,7 +796,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                     // รีสร้าง Activity ให้สีทั้งจอสลับทันที
                     recreate();
                 })
-                .setNegativeButton("ยกเลิก", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -840,7 +872,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                     targetProfile = null;
                     reloadProfiles();
                 })
-                .setNegativeButton("ยกเลิก", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
