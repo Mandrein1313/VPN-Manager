@@ -1194,7 +1194,6 @@ public class MainActivity extends AppCompatActivity
                 .show();
     }
 
-    @Override
     
     private void showLanguageDialog() {
         LanguagePrefs lp = new LanguagePrefs(this);
