@@ -522,18 +522,18 @@ public class ConnectionActivity extends AppCompatActivity
         android.widget.TextView tv = mainFragment.getTxtStatus();
         tv.setText(text);
         tv.setTextColor(color);
-        // soft chip tint ตามสีสถานะ
         try {
             android.graphics.drawable.GradientDrawable bg =
                     new android.graphics.drawable.GradientDrawable();
-            bg.setCornerRadius(48f);
-            int a = (color & 0x00FFFFFF) | 0x22000000;
-            bg.setColor(a);
-            bg.setStroke(2, (color & 0x00FFFFFF) | 0x55000000);
+            bg.setCornerRadius(56f);
+            // เติมสีโปร่งตามสถานะ
+            int fill = (color & 0x00FFFFFF) | 0x28000000;
+            int stroke = (color & 0x00FFFFFF) | 0x99000000;
+            bg.setColor(fill);
+            bg.setStroke(3, stroke);
             tv.setBackground(bg);
-            int padH = (int) (18 * getResources().getDisplayMetrics().density);
-            int padV = (int) (8 * getResources().getDisplayMetrics().density);
-            tv.setPadding(padH, padV, padH, padV);
+            float d = getResources().getDisplayMetrics().density;
+            tv.setPadding((int)(22*d), (int)(10*d), (int)(22*d), (int)(10*d));
         } catch (Exception ignored) {}
     }
 

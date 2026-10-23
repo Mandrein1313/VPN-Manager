@@ -20,10 +20,10 @@
     <string name="nav_exit">Exit</string>
 
     <!-- Connection -->
-    <string name="status_not_connected">[ NOT CONNECTED ]</string>
-    <string name="status_connected">[ CONNECTED ]</string>
-    <string name="status_connecting">[ CONNECTING… ]</string>
-    <string name="status_disconnecting">[ DISCONNECTING… ]</string>
+    <string name="status_not_connected">Not connected</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_disconnecting">Disconnecting…</string>
     <string name="active_configuration">ACTIVE CONFIGURATION</string>
     <string name="downlink">DOWNLINK</string>
     <string name="uplink">UPLINK</string>
@@ -110,11 +110,12 @@
 
     <string name="profile_not_set">Not Set</string>
     <string name="pts_format">%1$d pts</string>
-    <string name="status_error">[ ERROR ]</string>
-    <string name="status_no_profile">[ NO PROFILE ]</string>
+    <string name="status_error">Error</string>
+    <string name="status_no_profile">No profile</string>
 
     <string name="pts_zero">0 pts</string>
 
     <string name="adfree_minutes">%1$d min</string>
     <string name="adfree_hours_mins">%1$d h %2$d m</string>
+    <string name="adfree_tap_hint">Tap to earn points / redeem time</string>
 </resources>
