@@ -20,10 +20,10 @@
     <string name="nav_exit">ออกจากแอป</string>
 
     <!-- Connection -->
-    <string name="status_not_connected">[ ยังไม่เชื่อมต่อ ]</string>
-    <string name="status_connected">[ เชื่อมต่อแล้ว ]</string>
-    <string name="status_connecting">[ กำลังเชื่อมต่อ… ]</string>
-    <string name="status_disconnecting">[ กำลังตัดการเชื่อมต่อ… ]</string>
+    <string name="status_not_connected">ยังไม่เชื่อมต่อ</string>
+    <string name="status_connected">เชื่อมต่อแล้ว</string>
+    <string name="status_connecting">กำลังเชื่อมต่อ…</string>
+    <string name="status_disconnecting">กำลังตัดการเชื่อมต่อ…</string>
     <string name="active_configuration">การตั้งค่าที่ใช้งาน</string>
     <string name="downlink">ดาวน์ลิงก์</string>
     <string name="uplink">อัปลิงก์</string>
@@ -110,11 +110,12 @@
 
     <string name="profile_not_set">ยังไม่ได้ตั้งค่า</string>
     <string name="pts_format">%1$d คะแนน</string>
-    <string name="status_error">[ ผิดพลาด ]</string>
-    <string name="status_no_profile">[ ไม่มีโปรไฟล์ ]</string>
+    <string name="status_error">เกิดข้อผิดพลาด</string>
+    <string name="status_no_profile">ยังไม่มีโปรไฟล์</string>
 
     <string name="pts_zero">0 คะแนน</string>
 
     <string name="adfree_minutes">%1$d นาที</string>
     <string name="adfree_hours_mins">%1$d ชม. %2$d น.</string>
+    <string name="adfree_tap_hint">แตะเพื่อรับคะแนน / แลกเวลา</string>
 </resources>
