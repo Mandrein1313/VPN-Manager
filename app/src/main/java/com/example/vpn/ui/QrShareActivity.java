@@ -99,23 +99,25 @@ public class QrShareActivity extends AppCompatActivity {
     private void renderQr(Profile p, MaterialButton btnShare,
                           MaterialButton btnCopy, MaterialButton btnSave) {
         int mode = getIntent().getIntExtra("share_mode", ProfileExporter.SHARE_PROTECTED);
-        String payload = ProfileExporter.toClipboardText(p, mode).trim();
+        String raw = ProfileExporter.toClipboardText(p, mode).trim();
+        String payload = raw;
         // QR ใช้บรรทัด tmconf เท่านั้น ถ้ามี
         if (mode == ProfileExporter.SHARE_PROTECTED) {
-            for (String line : payload.split("\n")) {
+            for (String line : raw.split("\n")) {
                 if (line.trim().startsWith(ProfileExporter.PROTECTED_PREFIX)) {
                     payload = line.trim();
                     break;
                 }
             }
         }
-        if (payload == null) {
+        final String qrPayload = payload;
+        if (qrPayload == null || qrPayload.isEmpty()) {
             StyledToast.error(this, "สร้าง QR ไม่สำเร็จ");
             finish();
             return;
         }
 
-        qrBitmap = generateQr(payload, 800);
+        qrBitmap = generateQr(qrPayload, 800);
         if (qrBitmap == null) {
             StyledToast.error(this, "สร้าง QR ไม่สำเร็จ");
             finish();
@@ -128,7 +130,7 @@ public class QrShareActivity extends AppCompatActivity {
 
         // ⭐ Long-press ที่ QR → แสดง Dialog
         imgQr.setOnLongClickListener(v -> {
-            showQrActions(payload);
+            showQrActions(qrPayload);
             return true;
         });
 
@@ -139,7 +141,7 @@ public class QrShareActivity extends AppCompatActivity {
 
         // ⭐ Copy payload
         if (btnCopy != null) {
-            btnCopy.setOnClickListener(v -> copyPayload(payload));
+            btnCopy.setOnClickListener(v -> copyPayload(qrPayload));
         }
 
         // ⭐ Save to gallery
@@ -201,7 +203,7 @@ public class QrShareActivity extends AppCompatActivity {
                             break;
                         case 1: saveToGallery(qrBitmap, targetProfile);
                             break;
-                        case 2: copyPayload(payload);
+                        case 2: copyPayload(qrPayload);
                             break;
                         case 3: shareAsText(payload, targetProfile);
                             break;
