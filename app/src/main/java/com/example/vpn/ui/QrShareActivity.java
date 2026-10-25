@@ -203,7 +203,7 @@ public class QrShareActivity extends AppCompatActivity {
                             break;
                         case 1: saveToGallery(qrBitmap, targetProfile);
                             break;
-                        case 2: copyPayload(qrPayload);
+                        case 2: copyPayload(payload);
                             break;
                         case 3: shareAsText(payload, targetProfile);
                             break;
