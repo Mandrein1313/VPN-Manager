@@ -118,4 +118,50 @@
     <string name="adfree_minutes">%1$d min</string>
     <string name="adfree_hours_mins">%1$d h %2$d m</string>
     <string name="adfree_tap_hint">Tap to earn points / redeem time</string>
+    <string name="profile_header_default">Profile</string>
+    <string name="profile_header_subtitle">SSH / Proxy / V2Ray</string>
+    <string name="section_basic">Basic info</string>
+    <string name="hint_profile_name">Profile name *</string>
+    <string name="hint_protocol">Protocol</string>
+    <string name="section_server">Server</string>
+    <string name="hint_host">Host / IP *</string>
+    <string name="hint_port">Port *</string>
+    <string name="section_account">Account</string>
+    <string name="hint_username">Username</string>
+    <string name="hint_password">Password</string>
+    <string name="hint_ssh_auth">SSH Auth</string>
+    <string name="hint_private_key">Private Key (PEM)</string>
+    <string name="hint_key_passphrase">Key Passphrase</string>
+    <string name="section_ssh_tune">SSH options</string>
+    <string name="hint_connection_mode">Connection Mode</string>
+    <string name="hint_http_proxy">HTTP Proxy (host or host:port)</string>
+    <string name="hint_proxy_port">Proxy Port (empty = from host:port)</string>
+    <string name="hint_payload">Payload</string>
+    <string name="hint_sni">SNI</string>
+    <string name="hint_ssl_port">SSL Port (empty = SSH port)</string>
+    <string name="hint_udpgw_port">Udpgw Port</string>
+    <string name="section_dns">DNS</string>
+    <string name="hint_dns1">DNS 1</string>
+    <string name="hint_dns2">DNS 2</string>
+    <string name="section_v2ray">V2Ray / VLESS</string>
+    <string name="hint_v2ray_type">Type</string>
+    <string name="hint_v2ray_uuid">UUID</string>
+    <string name="hint_v2ray_path">Path</string>
+    <string name="hint_v2ray_host">Host (header)</string>
+    <string name="hint_v2ray_service">Service Name (gRPC)</string>
+    <string name="hint_v2ray_flow">Flow</string>
+    <string name="hint_v2ray_security">Security</string>
+    <string name="label_tls_on">Enable TLS</string>
+    <string name="section_fragment">Fragment (bypass DPI)</string>
+    <string name="section_options">More options</string>
+    <string name="label_auto_connect">Connect on boot</string>
+    <string name="btn_save_profile">Save profile</string>
+    <string name="title_profile_add_clipboard">Add profile (from Clipboard)</string>
+    <string name="dup_name_title">Duplicate name</string>
+    <string name="dup_name_message">A profile named "%1$s" already exists.
+(Host: %2$s)
+
+Please choose a different name.</string>
+    <string name="error_name_exists">This name already exists</string>
+    <string name="toast_saved">Saved</string>
 </resources>

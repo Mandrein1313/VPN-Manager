@@ -35,6 +35,12 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class ProfileEditActivity extends AppCompatActivity {
 
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(com.example.vpn.util.LanguagePrefs.wrap(newBase));
+    }
+
+
     public static final String EXTRA_PREFILL_HOST = "prefill_host";
     public static final String EXTRA_PREFILL_PORT = "prefill_port";
     public static final String EXTRA_PREFILL_USER = "prefill_user";
@@ -187,17 +193,17 @@ public class ProfileEditActivity extends AppCompatActivity {
         Intent intent = getIntent();
 
         if (id > 0) {
-            if (txtHeaderTitle != null) txtHeaderTitle.setText("แก้ไขโปรไฟล์");
+            if (txtHeaderTitle != null) txtHeaderTitle.setText(R.string.title_profile_edit);
             viewModel.getRepo().getById(id, loaded -> {
                 if (loaded == null) { finish(); return; }
                 existing = loaded;
                 bindProfile(loaded);
             });
         } else if (intent.hasExtra(EXTRA_PREFILL_HOST)) {
-            if (txtHeaderTitle != null) txtHeaderTitle.setText("เพิ่มโปรไฟล์ (จาก Clipboard)");
+            if (txtHeaderTitle != null) txtHeaderTitle.setText(R.string.title_profile_add_clipboard);
             prefillFromIntent(intent);
         } else {
-            if (txtHeaderTitle != null) txtHeaderTitle.setText("เพิ่มโปรไฟล์");
+            if (txtHeaderTitle != null) txtHeaderTitle.setText(R.string.title_profile_add);
             fillDefaults();
         }
 
@@ -563,14 +569,12 @@ public class ProfileEditActivity extends AppCompatActivity {
     // ⭐ ห้ามชื่อซ้ำ (ไม่ให้ทับของเดิม)
     viewModel.getRepo().findByName(name, excludeId, dup -> {
         if (dup != null) {
-            edtName.setError("ชื่อนี้มีอยู่แล้ว");
+            edtName.setError(getString(R.string.error_name_exists));
             edtName.requestFocus();
             new MaterialAlertDialogBuilder(this)
-                    .setTitle("ชื่อซ้ำ")
-                    .setMessage("มีโปรไฟล์ชื่อ \"" + name + "\" อยู่แล้ว\n"
-                            + "(Host: " + dup.host + ":" + dup.port + ")\n\n"
-                            + "กรุณาตั้งชื่อใหม่ที่ไม่ซ้ำ")
-                    .setPositiveButton("ตกลง", null)
+                    .setTitle(R.string.dup_name_title)
+                    .setMessage(getString(R.string.dup_name_message, name, dup.host + ":" + dup.port))
+                    .setPositiveButton(R.string.ok, null)
                     .show();
             return;
         }
@@ -580,7 +584,7 @@ public class ProfileEditActivity extends AppCompatActivity {
 
 private void doSave(Profile p) {
     viewModel.save(p, id -> {
-        StyledToast.success(this, "บันทึกแล้ว");
+        StyledToast.success(this, getString(R.string.toast_saved));
         setResult(RESULT_OK);
         finish();
     });
@@ -609,3 +613,4 @@ private void doSave(Profile p) {
     }
 
 }
+.

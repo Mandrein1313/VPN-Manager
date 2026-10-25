@@ -118,4 +118,50 @@
     <string name="adfree_minutes">%1$d นาที</string>
     <string name="adfree_hours_mins">%1$d ชม. %2$d น.</string>
     <string name="adfree_tap_hint">แตะเพื่อรับคะแนน / แลกเวลา</string>
+    <string name="profile_header_default">โปรไฟล์</string>
+    <string name="profile_header_subtitle">SSH / Proxy / V2Ray</string>
+    <string name="section_basic">ข้อมูลพื้นฐาน</string>
+    <string name="hint_profile_name">ชื่อโปรไฟล์ *</string>
+    <string name="hint_protocol">โปรโตคอล</string>
+    <string name="section_server">เซิร์ฟเวอร์</string>
+    <string name="hint_host">Host / IP *</string>
+    <string name="hint_port">Port *</string>
+    <string name="section_account">บัญชีผู้ใช้</string>
+    <string name="hint_username">Username</string>
+    <string name="hint_password">Password</string>
+    <string name="hint_ssh_auth">SSH Auth</string>
+    <string name="hint_private_key">Private Key (PEM)</string>
+    <string name="hint_key_passphrase">Key Passphrase</string>
+    <string name="section_ssh_tune">การปรับแต่ง SSH</string>
+    <string name="hint_connection_mode">Connection Mode</string>
+    <string name="hint_http_proxy">HTTP Proxy (host หรือ host:port)</string>
+    <string name="hint_proxy_port">Proxy Port (ว่าง = จาก host:port)</string>
+    <string name="hint_payload">Payload</string>
+    <string name="hint_sni">SNI</string>
+    <string name="hint_ssl_port">SSL Port (ว่าง = พอร์ต SSH)</string>
+    <string name="hint_udpgw_port">Udpgw Port</string>
+    <string name="section_dns">DNS</string>
+    <string name="hint_dns1">DNS 1</string>
+    <string name="hint_dns2">DNS 2</string>
+    <string name="section_v2ray">V2Ray / VLESS</string>
+    <string name="hint_v2ray_type">Type</string>
+    <string name="hint_v2ray_uuid">UUID</string>
+    <string name="hint_v2ray_path">Path</string>
+    <string name="hint_v2ray_host">Host (header)</string>
+    <string name="hint_v2ray_service">Service Name (gRPC)</string>
+    <string name="hint_v2ray_flow">Flow</string>
+    <string name="hint_v2ray_security">Security</string>
+    <string name="label_tls_on">เปิด TLS</string>
+    <string name="section_fragment">Fragment (เลี่ยง DPI / โปรค่าย)</string>
+    <string name="section_options">ตัวเลือกเพิ่มเติม</string>
+    <string name="label_auto_connect">เชื่อมต่อเมื่อเปิดเครื่อง</string>
+    <string name="btn_save_profile">บันทึกโปรไฟล์</string>
+    <string name="title_profile_add_clipboard">เพิ่มโปรไฟล์ (จาก Clipboard)</string>
+    <string name="dup_name_title">ชื่อซ้ำ</string>
+    <string name="dup_name_message">มีโปรไฟล์ชื่อ "%1$s" อยู่แล้ว
+(Host: %2$s)
+
+กรุณาตั้งชื่อใหม่ที่ไม่ซ้ำ</string>
+    <string name="error_name_exists">ชื่อนี้มีอยู่แล้ว</string>
+    <string name="toast_saved">บันทึกแล้ว</string>
 </resources>
