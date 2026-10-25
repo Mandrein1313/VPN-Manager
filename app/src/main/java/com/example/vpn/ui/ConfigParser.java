@@ -34,9 +34,10 @@ public class ConfigParser {
     public static Result parse(String input) {
         if (input != null && ProfileExporter.looksProtected(input)) {
             String json = ProfileExporter.decryptProtected(input);
-            if (json != null && !json.isEmpty()) {
-                input = json;
+            if (json == null || json.isEmpty()) {
+                return Result.fail("ถอดรหัส config ไม่สำเร็จ (QR อาจเสียหรือคนละเวอร์ชัน)");
             }
+            input = json;
         }
 
         if (input == null || input.trim().isEmpty()) {
@@ -44,6 +45,15 @@ public class ConfigParser {
         }
 
         String text = input.trim();
+
+        // JSON จาก tmconf / export — ดึงโปรไฟล์แรก
+        if (text.startsWith("{") || text.startsWith("[")) {
+            ProfileImporter.Result ir = ProfileImporter.importFromJson(text);
+            if (ir != null && ir.isSuccess() && ir.profiles != null && !ir.profiles.isEmpty()) {
+                return Result.ok(ir.profiles.get(0));
+            }
+            return Result.fail(ir != null && ir.error != null ? ir.error : "JSON ไม่ถูกต้อง");
+        }
         // ตัดช่องว่าง / หลายบรรทัด — ใช้บรรทัดแรกที่เป็นลิงก์
         String firstLink = firstShareLink(text);
         if (firstLink != null) {

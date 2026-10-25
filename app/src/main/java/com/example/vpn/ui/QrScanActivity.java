@@ -1,5 +1,11 @@
 package com.example.vpn.ui;
 
+import com.example.vpn.util.ProfileExporter;
+
+import com.example.vpn.util.ProfileImporter;
+
+import com.example.vpn.util.ConfigParser;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -38,6 +44,12 @@ import java.io.InputStream;
 import java.util.List;
 
 public class QrScanActivity extends AppCompatActivity {
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(com.example.vpn.util.LanguagePrefs.wrap(newBase));
+    }
+
 
     private DecoratedBarcodeView barcodeView;
     private ImageButton btnClose;
@@ -150,7 +162,7 @@ public class QrScanActivity extends AppCompatActivity {
                 .setTitle("🔒 ต้องการสิทธิ์ใช้กล้อง")
                 .setMessage("แอปต้องใช้กล้องเพื่อสแกน QR Code\n\n"
                         + "คุณสามารถเปิดได้ที่:\n"
-                        + "Settings → Apps → Tunnel Mate → Permissions → Camera")
+                        + "Settings → Apps → VPN Manager → Permissions → Camera")
                 .setPositiveButton("เปิด Settings", (d, w) -> {
                     try {
                         Intent intent = new Intent(
@@ -239,31 +251,62 @@ public class QrScanActivity extends AppCompatActivity {
     // ⭐ Handle content
     // ============================================================
     private void handleScannedContent(String content) {
-        QrPayload.DecodeResult result = QrPayload.decode(content);
-
-        if (!result.success) {
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle("❌ QR ไม่ถูกต้อง")
-                    .setMessage((result.error != null ? result.error : "รูปแบบไม่ถูกต้อง")
-                            + "\n\nข้อมูล:\n"
-                            + (content.length() > 100
-                                ? content.substring(0, 100) + "..."
-                                : content))
-                    .setPositiveButton("ลองใหม่", (d, w) -> {
-                        handled = false;
-                        barcodeView.resume();
-                    })
-                    .setNegativeButton("ปิด", (d, w) -> finish())
-                    .setCancelable(false)
-                    .show();
+        if (content == null || content.trim().isEmpty()) {
+            showQrError("ไม่มีข้อมูลใน QR", content);
             return;
         }
 
-        if (result.profiles.size() == 1) {
-            showConfirmDialog(result.profiles.get(0));
-        } else {
-            showMultiDialog(result.profiles);
+        java.util.List<com.example.vpn.model.Profile> profiles = new java.util.ArrayList<>();
+        String err = null;
+
+        // 1) แพ็กเกจปกปิด tmconf: / JSON export
+        if (ProfileExporter.looksProtected(content) || content.trim().startsWith("{")
+                || content.trim().startsWith("[")) {
+            ProfileImporter.Result ir = ProfileImporter.importFromJson(content);
+            if (ir != null && ir.isSuccess()) {
+                profiles.addAll(ir.profiles);
+            } else if (ir != null) {
+                err = ir.error;
+            }
         }
+
+        // 2) ลิงก์ ssh / vless / ฯลฯ
+        if (profiles.isEmpty()) {
+            ConfigParser.Result cr = ConfigParser.parse(content);
+            if (cr != null && cr.isSuccess() && cr.profile != null) {
+                profiles.add(cr.profile);
+            } else if (err == null && cr != null) {
+                err = cr.error;
+            }
+        }
+
+        if (profiles.isEmpty()) {
+            showQrError(err != null ? err : "รูปแบบไม่ถูกต้อง", content);
+            return;
+        }
+
+        if (profiles.size() == 1) {
+            showConfirmDialog(profiles.get(0));
+        } else {
+            showMultiDialog(profiles);
+        }
+    }
+
+    private void showQrError(String message, String content) {
+        String preview = content != null
+                ? (content.length() > 120 ? content.substring(0, 120) + "..." : content)
+                : "";
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("❌ QR ไม่ถูกต้อง")
+                .setMessage((message != null ? message : "รูปแบบไม่ถูกต้อง")
+                        + "\n\nข้อมูล:\n" + preview)
+                .setPositiveButton("ลองใหม่", (d, w) -> {
+                    handled = false;
+                    barcodeView.resume();
+                })
+                .setNegativeButton("ปิด", (d, w) -> finish())
+                .setCancelable(false)
+                .show();
     }
 
     private void showConfirmDialog(Profile p) {
