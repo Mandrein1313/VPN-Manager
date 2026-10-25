@@ -26,6 +26,11 @@ public final class ProfileImporter {
     private ProfileImporter() {}
 
     public static Result importFromJson(String text) {
+        if (text != null && ProfileExporter.looksProtected(text)) {
+            String dec = ProfileExporter.decryptProtected(text);
+            if (dec != null) text = dec;
+        }
+
         Result r = new Result();
         r.profiles = new ArrayList<>();
 

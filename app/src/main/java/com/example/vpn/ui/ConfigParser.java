@@ -1,4 +1,5 @@
 package com.example.vpn.util;
+// ProfileExporter in same package
 
 import android.net.Uri;
 
@@ -31,6 +32,13 @@ public class ConfigParser {
     }
 
     public static Result parse(String input) {
+        if (input != null && ProfileExporter.looksProtected(input)) {
+            String json = ProfileExporter.decryptProtected(input);
+            if (json != null && !json.isEmpty()) {
+                input = json;
+            }
+        }
+
         if (input == null || input.trim().isEmpty()) {
             return Result.fail("ไม่มีข้อมูลใน clipboard");
         }

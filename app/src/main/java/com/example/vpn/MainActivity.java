@@ -419,26 +419,35 @@ public class MainActivity extends AppCompatActivity
         viewModel.toggleFavorite(p);
     }
 
-    // ⭐ แชร์โปรไฟล์ (แสดง QR / Clipboard / ไฟล์)
+    // ⭐ แชร์โปรไฟล์ — เลือกโหมดก่อน (ซ่อน proxy/payload ได้)
     @Override
     public void onShareQr(Profile p) {
         if (p == null) return;
         final String[] options = {
-                "📱  แสดง QR",
-                "📋  คัดลอกไป Clipboard"
+                "🔒  แชร์แบบปกปิด (แนะนำ)",
+                "📱  แสดง QR แบบปกปิด",
+                "📋  เฉพาะ SSH (ไม่มี proxy/payload)",
+                "📄  เต็มรูปแบบ (เห็น proxy/payload)"
         };
 
         new MaterialAlertDialogBuilder(this)
-                .setTitle(p.name != null ? p.name : "แชร์")
+                .setTitle(p.name != null ? ("แชร์ " + p.name) : "แชร์ config")
                 .setItems(options, (d, which) -> {
                     switch (which) {
-                        case 0:
+                        case 0: // protected clipboard
+                            copyProfileToClipboard(p, ProfileExporter.SHARE_PROTECTED);
+                            break;
+                        case 1: // protected QR
                             Intent i = new Intent(this, QrShareActivity.class);
                             i.putExtra(QrShareActivity.EXTRA_PROFILE_ID, p.id);
+                            i.putExtra("share_mode", ProfileExporter.SHARE_PROTECTED);
                             startActivity(i);
                             break;
-                        case 1:
-                            copyProfileToClipboard(p);
+                        case 2: // basic
+                            copyProfileToClipboard(p, ProfileExporter.SHARE_BASIC);
+                            break;
+                        case 3: // full
+                            copyProfileToClipboard(p, ProfileExporter.SHARE_FULL);
                             break;
                     }
                 })
@@ -446,14 +455,26 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void copyProfileToClipboard(Profile p) {
-        String text = ProfileExporter.toClipboardText(p);
+        copyProfileToClipboard(p, ProfileExporter.SHARE_PROTECTED);
+    }
+
+    private void copyProfileToClipboard(Profile p, int mode) {
+        String text = ProfileExporter.toClipboardText(p, mode);
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (cm == null) {
             StyledToast.warning(this, "Clipboard ไม่พร้อม");
             return;
         }
         cm.setPrimaryClip(ClipData.newPlainText("VPN Config", text));
-        StyledToast.success(this, "คัดลอก config แล้ว");
+        String msg;
+        if (mode == ProfileExporter.SHARE_BASIC) {
+            msg = "คัดลอกแล้ว (เฉพาะ SSH — ไม่มี proxy/payload)";
+        } else if (mode == ProfileExporter.SHARE_FULL) {
+            msg = "คัดลอกแล้ว (เต็มรูปแบบ)";
+        } else {
+            msg = "คัดลอกแล้ว (แบบปกปิด — เปิดได้เฉพาะ Tunnel Mate)";
+        }
+        StyledToast.success(this, msg);
     }
 
     private void exportProfileAsFile(Profile p) {
@@ -1194,6 +1215,7 @@ public class MainActivity extends AppCompatActivity
                 .show();
     }
 
+    @Override
     
     private void showLanguageDialog() {
         LanguagePrefs lp = new LanguagePrefs(this);
