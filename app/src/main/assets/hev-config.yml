@@ -1,12 +1,12 @@
 tunnel:
-  mtu: 1280
+  mtu: 1400
   ipv4: 10.0.0.2
   ipv6: '::'
 
 socks5:
   port: 1080
   address: 127.0.0.1
-  # UDP ผ่าน TCP ไป SOCKS5 → แอปจะใช้ UDP ASSOCIATE แล้วส่งต่อ udpgw
+  # เปิด UDP → SOCKS5 UDP ASSOCIATE → udpgw บน SSH server
   udp: 'udp'
 
 misc:

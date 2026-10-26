@@ -64,6 +64,9 @@ public class V2RayEngine {
             fos.write(configJson.getBytes("UTF-8"));
         }
 
+        // พยายาม init env + protect (รองรับหลายเวอร์ชันของ lib)
+        tryInitLibProtect();
+
         // ✅ สร้าง CoreController ด้วย callback handler ใหม่
         coreController = Libv2ray.newCoreController(buildCallbackHandler());
 
@@ -407,9 +410,14 @@ public class V2RayEngine {
             case "ws": {
                 JSONObject ws = new JSONObject();
                 String wsHost = sanitizeWsHost(config.host);
+                if (wsHost.isEmpty()) {
+                    wsHost = sanitizeWsHost(config.address);
+                }
                 if (!wsHost.isEmpty()) {
                     ws.put("headers", new JSONObject().put("Host", wsHost));
                     VpnLogger.i(TAG, "WS Host header = " + wsHost);
+                } else {
+                    VpnLogger.w(TAG, "WS Host header empty");
                 }
                 ws.put("path", config.path.isEmpty() ? "/" : config.path);
                 stream.put("wsSettings", ws);
@@ -497,6 +505,33 @@ public class V2RayEngine {
                 return doProtect(fd);
             }
         };
+    }
+
+
+    private void tryInitLibProtect() {
+        try {
+            // Libv2ray.initCoreEnv(path, pref, ...) บางเวอร์ชัน
+            Class<?> clazz = Libv2ray.class;
+            for (java.lang.reflect.Method m : clazz.getMethods()) {
+                String n = m.getName().toLowerCase();
+                if (!n.contains("init")) continue;
+                Class<?>[] pts = m.getParameterTypes();
+                if (pts.length >= 1 && pts[0] == String.class) {
+                    try {
+                        String base = ctx.getFilesDir().getAbsolutePath();
+                        if (pts.length == 1) {
+                            m.invoke(null, base);
+                            VpnLogger.i(TAG, "Lib init via " + m.getName());
+                        } else if (pts.length == 2 && pts[1] == String.class) {
+                            m.invoke(null, base, "");
+                            VpnLogger.i(TAG, "Lib init via " + m.getName() + " (2)");
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+        } catch (Throwable t) {
+            VpnLogger.d(TAG, "tryInitLibProtect: " + t.getMessage());
+        }
     }
 
     private boolean doProtect(long fd) {

@@ -12,6 +12,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.VpnService;
+import android.net.IpPrefix;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -63,7 +64,7 @@ public class ProxyVpnService extends VpnService
     private static final String VPN_ADDRESS = "10.0.0.2";
     private static final String VPN_ROUTE   = "0.0.0.0";
     private static final int VPN_PREFIX     = 0;
-    private static final int VPN_MTU = 1280;
+    private static final int VPN_MTU = 1400;
 
     private static final String STATE_PREF = "vpn_state";
     private static final String KEY_RUNNING = "running";
@@ -462,6 +463,8 @@ public class ProxyVpnService extends VpnService
             }
             VpnLogger.i(TAG, "DNS leak guard: " + d1 + " / " + d2);
 
+            excludeServerFromTunnel(builder, profile);
+
             tunFd = builder.establish();
             if (tunFd == null) {
                 throw new IOException("Failed to establish TUN — อาจมี VPN อื่นทำงานอยู่ หรือระบบปฏิเสธ");
@@ -796,6 +799,63 @@ public class ProxyVpnService extends VpnService
                 startHeartbeat();
             }
         });
+    }
+
+
+    /**
+     * กันไม่ให้ทราฟฟิกไปยังเซิร์ฟเวอร์ VPN วิ่งเข้า TUN เอง (สำคัญเมื่อ protect() ของ core ไม่ถูกเรียก)
+     * API 33+ ใช้ excludeRoute; ต่ำกว่านั้นพึ่ง protect()
+     */
+    private void excludeServerFromTunnel(Builder builder, Profile profile) {
+        if (builder == null || profile == null || profile.host == null) return;
+        if (android.os.Build.VERSION.SDK_INT < 33) {
+            VpnLogger.i(TAG, "excludeRoute needs API 33+ — rely on protect()");
+            return;
+        }
+        try {
+            java.net.InetAddress[] addrs = java.net.InetAddress.getAllByName(profile.host.trim());
+            int n = 0;
+            for (java.net.InetAddress a : addrs) {
+                if (a instanceof java.net.Inet4Address) {
+                    try {
+                        builder.excludeRoute(new IpPrefix(a, 32));
+                        n++;
+                        VpnLogger.i(TAG, "excludeRoute IPv4 " + a.getHostAddress() + "/32");
+                    } catch (Throwable t) {
+                        VpnLogger.w(TAG, "excludeRoute v4 fail: " + t.getMessage());
+                    }
+                } else if (a instanceof java.net.Inet6Address) {
+                    try {
+                        builder.excludeRoute(new IpPrefix(a, 128));
+                        n++;
+                        VpnLogger.i(TAG, "excludeRoute IPv6 " + a.getHostAddress() + "/128");
+                    } catch (Throwable t) {
+                        VpnLogger.w(TAG, "excludeRoute v6 fail: " + t.getMessage());
+                    }
+                }
+            }
+            // ถ้า v2rayHost เป็นคนละโดเมน (CDN) ต้อง exclude ด้วย
+            String wh = profile.v2rayHost;
+            if (wh != null && !wh.isEmpty()) {
+                wh = com.example.vpn.tunnel.V2RayEngine.sanitizeWsHost(wh);
+                if (!wh.isEmpty() && !wh.equalsIgnoreCase(profile.host.trim())) {
+                    try {
+                        for (java.net.InetAddress a : java.net.InetAddress.getAllByName(wh)) {
+                            if (a instanceof java.net.Inet4Address) {
+                                builder.excludeRoute(new IpPrefix(a, 32));
+                                n++;
+                                VpnLogger.i(TAG, "excludeRoute WS-Host " + a.getHostAddress());
+                            }
+                        }
+                    } catch (Throwable t) {
+                        VpnLogger.w(TAG, "exclude WS host: " + t.getMessage());
+                    }
+                }
+            }
+            VpnLogger.i(TAG, "excludeServerFromTunnel done, count=" + n);
+        } catch (Throwable t) {
+            VpnLogger.w(TAG, "excludeServerFromTunnel: " + t.getMessage());
+        }
     }
 
     /** ⭐ แก้ port ใน config yml */
