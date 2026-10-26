@@ -24,7 +24,7 @@ import libv2ray.Libv2ray;
 public class V2RayEngine {
 
     private static final String TAG = "V2RayEngine";
-    public static final int SOCKS_PORT = 1081;
+    public static final int SOCKS_PORT = 1080;
 
     private final Context ctx;
     private final V2RayConfig config;

@@ -759,7 +759,8 @@ public class ProxyVpnService extends VpnService
         }
 
         tun2socksRunning = true;
-        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready");
+        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready (hev→127.0.0.1:"
+                + V2RayEngine.SOCKS_PORT + ")");
 
         try { Thread.sleep(800); } catch (InterruptedException ignored) {}
 
@@ -863,26 +864,36 @@ public class ProxyVpnService extends VpnService
         }
     }
 
-    /** ⭐ แก้ port ใน config yml */
+    /** ⭐ เขียน hev-config ใหม่ทั้งไฟล์ (กัน port/YAML เพี้ยน) */
     private void rewriteConfigPort(int port) {
         try {
-            java.io.BufferedReader br = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(
-                            new java.io.FileInputStream(configFile)));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                if (line.trim().startsWith("port:")) {
-                    sb.append("  port: ").append(port).append("\n");
-                } else {
-                    sb.append(line).append("\n");
-                }
-            }
-            br.close();
+            String yml = ""
+                    + "tunnel:\n"
+                    + "  mtu: " + VPN_MTU + "\n"
+                    + "  ipv4: " + VPN_ADDRESS + "\n"
+                    + "\n"
+                    + "socks5:\n"
+                    + "  port: " + port + "\n"
+                    + "  address: 127.0.0.1\n"
+                    + "  udp: 'udp'\n"
+                    + "\n"
+                    + "misc:\n"
+                    + "  log-file: stderr\n"
+                    + "  log-level: warn\n"
+                    + "  task-stack-size: 65536\n"
+                    + "  connect-timeout: 15000\n"
+                    + "  read-write-timeout: 300000\n"
+                    + "  tcp-buffer-size: 131072\n"
+                    + "  udp-recv-buffer-size: 65536\n"
+                    + "  limit-nofile: 65535\n";
             java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile);
-            fos.write(sb.toString().getBytes("UTF-8"));
+            fos.write(yml.getBytes("UTF-8"));
             fos.close();
+            VpnLogger.i(TAG, "hev-config written → socks 127.0.0.1:" + port
+                    + " tun=" + VPN_ADDRESS + " mtu=" + VPN_MTU);
+            VpnLogger.d(TAG, "hev-config:\n" + yml);
         } catch (Exception e) {
+
             VpnLogger.w(TAG, "rewriteConfigPort error: " + e.getMessage());
         }
     }
