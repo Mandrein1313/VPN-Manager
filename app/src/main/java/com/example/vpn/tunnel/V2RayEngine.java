@@ -72,6 +72,8 @@ public class V2RayEngine {
         //    ถ้าใช้ SOCKS proxy mode (ไม่ใช่ full VPN) ให้ส่ง 0
         coreController.startLoop(configJson, 0);
         VpnLogger.i(TAG, "startLoop called");
+        // บาง build ของ lib ต้องผูก protect แยก
+        tryRegisterProtectHook();
 
         // รอ SOCKS พร้อม
         for (int i = 0; i < 30; i++) {
@@ -185,16 +187,34 @@ public class V2RayEngine {
 
         root.put("outbounds", outbounds);
 
-        // Routing — ส่งทราฟฟิกทั้งหมดไป proxy เป็นค่าเริ่มต้น
+        // Routing — ใกล้เคียง V2BOX / v2rayNG
+        // outbound แรก (proxy) = default; private IP ออก direct กัน loop
         JSONObject routing = new JSONObject();
-        routing.put("domainStrategy", "AsIs");
+        routing.put("domainStrategy", "IPIfNonMatch");
         JSONArray rules = new JSONArray();
+
+        // localhost / private → direct
+        JSONObject privateRule = new JSONObject();
+        privateRule.put("type", "field");
+        JSONArray privateIp = new JSONArray();
+        privateIp.put("127.0.0.0/8");
+        privateIp.put("10.0.0.0/8");
+        privateIp.put("172.16.0.0/12");
+        privateIp.put("192.168.0.0/16");
+        privateIp.put("fc00::/7");
+        privateIp.put("fe80::/10");
+        privateRule.put("ip", privateIp);
+        privateRule.put("outboundTag", "direct");
+        rules.put(privateRule);
+
+        // DNS → proxy
         JSONObject dnsRule = new JSONObject();
         dnsRule.put("type", "field");
         dnsRule.put("port", "53");
         dnsRule.put("network", "udp,tcp");
         dnsRule.put("outboundTag", "proxy");
         rules.put(dnsRule);
+
         routing.put("rules", rules);
         root.put("routing", routing);
 
@@ -261,6 +281,42 @@ public class V2RayEngine {
         }
 
         return settings;
+    }
+
+    
+    /**
+     * Host header ต้องเป็น hostname เดี่ยว
+     * บาง QR/แอปใส่ "cdn.example.com:real.address.com" → ตัดเหลือส่วนแรก
+     */
+    public static String sanitizeWsHost(String host) {
+        if (host == null) return "";
+        host = host.trim();
+        if (host.isEmpty()) return "";
+        // ตัด schema ถ้ามี
+        if (host.contains("://")) {
+            try {
+                int i = host.indexOf("://");
+                host = host.substring(i + 3);
+            } catch (Exception ignored) {}
+        }
+        // IPv6 [...]
+        if (host.startsWith("[")) {
+            int end = host.indexOf(']');
+            if (end > 0) return host.substring(0, end + 1);
+        }
+        // เอา path ออก
+        int slash = host.indexOf('/');
+        if (slash > 0) host = host.substring(0, slash);
+        // "cdn.example.com:assets.other.com" หรือ "cdn.example.com:443"
+        if (host.contains(":")) {
+            String[] parts = host.split(":");
+            if (parts.length >= 2) {
+                // ใช้ส่วนแรกเสมอเมื่อมีส่วนหลัง (port หรือโดเมนที่สอง)
+                String first = parts[0].trim();
+                if (!first.isEmpty()) return first;
+            }
+        }
+        return host;
     }
 
     private JSONObject buildStreamSettings() throws Exception {
@@ -352,8 +408,10 @@ public class V2RayEngine {
         switch (config.network) {
             case "ws": {
                 JSONObject ws = new JSONObject();
-                if (!config.host.isEmpty()) {
-                    ws.put("headers", new JSONObject().put("Host", config.host));
+                String wsHost = sanitizeWsHost(config.host);
+                if (!wsHost.isEmpty()) {
+                    ws.put("headers", new JSONObject().put("Host", wsHost));
+                    VpnLogger.i(TAG, "WS Host header = " + wsHost);
                 }
                 ws.put("path", config.path.isEmpty() ? "/" : config.path);
                 stream.put("wsSettings", ws);
@@ -368,7 +426,7 @@ public class V2RayEngine {
                         JSONObject req = new JSONObject();
                         JSONArray headers = new JSONArray();
                         headers.put(new JSONObject()
-                                .put("Host", new JSONArray().put(config.host)));
+                                .put("Host", new JSONArray().put(sanitizeWsHost(config.host))));
                         req.put("headers", headers);
                         header.put("request", req);
                     }
@@ -406,7 +464,6 @@ public class V2RayEngine {
     private CoreCallbackHandler buildCallbackHandler() {
         return new CoreCallbackHandler() {
 
-            // ✅ FIX #3: เปลี่ยน Startup() → startup() (ตัว s พิมพ์เล็ก)
             @Override
             public long startup() {
                 VpnLogger.i(TAG, "V2Ray callback: startup");
@@ -420,14 +477,45 @@ public class V2RayEngine {
                 return 0;
             }
 
-            // หมายเหตุ: OnEmitStatus อาจสะกดต่างออกไป
-            // ถ้ายัง error ให้ลบบรรทัด @Override ออกแล้วลองคอมไพล์
             @Override
             public long onEmitStatus(long code, String message) {
                 VpnLogger.d(TAG, "V2Ray status: " + code + " — " + message);
                 return 0;
             }
+
+            /**
+             * ⭐ สำคัญ: กัน socket ของ core วิ่งเข้า TUN (loop)
+             * บางเวอร์ชัน lib ใช้ชื่อ protect / Protect — ถ้าคอมไพล์ error ให้ลบ @Override
+             */
+            public long protect(long fd) {
+                return doProtect(fd) ? 0 : 1;
+            }
+
+            public boolean Protect(long fd) {
+                return doProtect(fd);
+            }
+
+            public boolean protect(int fd) {
+                return doProtect(fd);
+            }
         };
+    }
+
+    private boolean doProtect(long fd) {
+        try {
+            if (protector == null) {
+                VpnLogger.w(TAG, "protect: no protector");
+                return false;
+            }
+            boolean ok = protector.protect((int) fd);
+            if (!ok) {
+                VpnLogger.w(TAG, "protect(" + fd + ") returned false");
+            }
+            return ok;
+        } catch (Exception e) {
+            VpnLogger.w(TAG, "protect error: " + e.getMessage());
+            return false;
+        }
     }
 
     // ============================================================

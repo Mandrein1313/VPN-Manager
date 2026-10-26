@@ -93,10 +93,13 @@ public class ProxyVpnService extends VpnService
     // ⭐ Heartbeat — ส่ง traffic เล็ก ๆ ผ่าน tunnel ทุก 20 วินาที กัน idle หลุด
     private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
     private Runnable heartbeatRunnable;
-    private static final long HEARTBEAT_INTERVAL_MS = 30_000; // ไม่ถี่เกิน — ลด reconnect หลอก
+    private static final long HEARTBEAT_INTERVAL_MS = 30_000;
+    private static final long HEARTBEAT_INTERVAL_V2RAY_MS = 60_000; // V2Ray: ห่างขึ้น ลด reconnect หลอก
     private static final long HEARTBEAT_RETRY_MS = 10_000;
+    private static final long HEARTBEAT_RETRY_V2RAY_MS = 20_000;
     private volatile int heartbeatFailCount = 0;
-    private static final int HEARTBEAT_FAIL_MAX = 4; // ทน fail ชั่วคราวมากขึ้นก่อน reconnect
+    private static final int HEARTBEAT_FAIL_MAX = 4;
+    private static final int HEARTBEAT_FAIL_MAX_V2RAY = 8; // V2Ray ทนมากกว่า — อย่าตัดเพราะ ping 53 หลอก
 
     // ============================================================
     // ⭐ Service state
@@ -695,10 +698,10 @@ public class ProxyVpnService extends VpnService
         cfg.method = profile.v2rayMethod;
         cfg.network = profile.v2rayNetwork;
         cfg.path = profile.v2rayPath;
-        cfg.host = profile.v2rayHost;
+        cfg.host = V2RayEngine.sanitizeWsHost(profile.v2rayHost);
         cfg.serviceName = profile.v2rayServiceName;
         cfg.tls = profile.v2rayTls;
-        cfg.sni = profile.sni;
+        cfg.sni = V2RayEngine.sanitizeWsHost(profile.sni);
         cfg.flow = profile.v2rayFlow;
         cfg.fingerprint = "chrome";
         cfg.fragment = profile.v2rayFragment;
@@ -823,6 +826,14 @@ public class ProxyVpnService extends VpnService
     // ⭐ Heartbeat — กัน SSH/NAT ตัดตอน idle (เน็ตค้างจริง → reconnect เร็ว)
     // ============================================================
 
+    private boolean isV2RayProfile() {
+        Profile p = currentProfile;
+        if (p == null || p.protocol == null) return false;
+        return p.protocol == com.example.vpn.model.Protocol.V2RAY
+                || p.protocol == com.example.vpn.model.Protocol.TROJAN
+                || p.protocol == com.example.vpn.model.Protocol.SHADOWSOCKS;
+    }
+
     private void startHeartbeat() {
         stopHeartbeat();
         heartbeatFailCount = 0;
@@ -841,7 +852,7 @@ public class ProxyVpnService extends VpnService
                     if (result > 0) {
                         heartbeatFailCount = 0;
                         VpnLogger.d(TAG, "Heartbeat OK");
-                        scheduleNextHeartbeat(HEARTBEAT_INTERVAL_MS);
+                        scheduleNextHeartbeat(isV2RayProfile() ? HEARTBEAT_INTERVAL_V2RAY_MS : HEARTBEAT_INTERVAL_MS);
                         return;
                     }
 
@@ -860,10 +871,10 @@ public class ProxyVpnService extends VpnService
 
                     // soft fail = channel เปิดไม่ได้ชั่วคราว
                     heartbeatFailCount++;
+                    int failMax = isV2RayProfile() ? HEARTBEAT_FAIL_MAX_V2RAY : HEARTBEAT_FAIL_MAX;
                     VpnLogger.w(TAG, "Heartbeat FAIL (" + heartbeatFailCount
-                            + "/" + HEARTBEAT_FAIL_MAX + ")");
-
-                    if (heartbeatFailCount >= HEARTBEAT_FAIL_MAX) {
+                            + "/" + failMax + ")");
+                    if (heartbeatFailCount >= failMax) {
                         heartbeatFailCount = 0;
                         if (prefs != null && prefs.isAutoReconnect()
                                 && currentProfile != null && !reconnecting) {
@@ -879,14 +890,17 @@ public class ProxyVpnService extends VpnService
                     }
 
                     // ลองใหม่เร็วกว่าปกติ
-                    scheduleNextHeartbeat(HEARTBEAT_RETRY_MS);
+                    scheduleNextHeartbeat(isV2RayProfile() ? HEARTBEAT_RETRY_V2RAY_MS : HEARTBEAT_RETRY_MS);
                 }, "vpn-heartbeat").start();
             }
         };
 
-        heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
-        VpnLogger.i(TAG, "Heartbeat started (every " + HEARTBEAT_INTERVAL_MS
-                + "ms, failMax=" + HEARTBEAT_FAIL_MAX + ")");
+        long hbInterval = isV2RayProfile() ? HEARTBEAT_INTERVAL_V2RAY_MS : HEARTBEAT_INTERVAL_MS;
+        int hbFailMax = isV2RayProfile() ? HEARTBEAT_FAIL_MAX_V2RAY : HEARTBEAT_FAIL_MAX;
+        heartbeatHandler.postDelayed(heartbeatRunnable, hbInterval);
+        VpnLogger.i(TAG, "Heartbeat started (every " + hbInterval
+                + "ms, failMax=" + hbFailMax
+                + (isV2RayProfile() ? ", mode=V2Ray-SOCKS" : ", mode=SSH") + ")");
     }
 
     private void scheduleNextHeartbeat(long delayMs) {
@@ -908,11 +922,12 @@ public class ProxyVpnService extends VpnService
      * @return 1 = OK, 0 = soft fail (channel), -1 = hard fail (session dead)
      */
     private int doHeartbeatPing() {
+        // ── SSH: ใช้ channel ตรง ──
         SshTunnel tunnel = sshTunnel;
         if (tunnel != null) {
             if (!tunnel.isConnected()) {
                 VpnLogger.w(TAG, "Heartbeat: SSH session not connected");
-                return -1; // hard fail
+                return -1;
             }
             com.jcraft.jsch.ChannelDirectTCPIP channel = null;
             try {
@@ -920,8 +935,7 @@ public class ProxyVpnService extends VpnService
                 java.io.OutputStream out = channel.getOutputStream();
                 if (out != null) {
                     out.write(new byte[]{
-                            0x00, 0x00,
-                            0x01, 0x00,
+                            0x00, 0x00, 0x01, 0x00,
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                     });
                     out.flush();
@@ -931,16 +945,12 @@ public class ProxyVpnService extends VpnService
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
                 VpnLogger.w(TAG, "Heartbeat SSH ping error: " + e.getMessage());
-                // session ตายจริง → hard fail
                 if (!tunnel.isConnected()
                         || msg.contains("session is down")
                         || msg.contains("not connected")
                         || msg.contains("connection is closed")) {
                     return -1;
                 }
-                // channel is not opened ฯลฯ แต่ session ยัง flag ว่า connected
-                // จากประสบการณ์ผู้ใช้: ตอนนี้เน็ตมักใช้ไม่ได้แล้ว → นับ soft fail
-                // (fail 2 ครั้งติด + retry 5 วิ จะ reconnect เร็ว)
                 return 0;
             } finally {
                 if (channel != null) {
@@ -949,14 +959,61 @@ public class ProxyVpnService extends VpnService
             }
         }
 
+        // ── V2Ray / Trojan / SS: อย่า TCP ตรงไป 1.1.1.1:53 (หลอก fail → reconnect วน)
+        //    ตรวจว่า local SOCKS ยังรับ และลอง CONNECT ผ่าน SOCKS
+        if (isV2RayProfile() || v2rayEngine != null) {
+            return doV2RayHeartbeat();
+        }
+
+        // ── fallback (ไม่ควรถึง) ──
+        return 0;
+    }
+
+    /** Heartbeat สำหรับ V2Ray: เช็ค SOCKS + CONNECT ผ่าน proxy */
+    private int doV2RayHeartbeat() {
         java.net.Socket s = null;
         try {
+            // 1) SOCKS ยังฟังอยู่ไหม
             s = new java.net.Socket();
-            s.connect(new java.net.InetSocketAddress("1.1.1.1", 53), 3_000);
-            s.setTcpNoDelay(true);
-            return s.isConnected() ? 1 : 0;
+            s.connect(new java.net.InetSocketAddress("127.0.0.1", 1081), 2_000);
+            s.setSoTimeout(4_000);
+
+            // 2) SOCKS5 handshake + CONNECT 1.1.1.1:80 (HTTP ชัดกว่า :53)
+            java.io.OutputStream out = s.getOutputStream();
+            java.io.InputStream in = s.getInputStream();
+
+            // greeting: ver=5, 1 method, no-auth
+            out.write(new byte[] { 0x05, 0x01, 0x00 });
+            out.flush();
+            byte[] resp = new byte[2];
+            if (in.read(resp) < 2 || resp[0] != 0x05 || resp[1] != 0x00) {
+                VpnLogger.w(TAG, "Heartbeat V2Ray: SOCKS auth rejected");
+                return 0;
+            }
+
+            // CONNECT 1.1.1.1:80
+            out.write(new byte[] {
+                    0x05, 0x01, 0x00, 0x01,          // ver, connect, rsv, ipv4
+                    0x01, 0x01, 0x01, 0x01,          // 1.1.1.1
+                    0x00, 0x50                       // port 80
+            });
+            out.flush();
+            byte[] crep = new byte[10];
+            int n = in.read(crep);
+            if (n >= 2 && crep[0] == 0x05 && crep[1] == 0x00) {
+                VpnLogger.d(TAG, "Heartbeat V2Ray: SOCKS CONNECT OK");
+                return 1;
+            }
+            // SOCKS ยังขึ้น แต่ CONNECT ล้ม — soft fail (โหนดอาจช้า อย่า hard)
+            VpnLogger.w(TAG, "Heartbeat V2Ray: SOCKS CONNECT soft fail code="
+                    + (n >= 2 ? (crep[1] & 0xff) : -1));
+            return 0;
         } catch (Exception e) {
-            VpnLogger.w(TAG, "Heartbeat TCP ping error: " + e.getMessage());
+            VpnLogger.w(TAG, "Heartbeat V2Ray error: " + e.getMessage());
+            // SOCKS ตาย / engine หยุด → soft fail (ให้ครบ failMax ค่อย reconnect)
+            if (v2rayEngine == null || !v2rayEngine.isRunning()) {
+                return 0;
+            }
             return 0;
         } finally {
             if (s != null) {
