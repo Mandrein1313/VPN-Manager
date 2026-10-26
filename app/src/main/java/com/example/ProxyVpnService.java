@@ -455,11 +455,16 @@ public class ProxyVpnService extends VpnService
             addDnsIfValid(builder, d2);
             addHostRoute(builder, d1);
             addHostRoute(builder, d2);
-            // กัน IPv6 เลี่ยง tunnel (บางเครื่อง DNS รั่วทาง v6)
+            // IPv6: อย่า addRoute("::") ถ้าไม่มี IPv6 address บน TUN
+            // ไม่งั้น Chrome/YouTube ใช้ v6 แล้วค้าง (blackhole)
+            // ปิด IPv6 ผ่าน VPN ชั่วคราว — ใช้ IPv4 อย่างเดียว (เสถียรกว่ากับ hev+V2Ray)
             try {
-                builder.addRoute("::", 0);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    // ไม่ route IPv6 เข้า tunnel
+                    VpnLogger.i(TAG, "IPv6 not routed into VPN (IPv4-only tunnel)");
+                }
             } catch (Exception e) {
-                VpnLogger.w(TAG, "IPv6 route skip: " + e.getMessage());
+                VpnLogger.w(TAG, "IPv6 setup: " + e.getMessage());
             }
             VpnLogger.i(TAG, "DNS leak guard: " + d1 + " / " + d2);
 
