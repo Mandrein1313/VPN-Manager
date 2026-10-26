@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ConnectivityChecker {
 
     public interface Callback {
-        void onResult(boolean ok, String reason);
+        void onReady();
+        void onFailed(String reason);
     }
 
     private final Context ctx;
@@ -64,7 +65,8 @@ public class ConnectivityChecker {
             final boolean fOk = ok;
             final String fReason = reason;
             if (cb != null) {
-                cb.onResult(fOk, fReason);
+                if (fOk) cb.onReady();
+                else cb.onFailed(fReason);
             }
         });
     }
