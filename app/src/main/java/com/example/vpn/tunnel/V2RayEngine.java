@@ -72,8 +72,6 @@ public class V2RayEngine {
         //    ถ้าใช้ SOCKS proxy mode (ไม่ใช่ full VPN) ให้ส่ง 0
         coreController.startLoop(configJson, 0);
         VpnLogger.i(TAG, "startLoop called");
-        // บาง build ของ lib ต้องผูก protect แยก
-        tryRegisterProtectHook();
 
         // รอ SOCKS พร้อม
         for (int i = 0; i < 30; i++) {
