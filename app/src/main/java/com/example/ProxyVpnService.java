@@ -64,7 +64,7 @@ public class ProxyVpnService extends VpnService
     private static final String VPN_ADDRESS = "10.0.0.2";
     private static final String VPN_ROUTE   = "0.0.0.0";
     private static final int VPN_PREFIX     = 0;
-    private static final int VPN_MTU = 1400;
+    private static final int VPN_MTU = 1500; // ตรงกับ v2rayNG / V2BOX
 
     private static final String STATE_PREF = "vpn_state";
     private static final String KEY_RUNNING = "running";
@@ -867,9 +867,10 @@ public class ProxyVpnService extends VpnService
     /** ⭐ เขียน hev-config ใหม่ทั้งไฟล์ (กัน port/YAML เพี้ยน) */
     private void rewriteConfigPort(int port) {
         try {
+            // hev internal MTU แนะนำ 8500 — คนละค่ากับ VpnService.setMtu
             String yml = ""
                     + "tunnel:\n"
-                    + "  mtu: " + VPN_MTU + "\n"
+                    + "  mtu: 8500\n"
                     + "  ipv4: " + VPN_ADDRESS + "\n"
                     + "\n"
                     + "socks5:\n"
@@ -879,12 +880,12 @@ public class ProxyVpnService extends VpnService
                     + "\n"
                     + "misc:\n"
                     + "  log-file: stderr\n"
-                    + "  log-level: warn\n"
-                    + "  task-stack-size: 65536\n"
-                    + "  connect-timeout: 15000\n"
+                    + "  log-level: info\n"
+                    + "  task-stack-size: 86016\n"
+                    + "  connect-timeout: 10000\n"
                     + "  read-write-timeout: 300000\n"
-                    + "  tcp-buffer-size: 131072\n"
-                    + "  udp-recv-buffer-size: 65536\n"
+                    + "  tcp-buffer-size: 65536\n"
+                    + "  udp-recv-buffer-size: 524288\n"
                     + "  limit-nofile: 65535\n";
             java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile);
             fos.write(yml.getBytes("UTF-8"));

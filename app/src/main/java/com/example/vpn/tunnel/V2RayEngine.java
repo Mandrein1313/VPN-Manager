@@ -139,11 +139,26 @@ public class V2RayEngine {
         JSONArray destOverride = new JSONArray();
         destOverride.put("http");
         destOverride.put("tls");
-        destOverride.put("quic");
         sniffing.put("destOverride", destOverride);
-        sniffing.put("routeOnly", false);
+        sniffing.put("routeOnly", true); // เร็วขึ้น — ใกล้ v2rayNG
         socksIn.put("sniffing", sniffing);
         inbounds.put(socksIn);
+        // policy — ลด idle timeout ตัด connection เร็วเกิน
+        JSONObject policy = new JSONObject();
+        JSONObject levels = new JSONObject();
+        JSONObject level0 = new JSONObject();
+        level0.put("connIdle", 300);
+        level0.put("downlinkOnly", 30);
+        level0.put("uplinkOnly", 30);
+        level0.put("bufferSize", 512);
+        levels.put("0", level0);
+        policy.put("levels", levels);
+        JSONObject system = new JSONObject();
+        system.put("statsOutboundUplink", false);
+        system.put("statsOutboundDownlink", false);
+        policy.put("system", system);
+        root.put("policy", policy);
+
         root.put("inbounds", inbounds);
 
         // Outbounds
@@ -164,6 +179,13 @@ public class V2RayEngine {
             stream.put("sockopt", sockopt);
             VpnLogger.i(TAG, "Fragment enabled → dialerProxy=fragment");
         }
+        // sockopt เร่ง TCP
+        JSONObject sockoptAll = stream.optJSONObject("sockopt");
+        if (sockoptAll == null) sockoptAll = new JSONObject();
+        sockoptAll.put("tcpNoDelay", true);
+        sockoptAll.put("tcpKeepAliveIdle", 15);
+        sockoptAll.put("tcpKeepAliveInterval", 15);
+        stream.put("sockopt", sockoptAll);
         out.put("streamSettings", stream);
         outbounds.put(out);
 
@@ -191,7 +213,7 @@ public class V2RayEngine {
         // Routing — ใกล้เคียง V2BOX / v2rayNG
         // outbound แรก (proxy) = default; private IP ออก direct กัน loop
         JSONObject routing = new JSONObject();
-        routing.put("domainStrategy", "IPIfNonMatch");
+        routing.put("domainStrategy", "AsIs"); // เร็วกว่า IPIfNonMatch
         JSONArray rules = new JSONArray();
 
         // localhost / private → direct
