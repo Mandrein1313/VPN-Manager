@@ -888,51 +888,31 @@ public class ProxyVpnService extends VpnService
         }
     }
 
-    /** ⭐ เขียน hev-config ใหม่ทั้งไฟล์ (กัน port/YAML เพี้ยน) */
 
-    /** เขียน hev-config แบบเดียวกับที่ SSH ใช้แล้วออกเน็ตได้ */
+        /** เขียน hev-config แบบเดียวกับที่ SSH ใช้แล้วออกเน็ตได้ */
     private void rewriteConfigPort(int port) {
         try {
             if (configFile == null) {
                 configFile = new java.io.File(getFilesDir(), "hev-config.yml");
             }
-            String yml =
-                    "tunnel:
-" +
-                    "  mtu: 1500
-" +
-                    "  ipv4: " + VPN_ADDRESS + "
-" +
-                    "
-" +
-                    "socks5:
-" +
-                    "  port: " + port + "
-" +
-                    "  address: 127.0.0.1
-" +
-                    "  udp: 'udp'
-" +
-                    "
-" +
-                    "misc:
-" +
-                    "  log-file: stderr
-" +
-                    "  log-level: warn
-" +
-                    "  task-stack-size: 65536
-" +
-                    "  connect-timeout: 15000
-" +
-                    "  read-write-timeout: 300000
-" +
-                    "  tcp-buffer-size: 65536
-" +
-                    "  udp-recv-buffer-size: 524288
-" +
-                    "  limit-nofile: 65535
-";
+            String yml = "tunnel:\n"
+                    + "  mtu: 1500\n"
+                    + "  ipv4: " + VPN_ADDRESS + "\n"
+                    + "\n"
+                    + "socks5:\n"
+                    + "  port: " + port + "\n"
+                    + "  address: 127.0.0.1\n"
+                    + "  udp: 'udp'\n"
+                    + "\n"
+                    + "misc:\n"
+                    + "  log-file: stderr\n"
+                    + "  log-level: warn\n"
+                    + "  task-stack-size: 65536\n"
+                    + "  connect-timeout: 15000\n"
+                    + "  read-write-timeout: 300000\n"
+                    + "  tcp-buffer-size: 65536\n"
+                    + "  udp-recv-buffer-size: 524288\n"
+                    + "  limit-nofile: 65535\n";
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile, false)) {
                 fos.write(yml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
@@ -942,6 +922,8 @@ public class ProxyVpnService extends VpnService
             VpnLogger.w(TAG, "rewriteConfigPort error: " + e.getMessage());
         }
     }
+
+
 
     // ============================================================
     // ⭐ Heartbeat — กัน SSH/NAT ตัดตอน idle (เน็ตค้างจริง → reconnect เร็ว)
