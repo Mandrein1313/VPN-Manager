@@ -591,6 +591,7 @@ public class ProxyVpnService extends VpnService
             VpnLogger.i(TAG, "Starting Tun2Socks bridge...");
 
             copyConfigFromAssets();
+            rewriteConfigPort(Socks5Server.LOCAL_PORT);
             VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
 
             boolean started = false;
@@ -712,7 +713,14 @@ public class ProxyVpnService extends VpnService
         cfg.sni = V2RayEngine.sanitizeWsHost(profile.sni);
         cfg.flow = profile.v2rayFlow;
         cfg.fingerprint = "chrome";
-        cfg.fragment = profile.v2rayFragment;
+        // Fragment กับโหนด WS:80 ฟรีมักพัง — เปิดเฉพาะตอน user เปิด TLS/REALITY จริง
+        boolean wantFrag = profile.v2rayFragment;
+        if (wantFrag && !profile.v2rayTls
+                && (profile.v2rayPublicKey == null || profile.v2rayPublicKey.isEmpty())) {
+            VpnLogger.w(TAG, "Fragment ignored (no TLS/REALITY) — โหนดฟรีมักใช้ security=none");
+            wantFrag = false;
+        }
+        cfg.fragment = wantFrag;
         cfg.allowInsecure = false;
         // REALITY
         String sec = profile.v2raySecurity;
@@ -736,26 +744,42 @@ public class ProxyVpnService extends VpnService
 
         try { Thread.sleep(500); } catch (InterruptedException ignored) {}
 
-        // ---- Tun2Socks (ชี้ไปที่ V2Ray SOCKS port) ----
+        // ---- Tun2Socks — ใช้ชุดเดียวกับ SSH ที่พิสูจน์แล้วว่าออกเน็ตได้ ----
         StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
         updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
+        VpnLogger.i(TAG, "Starting Tun2Socks bridge (V2Ray, same path as SSH)...");
+
+        // หยุด hev เก่าก่อน (กัน start ซ้ำแล้ว fail)
+        try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
+        try { Thread.sleep(200); } catch (InterruptedException ignored) {}
 
         copyConfigFromAssets();
-        // ⭐ แก้ config ให้ชี้ port 1081
         rewriteConfigPort(V2RayEngine.SOCKS_PORT);
+        VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
 
         boolean started = false;
-        try {
-            started = TProxyService.TProxyStartService(
-                    configFile.getAbsolutePath(),
-                    tunFd.getFd()
-            );
-        } catch (Throwable t) {
-            VpnLogger.e(TAG, "TProxyStartService threw: " + t.getMessage());
+        for (int attempt = 1; attempt <= 3 && !started; attempt++) {
+            try {
+                started = TProxyService.TProxyStartService(
+                        configFile.getAbsolutePath(),
+                        tunFd.getFd()
+                );
+                VpnLogger.i(TAG, "TProxyStart attempt " + attempt + " → " + started);
+            } catch (Throwable t) {
+                VpnLogger.e(TAG, "TProxyStartService threw (try " + attempt + "): "
+                        + t.getMessage());
+                started = false;
+            }
+            if (!started) {
+                try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
+                try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+            }
         }
 
         if (!started) {
-            throw new IOException("Tun2Socks failed");
+            // อย่า throw ทั้งก้อน — แจ้งชัด (SSH path ก็ soft-fail ได้)
+            VpnLogger.e(TAG, "Tun2Socks failed after retries — V2Ray SOCKS ยังอยู่ที่ 1080");
+            throw new IOException("Tun2Socks failed — ลองปิด VPN แล้วเปิดใหม่ หรือ Reboot");
         }
 
         tun2socksRunning = true;
@@ -865,36 +889,56 @@ public class ProxyVpnService extends VpnService
     }
 
     /** ⭐ เขียน hev-config ใหม่ทั้งไฟล์ (กัน port/YAML เพี้ยน) */
+
+    /** เขียน hev-config แบบเดียวกับที่ SSH ใช้แล้วออกเน็ตได้ */
     private void rewriteConfigPort(int port) {
         try {
-            // hev internal MTU แนะนำ 8500 — คนละค่ากับ VpnService.setMtu
-            String yml = ""
-                    + "tunnel:\n"
-                    + "  mtu: 8500\n"
-                    + "  ipv4: " + VPN_ADDRESS + "\n"
-                    + "\n"
-                    + "socks5:\n"
-                    + "  port: " + port + "\n"
-                    + "  address: 127.0.0.1\n"
-                    + "  udp: 'udp'\n"
-                    + "\n"
-                    + "misc:\n"
-                    + "  log-file: stderr\n"
-                    + "  log-level: info\n"
-                    + "  task-stack-size: 86016\n"
-                    + "  connect-timeout: 10000\n"
-                    + "  read-write-timeout: 300000\n"
-                    + "  tcp-buffer-size: 65536\n"
-                    + "  udp-recv-buffer-size: 524288\n"
-                    + "  limit-nofile: 65535\n";
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile);
-            fos.write(yml.getBytes("UTF-8"));
-            fos.close();
-            VpnLogger.i(TAG, "hev-config written → socks 127.0.0.1:" + port
-                    + " tun=" + VPN_ADDRESS + " mtu=" + VPN_MTU);
-            VpnLogger.d(TAG, "hev-config:\n" + yml);
+            if (configFile == null) {
+                configFile = new java.io.File(getFilesDir(), "hev-config.yml");
+            }
+            String yml =
+                    "tunnel:
+" +
+                    "  mtu: 1500
+" +
+                    "  ipv4: " + VPN_ADDRESS + "
+" +
+                    "
+" +
+                    "socks5:
+" +
+                    "  port: " + port + "
+" +
+                    "  address: 127.0.0.1
+" +
+                    "  udp: 'udp'
+" +
+                    "
+" +
+                    "misc:
+" +
+                    "  log-file: stderr
+" +
+                    "  log-level: warn
+" +
+                    "  task-stack-size: 65536
+" +
+                    "  connect-timeout: 15000
+" +
+                    "  read-write-timeout: 300000
+" +
+                    "  tcp-buffer-size: 65536
+" +
+                    "  udp-recv-buffer-size: 524288
+" +
+                    "  limit-nofile: 65535
+";
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile, false)) {
+                fos.write(yml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            VpnLogger.i(TAG, "hev-config written → 127.0.0.1:" + port
+                    + " tun=" + VPN_ADDRESS + " mtu=1500 file=" + configFile.getAbsolutePath());
         } catch (Exception e) {
-
             VpnLogger.w(TAG, "rewriteConfigPort error: " + e.getMessage());
         }
     }

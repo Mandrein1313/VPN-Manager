@@ -1,5 +1,5 @@
 tunnel:
-  mtu: 8500
+  mtu: 1500
   ipv4: 10.0.0.2
 
 socks5:
@@ -9,9 +9,9 @@ socks5:
 
 misc:
   log-file: stderr
-  log-level: info
-  task-stack-size: 86016
-  connect-timeout: 10000
+  log-level: warn
+  task-stack-size: 65536
+  connect-timeout: 15000
   read-write-timeout: 300000
   tcp-buffer-size: 65536
   udp-recv-buffer-size: 524288
