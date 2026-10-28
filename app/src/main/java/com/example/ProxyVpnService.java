@@ -446,15 +446,28 @@ public class ProxyVpnService extends VpnService
                 VpnLogger.i(TAG, "Bypass Mode: DISABLED (user toggled)");
             }
 
-            // ⭐ DNS leak guard: บังคับ DNS ของ VPN + route เฉพาะทาง
-            String d1 = (profile.dns1 != null && !profile.dns1.trim().isEmpty())
-                    ? profile.dns1.trim() : "8.8.8.8";
-            String d2 = (profile.dns2 != null && !profile.dns2.trim().isEmpty())
-                    ? profile.dns2.trim() : "1.1.1.1";
-            addDnsIfValid(builder, d1);
-            addDnsIfValid(builder, d2);
-            addHostRoute(builder, d1);
-            addHostRoute(builder, d2);
+            // ⭐ DNS: V2Ray ใช้ 10.0.0.2 (dokodemo ใน core) — SSH ใช้ DNS ปกติ
+            boolean v2Mode = profile.protocol == com.example.vpn.model.Protocol.V2RAY
+                    || profile.protocol == com.example.vpn.model.Protocol.TROJAN
+                    || profile.protocol == com.example.vpn.model.Protocol.SHADOWSOCKS;
+            String d1;
+            String d2;
+            if (v2Mode) {
+                // ส่ง DNS เข้า TUN IP → V2Ray dokodemo:53 → ออกผ่าน proxy
+                d1 = VPN_ADDRESS; // 10.0.0.2
+                d2 = null;
+                addDnsIfValid(builder, d1);
+                VpnLogger.i(TAG, "V2Ray DNS mode: " + d1 + " (via core dokodemo)");
+            } else {
+                d1 = (profile.dns1 != null && !profile.dns1.trim().isEmpty())
+                        ? profile.dns1.trim() : "8.8.8.8";
+                d2 = (profile.dns2 != null && !profile.dns2.trim().isEmpty())
+                        ? profile.dns2.trim() : "1.1.1.1";
+                addDnsIfValid(builder, d1);
+                addDnsIfValid(builder, d2);
+                addHostRoute(builder, d1);
+                addHostRoute(builder, d2);
+            }
             // IPv6: อย่า addRoute("::") ถ้าไม่มี IPv6 address บน TUN
             // ไม่งั้น Chrome/YouTube ใช้ v6 แล้วค้าง (blackhole)
             // ปิด IPv6 ผ่าน VPN ชั่วคราว — ใช้ IPv4 อย่างเดียว (เสถียรกว่ากับ hev+V2Ray)
@@ -902,7 +915,7 @@ public class ProxyVpnService extends VpnService
                     + "socks5:\n"
                     + "  port: " + port + "\n"
                     + "  address: 127.0.0.1\n"
-                    + "  udp: 'udp'\n"
+                    + "  udp: 'tcp'\n"  // UDP-over-TCP ไป SOCKS — เสถียรกับ V2Ray กว่า udp ตรง
                     + "\n"
                     + "misc:\n"
                     + "  log-file: stderr\n"

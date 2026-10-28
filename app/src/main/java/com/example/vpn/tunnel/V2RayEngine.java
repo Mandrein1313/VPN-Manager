@@ -114,16 +114,25 @@ public class V2RayEngine {
         log.put("loglevel", "warning");
         root.put("log", log);
 
-        // DNS — ช่วย resolve ผ่าน proxy (ลดเคส Heartbeat OK แต่เว็บไม่ขึ้น)
+        // DNS ใน core — query ผ่าน proxy outbound
         JSONObject dns = new JSONObject();
         JSONArray dnsServers = new JSONArray();
+        JSONObject dnsPrimary = new JSONObject();
+        dnsPrimary.put("address", "8.8.8.8");
+        dnsPrimary.put("port", 53);
+        JSONArray dnsTag = new JSONArray();
+        dnsTag.put("proxy");
+        // ไม่บังคับ tag ถ้า build เก่าไม่รองรับ
         dnsServers.put("8.8.8.8");
         dnsServers.put("1.1.1.1");
         dns.put("servers", dnsServers);
         dns.put("queryStrategy", "UseIPv4");
+        dns.put("disableCache", false);
         root.put("dns", dns);
 
-        // Inbounds — SOCKS5
+        // Inbounds — SOCKS5 + DNS (dokodemo) บน IP ของ TUN
+        // แอปส่ง DNS มาที่ 10.0.0.2:53 → V2Ray ไป resolve ผ่าน proxy (TCP/UDP)
+        // แก้เคส: SOCKS ตรวจผ่าน แต่ Chrome/YouTube ไม่ออก (DNS UDP ผ่าน hev พัง)
         JSONArray inbounds = new JSONArray();
         JSONObject socksIn = new JSONObject();
         socksIn.put("tag", "socks-in");
@@ -140,24 +149,22 @@ public class V2RayEngine {
         destOverride.put("http");
         destOverride.put("tls");
         sniffing.put("destOverride", destOverride);
-        sniffing.put("routeOnly", true); // เร็วขึ้น — ใกล้ v2rayNG
+        sniffing.put("routeOnly", true);
         socksIn.put("sniffing", sniffing);
         inbounds.put(socksIn);
-        // policy — ลด idle timeout ตัด connection เร็วเกิน
-        JSONObject policy = new JSONObject();
-        JSONObject levels = new JSONObject();
-        JSONObject level0 = new JSONObject();
-        level0.put("connIdle", 300);
-        level0.put("downlinkOnly", 30);
-        level0.put("uplinkOnly", 30);
-        level0.put("bufferSize", 512);
-        levels.put("0", level0);
-        policy.put("levels", levels);
-        JSONObject system = new JSONObject();
-        system.put("statsOutboundUplink", false);
-        system.put("statsOutboundDownlink", false);
-        policy.put("system", system);
-        root.put("policy", policy);
+
+        // DNS inbound บน TUN address — ระบบส่ง DNS มาที่นี่
+        JSONObject dnsIn = new JSONObject();
+        dnsIn.put("tag", "dns-in");
+        dnsIn.put("port", 53);
+        dnsIn.put("listen", "10.0.0.2");
+        dnsIn.put("protocol", "dokodemo-door");
+        JSONObject dnsInSettings = new JSONObject();
+        dnsInSettings.put("address", "8.8.8.8");
+        dnsInSettings.put("port", 53);
+        dnsInSettings.put("network", "tcp,udp");
+        dnsIn.put("settings", dnsInSettings);
+        inbounds.put(dnsIn);
 
         root.put("inbounds", inbounds);
 
