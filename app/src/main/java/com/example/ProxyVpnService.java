@@ -79,6 +79,7 @@ public class ProxyVpnService extends VpnService
     private SshTunnel sshTunnel;
     private Socks5Server socks5Server;
     private V2RayEngine v2rayEngine;
+    private com.example.vpn.tunnel.LocalDnsProxy localDnsProxy;
     private NetworkMonitor networkMonitor;
     private ConnectivityChecker connectivityChecker;
     private VpnPrefs prefs;
@@ -799,6 +800,23 @@ public class ProxyVpnService extends VpnService
         VpnLogger.i(TAG, "V2Ray + Tun2Socks ready (hev→127.0.0.1:"
                 + V2RayEngine.SOCKS_PORT + ")");
 
+        // DNS proxy บน 10.0.0.2:53 → SOCKS → 8.8.8.8 (TCP)
+        try {
+            if (localDnsProxy != null) {
+                try { localDnsProxy.stop(); } catch (Exception ignored) {}
+            }
+            localDnsProxy = new com.example.vpn.tunnel.LocalDnsProxy(
+                    VPN_ADDRESS, 53,
+                    "127.0.0.1", V2RayEngine.SOCKS_PORT,
+                    "8.8.8.8");
+            localDnsProxy.start();
+            VpnLogger.i(TAG, "LocalDnsProxy started on " + VPN_ADDRESS + ":53");
+        } catch (Exception e) {
+            VpnLogger.e(TAG, "LocalDnsProxy failed: " + e.getMessage());
+            // ยังไปต่อ — บางเครื่อง bind TUN IP ไม่ได้
+        }
+
+
         try { Thread.sleep(800); } catch (InterruptedException ignored) {}
 
         // เหมือน SSH: ตรวจ connectivity จริงก่อนประกาศ CONNECTED
@@ -1247,6 +1265,13 @@ public class ProxyVpnService extends VpnService
             workerThread.interrupt();
             workerThread = null;
         }
+
+        try {
+            if (localDnsProxy != null) {
+                localDnsProxy.stop();
+                localDnsProxy = null;
+            }
+        } catch (Exception ignored) {}
 
         if (tun2socksRunning) {
             try {

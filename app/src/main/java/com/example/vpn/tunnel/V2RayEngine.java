@@ -153,19 +153,6 @@ public class V2RayEngine {
         socksIn.put("sniffing", sniffing);
         inbounds.put(socksIn);
 
-        // DNS inbound บน TUN address — ระบบส่ง DNS มาที่นี่
-        JSONObject dnsIn = new JSONObject();
-        dnsIn.put("tag", "dns-in");
-        dnsIn.put("port", 53);
-        dnsIn.put("listen", "10.0.0.2");
-        dnsIn.put("protocol", "dokodemo-door");
-        JSONObject dnsInSettings = new JSONObject();
-        dnsInSettings.put("address", "8.8.8.8");
-        dnsInSettings.put("port", 53);
-        dnsInSettings.put("network", "tcp,udp");
-        dnsIn.put("settings", dnsInSettings);
-        inbounds.put(dnsIn);
-
         root.put("inbounds", inbounds);
 
         // Outbounds
