@@ -219,14 +219,15 @@
                         android:id="@+id/txtConfigLeft"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
+                        android:layout_marginTop="4dp"
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:text="—"
-                        android:textColor="@color/text_muted"
-                        android:textSize="13sp"
-                        android:fontFamily="sans-serif"
-                        android:letterSpacing="0.02" />
+                        android:textColor="#9EADB8"
+                        android:textSize="13.5sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:letterSpacing="0.03"
+                        android:alpha="0.95" />
 
                     <TextView
                         android:id="@+id/txtConfigRight"
