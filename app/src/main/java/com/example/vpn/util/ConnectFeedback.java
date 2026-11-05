@@ -23,6 +23,12 @@ public final class ConnectFeedback {
         Context app = ctx.getApplicationContext();
         vibrate(app, new long[]{0, 40, 60, 40}, new int[]{0, 180, 0, 220});
         playTone(ToneGenerator.TONE_PROP_ACK, 120);
+        // Toast ต้องอยู่ main thread (เรียกจาก service ได้)
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            try {
+                StyledToast.success(app, "เชื่อมต่อสำเร็จ");
+            } catch (Exception ignored) {}
+        });
     }
 
     /** ตัดการเชื่อมต่อ / error */
