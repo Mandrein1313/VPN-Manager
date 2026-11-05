@@ -55,5 +55,7 @@
 
     <color name="accent_green">#00A854</color>
     <color name="accent_green_soft">#E3F6EA</color>
+    <color name="traffic_gold">#FFC107</color>
+    <color name="traffic_gold_soft">#33FFC107</color>
     <color name="connect_btn_idle">#8A9A90</color>
 </resources>
