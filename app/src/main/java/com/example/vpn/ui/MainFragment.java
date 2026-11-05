@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -19,6 +20,7 @@ public class MainFragment extends Fragment {
 
     private ConnectButtonView btnConnect;
     private TextView txtStatus;
+    private ProgressBar progress;
     private View adFreeCard;
     private TextView txtAdFreeTime;
     private View configCard;
@@ -49,6 +51,7 @@ public class MainFragment extends Fragment {
 
     public ConnectButtonView getConnectButton() { return btnConnect; }
     public TextView getTxtStatus() { return txtStatus; }
+    public ProgressBar getProgressBar() { return progress; }
     public TextView getTxtConfigName() { return txtConfigName; }
     public TextView getTxtConfigLeft() { return txtConfigLeft; }
     public TextView getTxtConfigRight() { return txtConfigRight; }
@@ -78,6 +81,7 @@ public class MainFragment extends Fragment {
 
         btnConnect = v.findViewById(R.id.btnConnect);
         txtStatus = v.findViewById(R.id.txtStatus);
+        progress = v.findViewById(R.id.progress);
         adFreeCard = v.findViewById(R.id.adFreeCard);
         txtAdFreeTime = v.findViewById(R.id.txtAdFreeTime);
         configCard = v.findViewById(R.id.configCard);

@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ProgressBar;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -218,20 +219,24 @@ public class ConnectionActivity extends AppCompatActivity
             switch (status.state) {
                 case CONNECTED:
                     updateStatusText(getString(R.string.status_connected), 0xFF00E676);
+                    setConnectingProgress(false);
                     break;
                 case ERROR:
                     updateStatusText(getString(R.string.status_error), 0xFFEF5350);
+                    setConnectingProgress(false);
                     break;
                 case CONNECTING_SSH:
                 case SSH_CONNECTED:
                 case SOCKS_READY:
                 case TUN2SOCKS_READY:
                     updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
+                    setConnectingProgress(true);
                     break;
                 case STOPPED:
                 case IDLE:
                 default:
                     updateStatusText(getString(R.string.status_not_connected), 0xFF00E676);
+                    setConnectingProgress(false);
                     break;
             }
 
@@ -436,6 +441,7 @@ public class ConnectionActivity extends AppCompatActivity
             mainFragment.getConnectButton()
                     .forceSetState(ConnectButtonView.State.CONNECTING);
             updateFabFromState(ConnectButtonView.State.CONNECTING);
+            setConnectingProgress(true);
             updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
         } else {
             // ต้องเคลียร์ส้มด้วย — กันค้าง CONNECTING แต่ข้อความเป็น NOT CONNECTED
@@ -537,6 +543,14 @@ public class ConnectionActivity extends AppCompatActivity
         } catch (Exception ignored) {}
     }
 
+    private void setConnectingProgress(boolean show) {
+        if (mainFragment == null) return;
+        ProgressBar pb = mainFragment.getProgressBar();
+        if (pb == null) return;
+        pb.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+
     private void updateConfigCard(String name, String left, String right) {
         pendingConfigName = name != null ? name : "Not Set";
         pendingConfigLeft = left != null ? left : "---";
@@ -603,6 +617,7 @@ public class ConnectionActivity extends AppCompatActivity
                         if (cur != ConnectButtonView.State.CONNECTING) {
                             btn.forceSetState(ConnectButtonView.State.CONNECTING);
             updateFabFromState(ConnectButtonView.State.CONNECTING);
+            setConnectingProgress(true);
                             updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
                         }
                         return;

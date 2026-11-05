@@ -43,6 +43,18 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
+            <!-- แถบโหลดตอนกำลังเชื่อมต่อ -->
+            <ProgressBar
+                android:id="@+id/progress"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="160dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:indeterminate="true"
+                android:visibility="gone"
+                android:progressTint="#00E676"
+                android:indeterminateTint="#00E676" />
+
             <TextView
                 android:id="@+id/txtSession"
                 android:layout_width="wrap_content"
