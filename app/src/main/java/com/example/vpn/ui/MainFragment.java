@@ -1,11 +1,12 @@
 package com.example.vpn.ui;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -20,7 +21,9 @@ public class MainFragment extends Fragment {
 
     private ConnectButtonView btnConnect;
     private TextView txtStatus;
-    private ProgressBar progress;
+    private View progress;
+    private View progressThumb;
+    private ObjectAnimator progressAnim;
     private View adFreeCard;
     private TextView txtAdFreeTime;
     private View configCard;
@@ -51,7 +54,51 @@ public class MainFragment extends Fragment {
 
     public ConnectButtonView getConnectButton() { return btnConnect; }
     public TextView getTxtStatus() { return txtStatus; }
-    public ProgressBar getProgressBar() { return progress; }
+    public View getProgressBar() { return progress; }
+
+    public void setProgressVisible(boolean show) {
+        if (progress == null) return;
+        if (show) {
+            progress.setVisibility(View.VISIBLE);
+            startProgressAnim();
+        } else {
+            stopProgressAnim();
+            progress.setVisibility(View.GONE);
+        }
+    }
+
+    private void startProgressAnim() {
+        if (progressThumb == null || progress == null) return;
+        stopProgressAnim();
+        progress.post(() -> {
+            int track = progress.getWidth();
+            int thumb = progressThumb.getWidth();
+            if (track <= 0) {
+                track = (int) (120 * getResources().getDisplayMetrics().density);
+            }
+            if (thumb <= 0) {
+                thumb = (int) (36 * getResources().getDisplayMetrics().density);
+            }
+            float max = Math.max(0f, track - thumb);
+            progressThumb.setTranslationX(0f);
+            progressAnim = ObjectAnimator.ofFloat(progressThumb, View.TRANSLATION_X, 0f, max);
+            progressAnim.setDuration(850);
+            progressAnim.setRepeatMode(ValueAnimator.REVERSE);
+            progressAnim.setRepeatCount(ValueAnimator.INFINITE);
+            progressAnim.start();
+        });
+    }
+
+    private void stopProgressAnim() {
+        if (progressAnim != null) {
+            progressAnim.cancel();
+            progressAnim = null;
+        }
+        if (progressThumb != null) {
+            progressThumb.setTranslationX(0f);
+        }
+    }
+
     public TextView getTxtConfigName() { return txtConfigName; }
     public TextView getTxtConfigLeft() { return txtConfigLeft; }
     public TextView getTxtConfigRight() { return txtConfigRight; }
@@ -82,6 +129,7 @@ public class MainFragment extends Fragment {
         btnConnect = v.findViewById(R.id.btnConnect);
         txtStatus = v.findViewById(R.id.txtStatus);
         progress = v.findViewById(R.id.progress);
+        progressThumb = v.findViewById(R.id.progressThumb);
         adFreeCard = v.findViewById(R.id.adFreeCard);
         txtAdFreeTime = v.findViewById(R.id.txtAdFreeTime);
         configCard = v.findViewById(R.id.configCard);
@@ -175,5 +223,11 @@ public class MainFragment extends Fragment {
         if (ms < 150) return R.drawable.ic_signal_3;
         if (ms < 300) return R.drawable.ic_signal_2;
         return R.drawable.ic_signal_1;
+    }
+
+    @Override
+    public void onDestroyView() {
+        stopProgressAnim();
+        super.onDestroyView();
     }
 }

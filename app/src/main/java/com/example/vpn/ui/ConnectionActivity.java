@@ -10,7 +10,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ProgressBar;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -545,15 +544,7 @@ public class ConnectionActivity extends AppCompatActivity
 
     private void setConnectingProgress(boolean show) {
         if (mainFragment == null) return;
-        ProgressBar pb = mainFragment.getProgressBar();
-        if (pb == null) return;
-        if (show) {
-            pb.setIndeterminate(true);
-            pb.setVisibility(View.VISIBLE);
-        } else {
-            pb.setVisibility(View.GONE);
-            pb.setIndeterminate(false);
-        }
+        mainFragment.setProgressVisible(show);
     }
 
 

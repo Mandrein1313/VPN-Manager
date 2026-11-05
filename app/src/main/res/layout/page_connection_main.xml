@@ -43,19 +43,21 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
-            <!-- แถบโหลดบาง ๆ ตอนกำลังเชื่อมต่อ -->
-            <ProgressBar
+            <!-- แถบบางเลื่อนซ้าย-ขวา ตอนกำลังเชื่อมต่อ -->
+            <FrameLayout
                 android:id="@+id/progress"
-                style="@android:style/Widget.ProgressBar.Horizontal"
-                android:layout_width="140dp"
+                android:layout_width="120dp"
                 android:layout_height="3dp"
                 android:layout_marginTop="10dp"
-                android:minHeight="3dp"
-                android:maxHeight="3dp"
-                android:indeterminate="true"
-                android:visibility="gone"
-                android:progressBackgroundTint="#33FFFFFF"
-                android:indeterminateTint="#00E676" />
+                android:background="#33FFFFFF"
+                android:visibility="gone">
+
+                <View
+                    android:id="@+id/progressThumb"
+                    android:layout_width="36dp"
+                    android:layout_height="match_parent"
+                    android:background="#FFA726" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/txtSession"
