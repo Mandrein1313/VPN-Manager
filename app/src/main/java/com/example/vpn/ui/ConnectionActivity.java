@@ -547,7 +547,13 @@ public class ConnectionActivity extends AppCompatActivity
         if (mainFragment == null) return;
         ProgressBar pb = mainFragment.getProgressBar();
         if (pb == null) return;
-        pb.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (show) {
+            pb.setIndeterminate(true);
+            pb.setVisibility(View.VISIBLE);
+        } else {
+            pb.setVisibility(View.GONE);
+            pb.setIndeterminate(false);
+        }
     }
 
 
