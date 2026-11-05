@@ -80,6 +80,7 @@ public class ProxyVpnService extends VpnService
     private Socks5Server socks5Server;
     private V2RayEngine v2rayEngine;
     private com.example.vpn.tunnel.LocalDnsProxy localDnsProxy;
+    private com.example.vpn.tunnel.V2RaySocksBridge v2rayBridge;
     private NetworkMonitor networkMonitor;
     private ConnectivityChecker connectivityChecker;
     private VpnPrefs prefs;
@@ -454,11 +455,14 @@ public class ProxyVpnService extends VpnService
             String d1;
             String d2;
             if (v2Mode) {
-                // ส่ง DNS เข้า TUN IP → V2Ray dokodemo:53 → ออกผ่าน proxy
-                d1 = VPN_ADDRESS; // 10.0.0.2
-                d2 = null;
+                // DNS ผ่าน hev → Bridge → DNS-over-TCP ผ่าน V2Ray (อย่าใช้ 10.0.0.2 — bind :53 โดน EACCES)
+                d1 = "8.8.8.8";
+                d2 = "1.1.1.1";
                 addDnsIfValid(builder, d1);
-                VpnLogger.i(TAG, "V2Ray DNS mode: " + d1 + " (via core dokodemo)");
+                addDnsIfValid(builder, d2);
+                addHostRoute(builder, d1);
+                addHostRoute(builder, d2);
+                VpnLogger.i(TAG, "V2Ray DNS mode: 8.8.8.8 / 1.1.1.1 (via SOCKS bridge)");
             } else {
                 d1 = (profile.dns1 != null && !profile.dns1.trim().isEmpty())
                         ? profile.dns1.trim() : "8.8.8.8";
@@ -758,6 +762,20 @@ public class ProxyVpnService extends VpnService
 
         try { Thread.sleep(500); } catch (InterruptedException ignored) {}
 
+        // Bridge: hev → :1080 (Java) → V2Ray :10808 — แบบเดียวกับ SSH ที่เน็ตออก
+        try {
+            if (v2rayBridge != null) {
+                try { v2rayBridge.stop(); } catch (Exception ignored) {}
+            }
+            v2rayBridge = new com.example.vpn.tunnel.V2RaySocksBridge(
+                    1080, "127.0.0.1", V2RayEngine.SOCKS_PORT);
+            v2rayBridge.start();
+            VpnLogger.i(TAG, "V2RaySocksBridge 1080 → V2Ray " + V2RayEngine.SOCKS_PORT);
+        } catch (Exception e) {
+            VpnLogger.e(TAG, "V2RaySocksBridge failed: " + e.getMessage());
+            throw new IOException("V2Ray SOCKS bridge failed: " + e.getMessage());
+        }
+
         // ---- Tun2Socks — ใช้ชุดเดียวกับ SSH ที่พิสูจน์แล้วว่าออกเน็ตได้ ----
         StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
         updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
@@ -768,7 +786,7 @@ public class ProxyVpnService extends VpnService
         try { Thread.sleep(200); } catch (InterruptedException ignored) {}
 
         copyConfigFromAssets();
-        rewriteConfigPort(V2RayEngine.SOCKS_PORT);
+        rewriteConfigPort(1080); // hev → bridge ไม่ใช่ V2Ray ตรง
         VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
 
         boolean started = false;
@@ -797,24 +815,9 @@ public class ProxyVpnService extends VpnService
         }
 
         tun2socksRunning = true;
-        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready (hev→127.0.0.1:"
+        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready (hev→bridge:1080→V2Ray:"
                 + V2RayEngine.SOCKS_PORT + ")");
 
-        // DNS proxy บน 10.0.0.2:53 → SOCKS → 8.8.8.8 (TCP)
-        try {
-            if (localDnsProxy != null) {
-                try { localDnsProxy.stop(); } catch (Exception ignored) {}
-            }
-            localDnsProxy = new com.example.vpn.tunnel.LocalDnsProxy(
-                    VPN_ADDRESS, 53,
-                    "127.0.0.1", V2RayEngine.SOCKS_PORT,
-                    "8.8.8.8");
-            localDnsProxy.start();
-            VpnLogger.i(TAG, "LocalDnsProxy started on " + VPN_ADDRESS + ":53");
-        } catch (Exception e) {
-            VpnLogger.e(TAG, "LocalDnsProxy failed: " + e.getMessage());
-            // ยังไปต่อ — บางเครื่อง bind TUN IP ไม่ได้
-        }
 
 
         try { Thread.sleep(800); } catch (InterruptedException ignored) {}
@@ -1228,6 +1231,13 @@ public class ProxyVpnService extends VpnService
             tun2socksRunning = false;
         }
 
+        try {
+            if (v2rayBridge != null) {
+                v2rayBridge.stop();
+                v2rayBridge = null;
+            }
+        } catch (Exception ignored) {}
+
         // ⭐ ปิด V2Ray
         if (v2rayEngine != null) {
             try { v2rayEngine.stop(); } catch (Throwable ignored) {}
@@ -1282,6 +1292,13 @@ public class ProxyVpnService extends VpnService
             }
             tun2socksRunning = false;
         }
+
+        try {
+            if (v2rayBridge != null) {
+                v2rayBridge.stop();
+                v2rayBridge = null;
+            }
+        } catch (Exception ignored) {}
 
         // ⭐ ปิด V2Ray
         if (v2rayEngine != null) {
