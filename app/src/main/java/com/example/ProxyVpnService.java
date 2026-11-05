@@ -762,18 +762,51 @@ public class ProxyVpnService extends VpnService
 
         try { Thread.sleep(500); } catch (InterruptedException ignored) {}
 
-        // Bridge: hev → :1080 (Java) → V2Ray :10808 — แบบเดียวกับ SSH ที่เน็ตออก
+        // ปล่อยพอร์ต 1080 ก่อน (กัน EADDRINUSE ตอนสลับจาก SSH)
         try {
+            if (socks5Server != null) {
+                try { socks5Server.stop(); } catch (Exception ignored) {}
+                socks5Server = null;
+                VpnLogger.i(TAG, "Stopped Socks5Server before V2Ray bridge");
+            }
             if (v2rayBridge != null) {
                 try { v2rayBridge.stop(); } catch (Exception ignored) {}
+                v2rayBridge = null;
             }
-            v2rayBridge = new com.example.vpn.tunnel.V2RaySocksBridge(
-                    1080, "127.0.0.1", V2RayEngine.SOCKS_PORT);
-            v2rayBridge.start();
-            VpnLogger.i(TAG, "V2RaySocksBridge 1080 → V2Ray " + V2RayEngine.SOCKS_PORT);
-        } catch (Exception e) {
-            VpnLogger.e(TAG, "V2RaySocksBridge failed: " + e.getMessage());
-            throw new IOException("V2Ray SOCKS bridge failed: " + e.getMessage());
+            try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+        } catch (Exception ignored) {}
+
+        // Bridge: hev → :1080 (Java) → V2Ray :10808 — แบบเดียวกับ SSH ที่เน็ตออก
+        Exception lastBind = null;
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            try {
+                v2rayBridge = new com.example.vpn.tunnel.V2RaySocksBridge(
+                        1080, "127.0.0.1", V2RayEngine.SOCKS_PORT);
+                v2rayBridge.start();
+                lastBind = null;
+                VpnLogger.i(TAG, "V2RaySocksBridge 1080 → V2Ray " + V2RayEngine.SOCKS_PORT
+                        + " (try " + attempt + ")");
+                break;
+            } catch (Exception e) {
+                lastBind = e;
+                VpnLogger.w(TAG, "V2RaySocksBridge bind try " + attempt + ": " + e.getMessage());
+                try { if (v2rayBridge != null) v2rayBridge.stop(); } catch (Exception ignored) {}
+                v2rayBridge = null;
+                // บังคับปิด SOCKS เก่าอีกครั้ง
+                try {
+                    if (socks5Server != null) {
+                        socks5Server.stop();
+                        socks5Server = null;
+                    }
+                } catch (Exception ignored) {}
+                try { Thread.sleep(350L * attempt); } catch (InterruptedException ignored) {}
+            }
+        }
+        if (lastBind != null || v2rayBridge == null) {
+            VpnLogger.e(TAG, "V2RaySocksBridge failed: "
+                    + (lastBind != null ? lastBind.getMessage() : "null"));
+            throw new IOException("V2Ray SOCKS bridge failed: "
+                    + (lastBind != null ? lastBind.getMessage() : "bind failed"));
         }
 
         // ---- Tun2Socks — ใช้ชุดเดียวกับ SSH ที่พิสูจน์แล้วว่าออกเน็ตได้ ----

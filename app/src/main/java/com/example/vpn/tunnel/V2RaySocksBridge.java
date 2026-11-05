@@ -44,7 +44,11 @@ public class V2RaySocksBridge {
         if (running.get()) return;
         server = new ServerSocket();
         server.setReuseAddress(true);
-        server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), listenPort));
+        try {
+            // ลด TIME_WAIT ตอนสลับ SSH ↔ V2Ray เร็ว ๆ
+            server.setSoTimeout(0);
+        } catch (Exception ignored) {}
+        server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), listenPort), 50);
         pool = Executors.newCachedThreadPool();
         running.set(true);
         acceptThread = new Thread(this::acceptLoop, "v2ray-socks-bridge");
@@ -57,9 +61,15 @@ public class V2RaySocksBridge {
     public void stop() {
         running.set(false);
         try { if (server != null) server.close(); } catch (Exception ignored) {}
-        if (pool != null) pool.shutdownNow();
+        server = null;
+        if (pool != null) {
+            pool.shutdownNow();
+            pool = null;
+        }
         if (acceptThread != null) {
-            try { acceptThread.join(400); } catch (Exception ignored) {}
+            try { acceptThread.interrupt(); } catch (Exception ignored) {}
+            try { acceptThread.join(300); } catch (Exception ignored) {}
+            acceptThread = null;
         }
         VpnLogger.i(TAG, "Bridge stopped");
     }
