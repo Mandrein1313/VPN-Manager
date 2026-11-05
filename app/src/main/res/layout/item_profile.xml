@@ -102,9 +102,11 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:text="Name"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:textColor="#F5F7FA"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-medium"
+                    android:letterSpacing="0.01" />
 
                 <!-- latency / status chip -->
                 <TextView
@@ -125,12 +127,14 @@
                 android:id="@+id/txtHost"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:ellipsize="middle"
                 android:maxLines="1"
                 android:text="host:port"
-                android:textColor="#88FFFFFF"
-                android:textSize="12sp" />
+                android:textColor="#B0BEC5"
+                android:textSize="12.5sp"
+                android:fontFamily="sans-serif"
+                android:letterSpacing="0.02" />
         </LinearLayout>
 
         <!-- ปุ่มวงกลม: edit / share / delete -->

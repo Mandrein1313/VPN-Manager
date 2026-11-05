@@ -211,18 +211,22 @@
                         android:text="@string/profile_not_set"
                         android:textColor="@color/text_primary"
                         android:textSize="17sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        android:fontFamily="sans-serif-medium"
+                        android:letterSpacing="0.01" />
 
                     <TextView
                         android:id="@+id/txtConfigLeft"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginTop="3dp"
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:text="—"
                         android:textColor="@color/text_muted"
-                        android:textSize="12sp" />
+                        android:textSize="13sp"
+                        android:fontFamily="sans-serif"
+                        android:letterSpacing="0.02" />
 
                     <TextView
                         android:id="@+id/txtConfigRight"
@@ -304,7 +308,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_stat_mini"
+                    android:background="@drawable/bg_traffic_mini"
                     android:orientation="vertical"
                     android:padding="12dp">
 
@@ -323,7 +327,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="▼  0 B"
-                        android:textColor="@color/accent_green"
+                        android:textColor="@color/traffic_gold"
                         android:textSize="15sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -333,7 +337,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_stat_mini"
+                    android:background="@drawable/bg_traffic_mini"
                     android:orientation="vertical"
                     android:padding="12dp">
 
@@ -352,7 +356,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="▲  0 B"
-                        android:textColor="@color/accent_green"
+                        android:textColor="@color/traffic_gold"
                         android:textSize="15sp"
                         android:textStyle="bold" />
                 </LinearLayout>
