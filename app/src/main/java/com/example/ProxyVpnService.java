@@ -164,12 +164,13 @@ public class ProxyVpnService extends VpnService
 
         // ===== STOP =====
         if (ACTION_STOP.equals(action)) {
-            VpnLogger.i(TAG, "STOP action received");
+            VpnLogger.i(TAG, "STOP action received (ผู้ใช้กดหยุด — ปิด Kill Switch รอบนี้)");
             prefs.setWasConnected(false);
-            prefs.setKillSwitch(false);
+            // ไม่ปิด prefs.isKillSwitch() — เป็นค่าตั้งค่าผู้ใช้
             reconnectAttempt = 0;
             reconnectHandler.removeCallbacksAndMessages(null);
             reconnecting = false;
+            userStopped = true;
             stopVpn(true);
             return START_NOT_STICKY;
         }
@@ -216,6 +217,7 @@ public class ProxyVpnService extends VpnService
 
         // ===== START =====
         if (ACTION_START.equals(action)) {
+            userStopped = false;
             // Android 8+ / 15: ต้อง startForeground() ภายใน ~5-10 วินาที
             // หลัง startForegroundService() — เรียกก่อนเช็คอะไรทั้งนั้น
             try {
@@ -525,9 +527,9 @@ public class ProxyVpnService extends VpnService
                 updateNotification("ผิดพลาด: " + e.getMessage());
             } catch (Exception ignored) {}
 
-            if (prefs.isKillSwitch() && tunFd != null) {
-                VpnLogger.w(TAG, "Kill Switch: keeping TUN active");
-                updateNotification("🔒 Kill Switch Active");
+            if (prefs.isKillSwitch() && tunFd != null && !userStopped) {
+                enterKillSwitchMode(e.getMessage() != null ? e.getMessage() : "start failed");
+                if (prefs.isAutoReconnect()) scheduleReconnect();
                 return;
             }
 
@@ -701,10 +703,9 @@ public class ProxyVpnService extends VpnService
                 updateNotification("ผิดพลาด: " + e.getMessage());
             } catch (Exception ignored) {}
 
-            if (prefs.isKillSwitch() && tunFd != null) {
-                VpnLogger.w(TAG, "Kill Switch: keeping TUN active");
-                updateNotification("🔒 Kill Switch Active");
-                scheduleReconnect();
+            if (prefs.isKillSwitch() && tunFd != null && !userStopped) {
+                enterKillSwitchMode(e.getMessage() != null ? e.getMessage() : "connect failed");
+                if (prefs.isAutoReconnect()) scheduleReconnect();
                 return;
             }
 
@@ -1218,7 +1219,9 @@ public class ProxyVpnService extends VpnService
     @Override
     public void onNetworkAvailable() {
         VpnLogger.i(TAG, "Network available — checking VPN state");
-        if (!connected && currentProfile != null && prefs.isAutoReconnect()) {
+        if (userStopped || destroying) return;
+        if (!connected && currentProfile != null
+                && prefs != null && prefs.isAutoReconnect()) {
             VpnLogger.i(TAG, "Auto-reconnect: network is back");
             scheduleReconnect();
         }
@@ -1228,15 +1231,15 @@ public class ProxyVpnService extends VpnService
     public void onNetworkLost() {
         VpnLogger.w(TAG, "Network lost");
         stopHeartbeat();
-        if (connected) {
+        if (connected || tunFd != null) {
             connected = false;
-            if (prefs.isKillSwitch()) {
-                updateNotification("🔒 รอ network กลับมา...");
+            if (prefs != null && prefs.isKillSwitch() && tunFd != null && !userStopped) {
+                enterKillSwitchMode("เน็ตหลุด / ไม่มีสัญญาณ");
             } else {
                 updateNotification("Network lost — กำลังรอ...");
-            }
-            StatusBus.post(StatusBus.State.ERROR, "เน็ตหลุด / ไม่มีสัญญาณ — รอ reconnect อัตโนมัติ");
+                StatusBus.post(StatusBus.State.ERROR, "เน็ตหลุด / ไม่มีสัญญาณ — รอ reconnect อัตโนมัติ");
                 ConnectFeedback.onError(ProxyVpnService.this);
+            }
         }
     }
 
@@ -1245,11 +1248,17 @@ public class ProxyVpnService extends VpnService
     private void postFailClear(String reason, boolean allowAutoReconnect) {
         String msg = humanizeFail(reason);
         VpnLogger.e(TAG, "FAIL: " + msg);
-        updateNotification("ผิดพลาด: " + msg);
-        StatusBus.post(StatusBus.State.ERROR, msg);
-        try { ConnectFeedback.onError(this); } catch (Exception ignored) {}
 
-        if (!allowAutoReconnect) return;
+        // Kill Switch: บล็อกเน็ตไว้ก่อน แล้วค่อย reconnect
+        if (!userStopped && prefs != null && prefs.isKillSwitch() && tunFd != null) {
+            enterKillSwitchMode(reason);
+        } else {
+            updateNotification("ผิดพลาด: " + msg);
+            StatusBus.post(StatusBus.State.ERROR, msg);
+            try { ConnectFeedback.onError(this); } catch (Exception ignored) {}
+        }
+
+        if (!allowAutoReconnect || userStopped) return;
         if (prefs == null || !prefs.isAutoReconnect()) return;
         if (currentProfile == null || destroying) return;
         if (reconnecting) return;
@@ -1261,6 +1270,7 @@ public class ProxyVpnService extends VpnService
             updateNotification(stopMsg);
             StatusBus.post(StatusBus.State.ERROR, stopMsg);
             reconnectAttempt = 0;
+            // ครบรอบแล้วยังเปิด Kill Switch อยู่ — เน็ตยังบล็อก จนกว่าผู้ใช้กดหยุด
             return;
         }
         scheduleReconnect();
@@ -1296,8 +1306,64 @@ public class ProxyVpnService extends VpnService
         return r;
     }
 
+
+    /**
+     * Kill Switch แบบง่าย: ตัด tunnel แต่คง TUN + setBlocking(true)
+     * → แอปอื่นออกเน็ตตรงไม่ได้ จนกว่าจะ reconnect สำเร็จหรือผู้ใช้กดหยุด
+     */
+    private void enterKillSwitchMode(String reason) {
+        if (userStopped || destroying) return;
+        if (prefs == null || !prefs.isKillSwitch()) return;
+        if (tunFd == null) {
+            VpnLogger.w(TAG, "Kill Switch: no TUN — cannot block");
+            return;
+        }
+
+        VpnLogger.w(TAG, "🔒 Kill Switch ON: " + reason);
+        connected = false;
+        stopHeartbeat();
+
+        // ปิดเฉพาะทางผ่านอุโมงค์ — ไม่ปิด TUN
+        if (connectivityChecker != null) {
+            try { connectivityChecker.cancel(); } catch (Exception ignored) {}
+            connectivityChecker = null;
+        }
+        if (tun2socksRunning) {
+            try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
+            tun2socksRunning = false;
+        }
+        try {
+            if (v2rayBridge != null) {
+                v2rayBridge.stop();
+                v2rayBridge = null;
+            }
+        } catch (Exception ignored) {}
+        if (v2rayEngine != null) {
+            try { v2rayEngine.stop(); } catch (Throwable ignored) {}
+            v2rayEngine = null;
+        }
+        if (socks5Server != null) {
+            try { socks5Server.stop(); } catch (Exception ignored) {}
+            socks5Server = null;
+        }
+        if (sshTunnel != null) {
+            try { sshTunnel.disconnect(); } catch (Exception ignored) {}
+            sshTunnel = null;
+        }
+
+        String msg = "🔒 Kill Switch: เน็ตถูกบล็อก — " + humanizeFail(reason);
+        updateNotification(msg);
+        StatusBus.post(StatusBus.State.ERROR, msg);
+        try { ConnectFeedback.onError(this); } catch (Exception ignored) {}
+        setServiceRunning(true); // ยัง foreground อยู่
+    }
+
     private void scheduleReconnect() {
         if (reconnecting) return;
+        if (userStopped) {
+            VpnLogger.i(TAG, "userStopped — ไม่ schedule reconnect");
+            return;
+        }
         if (prefs != null && !prefs.isAutoReconnect()) {
             VpnLogger.i(TAG, "Auto-reconnect ปิดอยู่ — ไม่ schedule");
             return;
