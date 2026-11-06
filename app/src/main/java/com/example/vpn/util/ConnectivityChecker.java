@@ -93,12 +93,12 @@ public class ConnectivityChecker {
             VpnLogger.w("ConnectivityChecker", "DNS google.com failed: " + e.getMessage());
         }
 
-        // เส้นทางหลัก: SOCKS ของแอป (1081 V2Ray / 1080 SSH)
-        int[] ports = new int[] { 1081, 1080 };
+        // เส้นทางหลัก: SOCKS ของแอป
+        // 10808 = V2Ray (V2RayEngine.SOCKS_PORT), 1080 = SSH / bridge, 1081 = legacy
+        int[] ports = new int[] { 10808, 1080, 1081 };
         for (int port : ports) {
             if (trySocksConnect(port, "1.1.1.1", 80)) {
                 r.tcpOk = true;
-                r.ok = r.dnsOk || true; // TCP ผ่าน SOCKS = เน็ตใช้ได้จริง
                 r.ok = true;
                 VpnLogger.d("ConnectivityChecker", "TCP via SOCKS :" + port + " → 1.1.1.1:80 ✅");
                 return r;
@@ -107,6 +107,13 @@ public class ConnectivityChecker {
                 r.tcpOk = true;
                 r.ok = true;
                 VpnLogger.d("ConnectivityChecker", "TCP via SOCKS :" + port + " → 8.8.8.8:53 ✅");
+                return r;
+            }
+            // domain ผ่าน SOCKS (ทดสอบ path แบบแอปจริง)
+            if (trySocksConnectDomain(port, "www.google.com", 80)) {
+                r.tcpOk = true;
+                r.ok = true;
+                VpnLogger.d("ConnectivityChecker", "TCP via SOCKS :" + port + " → www.google.com:80 ✅");
                 return r;
             }
         }
@@ -155,6 +162,48 @@ public class ConnectivityChecker {
             int n = in.read(crep);
             return n >= 2 && crep[0] == 0x05 && crep[1] == 0x00;
         } catch (Exception e) {
+            VpnLogger.d("ConnectivityChecker",
+                    "SOCKS :" + socksPort + " → " + host + ":" + port
+                            + " fail: " + e.getMessage());
+            return false;
+        } finally {
+            if (s != null) try { s.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    /** SOCKS CONNECT แบบ domain (ATYP=0x03) — ใกล้เคียง browser */
+    private boolean trySocksConnectDomain(int socksPort, String host, int port) {
+        Socket s = null;
+        try {
+            s = new Socket();
+            s.connect(new InetSocketAddress("127.0.0.1", socksPort), 1500);
+            s.setSoTimeout(6000);
+            OutputStream out = s.getOutputStream();
+            InputStream in = s.getInputStream();
+
+            out.write(new byte[] { 0x05, 0x01, 0x00 });
+            out.flush();
+            byte[] resp = new byte[2];
+            if (in.read(resp) < 2 || resp[0] != 0x05 || resp[1] != 0x00) return false;
+
+            byte[] hostBytes = host.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            if (hostBytes.length > 255) return false;
+            byte[] req = new byte[5 + hostBytes.length + 2];
+            req[0] = 0x05; req[1] = 0x01; req[2] = 0x00; req[3] = 0x03;
+            req[4] = (byte) hostBytes.length;
+            System.arraycopy(hostBytes, 0, req, 5, hostBytes.length);
+            req[5 + hostBytes.length] = (byte) ((port >> 8) & 0xff);
+            req[6 + hostBytes.length] = (byte) (port & 0xff);
+            out.write(req);
+            out.flush();
+
+            byte[] head = new byte[4];
+            int n = in.read(head);
+            return n >= 2 && head[0] == 0x05 && head[1] == 0x00;
+        } catch (Exception e) {
+            VpnLogger.d("ConnectivityChecker",
+                    "SOCKS domain :" + socksPort + " → " + host + ":" + port
+                            + " fail: " + e.getMessage());
             return false;
         } finally {
             if (s != null) try { s.close(); } catch (Exception ignored) {}
