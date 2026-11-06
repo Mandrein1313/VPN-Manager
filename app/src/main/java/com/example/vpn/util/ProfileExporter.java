@@ -124,8 +124,7 @@ public class ProfileExporter {
         sb.append("# ").append(p.name != null ? p.name : "config").append('\n');
         sb.append(toSshUri(p)).append('\n');
         if (p.note != null && !p.note.trim().isEmpty()) {
-            sb.append("# note=").append(p.note.trim().replace("
-", " ")).append('\n');
+            sb.append("# note=").append(p.note.trim().replace('\n', ' ')).append('\n');
         }
         return sb.toString();
     }
@@ -145,8 +144,7 @@ public class ProfileExporter {
             sb.append("# sni=").append(p.sni).append('\n');
         }
         if (p.note != null && !p.note.trim().isEmpty()) {
-            sb.append("# note=").append(p.note.trim().replace("
-", " ")).append('\n');
+            sb.append("# note=").append(p.note.trim().replace('\n', ' ')).append('\n');
         }
         sb.append('\n');
         sb.append(exportOne(p, true));
