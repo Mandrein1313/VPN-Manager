@@ -34,6 +34,8 @@ public class ProfileEntity {
     public String dns1;
     public String dns2;
 
+    public String note;
+
     public int udpgwPort;
     public int proxyPort;
     public int sslPort;
@@ -78,6 +80,7 @@ public class ProfileEntity {
         e.connectionMode = p.connectionMode != null ? p.connectionMode : "DIRECT";
         e.dns1 = p.dns1;
         e.dns2 = p.dns2;
+        e.note = p.note;
         e.udpgwPort = p.udpgwPort;
         e.proxyPort = p.proxyPort;
         e.sslPort = p.sslPort;
@@ -123,6 +126,7 @@ public class ProfileEntity {
                 ? connectionMode : "";
         p.dns1 = dns1;
         p.dns2 = dns2;
+        p.note = note != null ? note : "";
         p.udpgwPort = udpgwPort > 0 ? udpgwPort : 7300;
         p.proxyPort = proxyPort;
         p.sslPort = sslPort;

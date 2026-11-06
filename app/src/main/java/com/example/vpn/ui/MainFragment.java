@@ -38,6 +38,8 @@ public class MainFragment extends Fragment {
     private ImageView btnConfigArrow;
     private TextView txtDownload;
     private TextView txtUpload;
+    private TextView txtUserNote;
+    private View cardUserNote;
     private TextView txtSession;
 
     public interface Listener {
@@ -144,6 +146,8 @@ public class MainFragment extends Fragment {
         btnConfigArrow = v.findViewById(R.id.btnConfigArrow);
         txtDownload = v.findViewById(R.id.txtDownload);
         txtUpload = v.findViewById(R.id.txtUpload);
+        txtUserNote = v.findViewById(R.id.txtUserNote);
+        cardUserNote = v.findViewById(R.id.cardUserNote);
         txtSession = v.findViewById(R.id.txtSession);
 
         if (btnConnect != null) {
@@ -182,6 +186,7 @@ public class MainFragment extends Fragment {
             if (txtConfigPing != null) txtConfigPing.setText("--");
             if (imgConfigSignal != null)
                 imgConfigSignal.setImageResource(R.drawable.ic_signal_0);
+            setUserNote(null);
             return;
         }
 
@@ -199,6 +204,20 @@ public class MainFragment extends Fragment {
 
         if (imgConfigIcon != null) {
             imgConfigIcon.setImageResource(android.R.drawable.ic_lock_lock);
+        }
+        setUserNote(p.note);
+    }
+
+    /** แสดงข้อความที่ผู้ใช้ตั้งในโปรไฟล์ ใต้การ์ดดาวน์ลิงก์/อัปลิงก์ */
+    private void setUserNote(@Nullable String note) {
+        if (cardUserNote == null || txtUserNote == null) return;
+        String t = note != null ? note.trim() : "";
+        if (t.isEmpty()) {
+            cardUserNote.setVisibility(View.GONE);
+            txtUserNote.setText("");
+        } else {
+            cardUserNote.setVisibility(View.VISIBLE);
+            txtUserNote.setText(t);
         }
     }
 

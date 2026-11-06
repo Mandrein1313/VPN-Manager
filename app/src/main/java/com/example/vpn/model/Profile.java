@@ -17,6 +17,9 @@ public class Profile {
     public String dns1 = "8.8.8.8";
     public String dns2 = "8.8.4.4";
 
+    /** ข้อความที่แสดงบนหน้า MAIN (ผู้ใช้กำหนดเอง) */
+    public String note = "";
+
     /** badvpn-udpgw port บน SSH server (0 = ปิด) */
     public int udpgwPort = 7300;
 
@@ -123,6 +126,7 @@ public class Profile {
         p.sni = sni;
         p.dns1 = dns1;
         p.dns2 = dns2;
+        p.note = note;
         p.udpgwPort = udpgwPort;
         p.proxyPort = proxyPort;
         p.sslPort = sslPort;

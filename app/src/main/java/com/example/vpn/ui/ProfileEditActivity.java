@@ -53,7 +53,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private boolean passwordVisible = false;
     private TextInputEditText edtName, edtHost, edtPort, edtUser, edtPass,
             edtHttpProxy, edtProxyPort, edtPayload, edtSni, edtSslPort,
-            edtUdpgwPort, edtDns1, edtDns2, edtPrivateKey, edtKeyPassphrase;
+            edtUdpgwPort, edtDns1, edtDns2, edtNote, edtPrivateKey, edtKeyPassphrase;
     private TextInputEditText edtV2rayUuid, edtV2rayPath, edtV2rayHost,
             edtV2rayServiceName, edtV2rayFlow;
     private MaterialAutoCompleteTextView ddProtocol, ddConnectionMode, ddAuthMethod,
@@ -115,6 +115,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edtUdpgwPort = findViewById(R.id.edtUdpgwPort);
         edtDns1 = findViewById(R.id.edtDns1);
         edtDns2 = findViewById(R.id.edtDns2);
+        edtNote = findViewById(R.id.edtNote);
         ddProtocol = findViewById(R.id.ddProtocol);
         groupCredentials = findViewById(R.id.groupCredentials);
         groupSsh = findViewById(R.id.groupSsh);
@@ -227,6 +228,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (pass != null) edtPass.setText(pass);
         edtDns1.setText("8.8.8.8");
         edtDns2.setText("8.8.4.4");
+        if (edtNote != null) edtNote.setText("");
 
         onProtocolChanged(Protocol.SSH);
     }
@@ -272,6 +274,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (edtKeyPassphrase != null) edtKeyPassphrase.setText(p.keyPassphrase != null ? p.keyPassphrase : "");
         edtDns1.setText(p.dns1);
         edtDns2.setText(p.dns2);
+        if (edtNote != null) edtNote.setText(p.note != null ? p.note : "");
 
         // ⭐ Bind V2Ray
         if (edtV2rayUuid != null) edtV2rayUuid.setText(p.v2rayUuid);
@@ -521,7 +524,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     p.pass = text(edtPass);
     p.httpProxy = text(edtHttpProxy);
     p.payload = text(edtPayload);
-    p.sni = text(edtSni);
+    p.sni = com.example.vpn.tunnel.V2RayEngine.sanitizeWsHost(text(edtSni));
     p.connectionMode = selectedConnectionMode().name();
     try {
         String ug = text(edtUdpgwPort);
@@ -531,6 +534,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
     p.dns1 = text(edtDns1);
     p.dns2 = text(edtDns2);
+    p.note = edtNote != null ? text(edtNote) : "";
 
     // ⭐ V2Ray fields
     if (ddV2rayType != null) {
@@ -543,7 +547,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (!n.isEmpty()) p.v2rayNetwork = n;
     }
     p.v2rayPath = text(edtV2rayPath);
-    p.v2rayHost = text(edtV2rayHost);
+    p.v2rayHost = com.example.vpn.tunnel.V2RayEngine.sanitizeWsHost(text(edtV2rayHost));
     p.v2rayServiceName = text(edtV2rayServiceName);
     p.v2rayFlow = text(edtV2rayFlow);
     p.v2rayTls = switchV2rayTls != null && switchV2rayTls.isChecked();
@@ -613,4 +617,3 @@ private void doSave(Profile p) {
     }
 
 }
-
