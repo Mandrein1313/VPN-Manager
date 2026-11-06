@@ -1,5 +1,10 @@
 package com.example.vpn.ui;
 
+import android.graphics.Typeface;
+import android.text.style.StyleSpan;
+import android.text.style.ForegroundColorSpan;
+import android.text.Spanned;
+import android.text.SpannableString;
 import android.app.ActivityManager;
 import android.content.Intent;
 import android.net.TrafficStats;
@@ -185,7 +190,7 @@ public class ConnectionActivity extends AppCompatActivity
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
-        toolbar.setTitle("VPN Manager");
+        toolbar.setTitle(twoToneAppTitle());
 
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
@@ -708,7 +713,7 @@ public class ConnectionActivity extends AppCompatActivity
                 if (mainFragment != null) {
                     try { mainFragment.bindActiveProfile(null, null); } catch (Exception ignored) {}
                 }
-                toolbar.setTitle("VPN Manager");
+                toolbar.setTitle(twoToneAppTitle());
                 return;
             }
             if (targetProfile != null) {
@@ -1058,7 +1063,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     private void bindProfile(Profile p) {
         if (p == null) return;
         targetProfile = p;
-        toolbar.setTitle("VPN Manager");
+        toolbar.setTitle(twoToneAppTitle());
 
         // ห้ามแตะ status / ปุ่มที่นี่ — syncButtonState เป็นคนเดียวที่คุมสี
 
@@ -1305,5 +1310,23 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             if (position == 2) return new LogFragment();
             return new MainFragment();
         }
+    }
+
+    /** ชื่อแอป 2 สี: VPN (ขาว) + Manager (เขียว) */
+    private static CharSequence twoToneAppTitle() {
+        String left = "VPN";
+        String right = " Manager";
+        SpannableString ss = new SpannableString(left + right);
+        ss.setSpan(new ForegroundColorSpan(0xFFFFFFFF),
+                0, left.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new StyleSpan(Typeface.BOLD),
+                0, left.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new ForegroundColorSpan(0xFF00E676),
+                left.length(), left.length() + right.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new StyleSpan(Typeface.BOLD),
+                left.length(), left.length() + right.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return ss;
     }
 }
