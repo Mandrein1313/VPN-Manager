@@ -94,6 +94,8 @@ public class ProxyVpnService extends VpnService
     private static final long RECONNECT_DELAY_MS = 3000;
     private static final int MAX_RECONNECT_ATTEMPTS = 5;
     private int reconnectAttempt = 0;
+    /** ผู้ใช้กดหยุดเอง — ห้ามเข้า Kill Switch / auto reconnect */
+    private volatile boolean userStopped = false;
 
     // ⭐ Heartbeat — ส่ง traffic เล็ก ๆ ผ่าน tunnel ทุก 20 วินาที กัน idle หลุด
     private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
