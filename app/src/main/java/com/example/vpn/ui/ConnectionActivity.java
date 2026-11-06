@@ -63,6 +63,8 @@ public class ConnectionActivity extends AppCompatActivity
     private ViewPager2 viewPager;
 
     private MainFragment mainFragment;
+    private long lastErrorToastMs = 0L;
+    private String lastErrorToastMsg = "";
     private LogFragment logFragment;
     private boolean logMenuVisible = false;
 
@@ -223,13 +225,33 @@ public class ConnectionActivity extends AppCompatActivity
                 case ERROR:
                     updateStatusText(getString(R.string.status_error), 0xFFEF5350);
                     setConnectingProgress(false);
+                    {
+                        String em = status.message != null ? status.message : getString(R.string.status_error);
+                        long now = System.currentTimeMillis();
+                        // กัน Toast ซ้ำถี่เกิน
+                        if (!em.equals(lastErrorToastMsg) || now - lastErrorToastMs > 2500) {
+                            lastErrorToastMsg = em;
+                            lastErrorToastMs = now;
+                            StyledToast.error(this, em);
+                        }
+                    }
                     break;
                 case CONNECTING_SSH:
                 case SSH_CONNECTED:
                 case SOCKS_READY:
                 case TUN2SOCKS_READY:
-                    updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
-                    setConnectingProgress(true);
+                    {
+                        String cm = status.message != null && !status.message.isEmpty()
+                                ? status.message
+                                : getString(R.string.status_connecting);
+                        // แสดงข้อความ reconnect n/max บนชิปสถานะ
+                        if (cm.contains("reconnect") || cm.contains("เชื่อมต่อใหม่")) {
+                            updateStatusText(cm, 0xFFFFA726);
+                        } else {
+                            updateStatusText(getString(R.string.status_connecting), 0xFFFFA726);
+                        }
+                        setConnectingProgress(true);
+                    }
                     break;
                 case STOPPED:
                 case IDLE:

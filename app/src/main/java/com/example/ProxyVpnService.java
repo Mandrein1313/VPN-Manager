@@ -92,6 +92,8 @@ public class ProxyVpnService extends VpnService
 
     private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
     private static final long RECONNECT_DELAY_MS = 3000;
+    private static final int MAX_RECONNECT_ATTEMPTS = 5;
+    private int reconnectAttempt = 0;
 
     // ⭐ Heartbeat — ส่ง traffic เล็ก ๆ ผ่าน tunnel ทุก 20 วินาที กัน idle หลุด
     private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
@@ -165,6 +167,9 @@ public class ProxyVpnService extends VpnService
             VpnLogger.i(TAG, "STOP action received");
             prefs.setWasConnected(false);
             prefs.setKillSwitch(false);
+            reconnectAttempt = 0;
+            reconnectHandler.removeCallbacksAndMessages(null);
+            reconnecting = false;
             stopVpn(true);
             return START_NOT_STICKY;
         }
@@ -516,8 +521,7 @@ public class ProxyVpnService extends VpnService
         } catch (Throwable e) {
             VpnLogger.e(TAG, "startVpn error: " + e.getMessage(), e);
             try {
-                StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
-                ConnectFeedback.onError(ProxyVpnService.this);
+                postFailClear(e.getMessage(), true);
                 updateNotification("ผิดพลาด: " + e.getMessage());
             } catch (Exception ignored) {}
 
@@ -630,6 +634,7 @@ public class ProxyVpnService extends VpnService
                 setServiceRunning(true);
                 StatusBus.post(StatusBus.State.CONNECTED,
                         "เชื่อมต่อ (SSH เท่านั้น): " + profile.name);
+                reconnectAttempt = 0;
                 ConnectFeedback.onConnected(ProxyVpnService.this);
                 updateNotification("SSH พร้อม — Tun2Socks ไม่ทำงาน");
                 startNetworkMonitor();
@@ -667,6 +672,7 @@ public class ProxyVpnService extends VpnService
                     VpnLogger.i(TAG, "[Fix] ✅ Connectivity verified — VPN ready!");
                     StatusBus.post(StatusBus.State.CONNECTED,
                             "เชื่อมต่อแล้ว: " + profile.name);
+                reconnectAttempt = 0;
                 ConnectFeedback.onConnected(ProxyVpnService.this);
                     updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                     startNetworkMonitor();
@@ -680,6 +686,7 @@ public class ProxyVpnService extends VpnService
                     VpnLogger.w(TAG, "[Fix] ⚠️ Verification failed: " + reason);
                     StatusBus.post(StatusBus.State.CONNECTED,
                             "เชื่อมต่อแล้ว (อาจต้องรอสักครู่): " + profile.name);
+                reconnectAttempt = 0;
                 ConnectFeedback.onConnected(ProxyVpnService.this);
                     updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                     startNetworkMonitor();
@@ -690,8 +697,7 @@ public class ProxyVpnService extends VpnService
         } catch (Throwable e) {
             VpnLogger.e(TAG, "connectSshAndSocks error: " + e.getMessage(), e);
             try {
-                StatusBus.post(StatusBus.State.ERROR, "ผิดพลาด: " + e.getMessage());
-                ConnectFeedback.onError(ProxyVpnService.this);
+                postFailClear(e.getMessage(), true);
                 updateNotification("ผิดพลาด: " + e.getMessage());
             } catch (Exception ignored) {}
 
@@ -875,6 +881,7 @@ public class ProxyVpnService extends VpnService
                 VpnLogger.i(TAG, "[V2Ray] ✅ Connectivity verified");
                 StatusBus.post(StatusBus.State.CONNECTED,
                         "เชื่อมต่อแล้ว: " + profile.name);
+                reconnectAttempt = 0;
                 ConnectFeedback.onConnected(ProxyVpnService.this);
                 updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                 startNetworkMonitor();
@@ -890,6 +897,7 @@ public class ProxyVpnService extends VpnService
                         + " — โหนดอาจตัน/เน็ตไม่ออกจริง");
                 StatusBus.post(StatusBus.State.CONNECTED,
                         "เชื่อมต่อแล้ว (ตรวจสอบเน็ตไม่ผ่าน): " + profile.name);
+                reconnectAttempt = 0;
                 ConnectFeedback.onConnected(ProxyVpnService.this);
                 updateNotification("เชื่อมต่อแล้ว: " + profile.name);
                 startNetworkMonitor();
@@ -1227,24 +1235,104 @@ public class ProxyVpnService extends VpnService
             } else {
                 updateNotification("Network lost — กำลังรอ...");
             }
-            StatusBus.post(StatusBus.State.ERROR, "Network lost");
+            StatusBus.post(StatusBus.State.ERROR, "เน็ตหลุด / ไม่มีสัญญาณ — รอ reconnect อัตโนมัติ");
                 ConnectFeedback.onError(ProxyVpnService.this);
         }
     }
 
+
+    /** แจ้ง fail ชัด + (ถ้าเปิด auto) ลอง reconnect ภายใต้ลิมิต */
+    private void postFailClear(String reason, boolean allowAutoReconnect) {
+        String msg = humanizeFail(reason);
+        VpnLogger.e(TAG, "FAIL: " + msg);
+        updateNotification("ผิดพลาด: " + msg);
+        StatusBus.post(StatusBus.State.ERROR, msg);
+        try { ConnectFeedback.onError(this); } catch (Exception ignored) {}
+
+        if (!allowAutoReconnect) return;
+        if (prefs == null || !prefs.isAutoReconnect()) return;
+        if (currentProfile == null || destroying) return;
+        if (reconnecting) return;
+
+        if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+            String stopMsg = "เชื่อมต่อไม่สำเร็จหลังลอง " + MAX_RECONNECT_ATTEMPTS
+                    + " ครั้ง — " + msg;
+            VpnLogger.e(TAG, stopMsg);
+            updateNotification(stopMsg);
+            StatusBus.post(StatusBus.State.ERROR, stopMsg);
+            reconnectAttempt = 0;
+            return;
+        }
+        scheduleReconnect();
+    }
+
+    private String humanizeFail(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return "ไม่ทราบสาเหตุ";
+        String r = raw.trim();
+        String low = r.toLowerCase();
+        if (low.contains("network lost") || low.contains("network is unreachable"))
+            return "เน็ตหลุด / ไม่มีสัญญาณ";
+        if (low.contains("timeout") || low.contains("timed out"))
+            return "หมดเวลาเชื่อมต่อ (timeout)";
+        if (low.contains("auth") || low.contains("password") || low.contains("permission denied"))
+            return "ยืนยันตัวตนไม่ผ่าน (user/password)";
+        if (low.contains("eaddrinuse") || low.contains("address already in use"))
+            return "พอร์ตภายในถูกใช้งานอยู่ — ตัด VPN แล้วลองใหม่";
+        if (low.contains("eacces") || low.contains("permission"))
+            return "ไม่มีสิทธิ์เครือข่าย";
+        if (low.contains("tun2socks"))
+            return "เปิดอุโมงค์ไม่สำเร็จ (Tun2Socks)";
+        if (low.contains("bridge"))
+            return "เปิด SOCKS bridge ไม่สำเร็จ";
+        if (low.contains("v2ray"))
+            return "V2Ray เริ่มไม่สำเร็จ — " + r;
+        if (low.contains("connection refused"))
+            return "เซิร์ฟเวอร์ปฏิเสธการเชื่อมต่อ";
+        if (low.contains("unknownhost") || low.contains("no address"))
+            return "หาเซิร์ฟเวอร์ไม่เจอ (DNS/โฮสต์ผิด)";
+        if (low.contains("handshake") || low.contains("protocol"))
+            return "จับมือโปรโตคอลไม่สำเร็จ";
+        if (r.startsWith("ผิดพลาด:")) return r.substring("ผิดพลาด:".length()).trim();
+        return r;
+    }
+
     private void scheduleReconnect() {
         if (reconnecting) return;
+        if (prefs != null && !prefs.isAutoReconnect()) {
+            VpnLogger.i(TAG, "Auto-reconnect ปิดอยู่ — ไม่ schedule");
+            return;
+        }
+        if (currentProfile == null || destroying) return;
+
+        reconnectAttempt++;
+        if (reconnectAttempt > MAX_RECONNECT_ATTEMPTS) {
+            String stopMsg = "เชื่อมต่อไม่สำเร็จหลังลอง " + MAX_RECONNECT_ATTEMPTS + " ครั้ง";
+            VpnLogger.e(TAG, stopMsg);
+            updateNotification(stopMsg);
+            StatusBus.post(StatusBus.State.ERROR, stopMsg);
+            try { ConnectFeedback.onError(this); } catch (Exception ignored) {}
+            reconnectAttempt = 0;
+            reconnecting = false;
+            return;
+        }
+
         reconnecting = true;
+        long delay = RECONNECT_DELAY_MS * Math.min(reconnectAttempt, 3); // 3s, 6s, 9s...
+        String msg = "กำลังเชื่อมต่อใหม่ (" + reconnectAttempt
+                + "/" + MAX_RECONNECT_ATTEMPTS + ")...";
+        updateNotification(msg);
+        StatusBus.post(StatusBus.State.CONNECTING_SSH, msg);
+        VpnLogger.i(TAG, "Reconnect scheduled in " + delay + "ms attempt="
+                + reconnectAttempt);
 
         reconnectHandler.removeCallbacksAndMessages(null);
         reconnectHandler.postDelayed(() -> {
             reconnecting = false;
+            if (destroying) return;
             if (currentProfile != null) {
                 doReconnect();
             }
-        }, RECONNECT_DELAY_MS);
-
-        VpnLogger.i(TAG, "Reconnect scheduled in " + RECONNECT_DELAY_MS + "ms");
+        }, delay);
     }
 
     private void doReconnect() {

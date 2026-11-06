@@ -4,9 +4,9 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 /**
- * Singleton bus สำหรับ broadcast สถานะ VPN ระหว่าง Service กับ Activity
+ * ส่งสถานะ VPN จาก Service → UI
  */
-public class StatusBus {
+public final class StatusBus {
 
     public enum State {
         IDLE,
@@ -19,30 +19,31 @@ public class StatusBus {
         STOPPED
     }
 
-    public static class Status {
+    public static final class Status {
         public final State state;
         public final String message;
-        public final long timestamp;
 
         public Status(State state, String message) {
             this.state = state;
-            this.message = message;
-            this.timestamp = System.currentTimeMillis();
+            this.message = message != null ? message : "";
         }
     }
 
-    private static final MutableLiveData<Status> liveStatus =
-            new MutableLiveData<>(new Status(State.IDLE, "พร้อมเชื่อมต่อ"));
+    private static final MutableLiveData<Status> LIVE = new MutableLiveData<>(
+            new Status(State.IDLE, ""));
+
+    private StatusBus() {}
 
     public static LiveData<Status> get() {
-        return liveStatus;
-    }
-
-    public static void post(State state, String message) {
-        liveStatus.postValue(new Status(state, message));
+        return LIVE;
     }
 
     public static Status current() {
-        return liveStatus.getValue();
+        Status s = LIVE.getValue();
+        return s != null ? s : new Status(State.IDLE, "");
+    }
+
+    public static void post(State state, String message) {
+        LIVE.postValue(new Status(state, message));
     }
 }
