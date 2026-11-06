@@ -123,6 +123,10 @@ public class ProfileExporter {
         StringBuilder sb = new StringBuilder();
         sb.append("# ").append(p.name != null ? p.name : "config").append('\n');
         sb.append(toSshUri(p)).append('\n');
+        if (p.note != null && !p.note.trim().isEmpty()) {
+            sb.append("# note=").append(p.note.trim().replace("
+", " ")).append('\n');
+        }
         return sb.toString();
     }
 
@@ -139,6 +143,10 @@ public class ProfileExporter {
         }
         if (p.sni != null && !p.sni.isEmpty()) {
             sb.append("# sni=").append(p.sni).append('\n');
+        }
+        if (p.note != null && !p.note.trim().isEmpty()) {
+            sb.append("# note=").append(p.note.trim().replace("
+", " ")).append('\n');
         }
         sb.append('\n');
         sb.append(exportOne(p, true));
@@ -243,6 +251,7 @@ public class ProfileExporter {
             o.put("keyPassphrase", p.keyPassphrase != null ? p.keyPassphrase : "");
         }
         o.put("dns1", p.dns1 != null ? p.dns1 : "8.8.8.8");
+        o.put("note", p.note != null ? p.note : "");
         o.put("dns2", p.dns2 != null ? p.dns2 : "8.8.4.4");
         return o;
     }

@@ -16,6 +16,7 @@ import androidx.fragment.app.Fragment;
 import com.example.vpn.R;
 import com.example.vpn.model.Profile;
 import com.example.vpn.util.CountryFlag;
+import com.example.vpn.util.NoteColors;
 
 public class MainFragment extends Fragment {
 
@@ -217,7 +218,7 @@ public class MainFragment extends Fragment {
             txtUserNote.setText("");
         } else {
             cardUserNote.setVisibility(View.VISIBLE);
-            txtUserNote.setText(t);
+            txtUserNote.setText(NoteColors.colorize(t));
         }
     }
 

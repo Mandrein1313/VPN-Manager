@@ -74,11 +74,28 @@ public final class ProfileImporter {
                 // หลายบรรทัด config
                 String[] lines = trimmed.split("\\r?\\n");
                 boolean any = false;
+                String pendingNote = null;
                 for (String line : lines) {
                     String L = line.trim();
-                    if (L.isEmpty() || L.startsWith("#")) continue;
+                    if (L.isEmpty()) continue;
+                    if (L.startsWith("#")) {
+                        // # note=ข้อความ จากตอนแชร์
+                        if (L.length() > 7 && L.substring(2).trim().toLowerCase().startsWith("note=")) {
+                            int eq = L.indexOf('=');
+                            if (eq > 0 && eq + 1 < L.length()) {
+                                pendingNote = L.substring(eq + 1).trim();
+                            }
+                        }
+                        continue;
+                    }
                     ConfigParser.Result parsed = ConfigParser.parse(L);
                     if (parsed.isSuccess() && parsed.profile != null) {
+                        if (pendingNote != null && !pendingNote.isEmpty()) {
+                            if (parsed.profile.note == null || parsed.profile.note.isEmpty()) {
+                                parsed.profile.note = pendingNote;
+                            }
+                            pendingNote = null;
+                        }
                         r.profiles.add(parsed.profile);
                         any = true;
                     }
@@ -118,6 +135,7 @@ public final class ProfileImporter {
             p.payload = o.optString("payload", "");
             p.sni = o.optString("sni", "");
             p.dns1 = o.optString("dns1", "8.8.8.8");
+            p.note = o.optString("note", "");
             p.dns2 = o.optString("dns2", "8.8.4.4");
 
             // VLESS / Reality fields ถ้ามีใน model
