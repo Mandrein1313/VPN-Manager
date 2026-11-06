@@ -771,93 +771,103 @@ public class ProxyVpnService extends VpnService
 
         try { Thread.sleep(500); } catch (InterruptedException ignored) {}
 
-        // ปล่อยพอร์ต 1080 ก่อน (กัน EADDRINUSE ตอนสลับจาก SSH)
+        // ปิด SOCKS/bridge เก่า (กันชนพอร์ตตอนสลับจาก SSH)
         try {
             if (socks5Server != null) {
                 try { socks5Server.stop(); } catch (Exception ignored) {}
                 socks5Server = null;
-                VpnLogger.i(TAG, "Stopped Socks5Server before V2Ray bridge");
+                VpnLogger.i(TAG, "Stopped Socks5Server before V2Ray");
             }
             if (v2rayBridge != null) {
                 try { v2rayBridge.stop(); } catch (Exception ignored) {}
                 v2rayBridge = null;
             }
-            try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
         } catch (Exception ignored) {}
 
-        // Bridge: hev → :1080 (Java) → V2Ray :10808 — แบบเดียวกับ SSH ที่เน็ตออก
-        Exception lastBind = null;
-        for (int attempt = 1; attempt <= 4; attempt++) {
-            try {
-                v2rayBridge = new com.example.vpn.tunnel.V2RaySocksBridge(
-                        1080, "127.0.0.1", V2RayEngine.SOCKS_PORT);
-                v2rayBridge.start();
-                lastBind = null;
-                VpnLogger.i(TAG, "V2RaySocksBridge 1080 → V2Ray " + V2RayEngine.SOCKS_PORT
-                        + " (try " + attempt + ")");
-                break;
-            } catch (Exception e) {
-                lastBind = e;
-                VpnLogger.w(TAG, "V2RaySocksBridge bind try " + attempt + ": " + e.getMessage());
-                try { if (v2rayBridge != null) v2rayBridge.stop(); } catch (Exception ignored) {}
-                v2rayBridge = null;
-                // บังคับปิด SOCKS เก่าอีกครั้ง
-                try {
-                    if (socks5Server != null) {
-                        socks5Server.stop();
-                        socks5Server = null;
-                    }
-                } catch (Exception ignored) {}
-                try { Thread.sleep(350L * attempt); } catch (InterruptedException ignored) {}
-            }
-        }
-        if (lastBind != null || v2rayBridge == null) {
-            VpnLogger.e(TAG, "V2RaySocksBridge failed: "
-                    + (lastBind != null ? lastBind.getMessage() : "null"));
-            throw new IOException("V2Ray SOCKS bridge failed: "
-                    + (lastBind != null ? lastBind.getMessage() : "bind failed"));
-        }
+        // ⭐ เส้นทางหลัก: hev → V2Ray SOCKS ตรง (10808) — เหมือน v2rayNG ไม่ผ่าน Java bridge
+        // ถ้า hev ต่อ 10808 ไม่ได้ ค่อย fallback bridge :1080 → :10808
+        int hevSocksPort = V2RayEngine.SOCKS_PORT;
+        boolean useBridge = false;
 
-        // ---- Tun2Socks — ใช้ชุดเดียวกับ SSH ที่พิสูจน์แล้วว่าออกเน็ตได้ ----
         StatusBus.post(StatusBus.State.TUN2SOCKS_READY, "กำลังเปิด Tun2Socks...");
-        updateNotification("กำลังเชื่อมต่อทราฟฟิก...");
-        VpnLogger.i(TAG, "Starting Tun2Socks bridge (V2Ray, same path as SSH)...");
+        updateNotification("กำลังเปิด Tun2Socks...");
+        VpnLogger.i(TAG, "Starting Tun2Socks → V2Ray :" + hevSocksPort + " (direct)");
 
-        // หยุด hev เก่าก่อน (กัน start ซ้ำแล้ว fail)
-        try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
-        try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+        if (tunFd == null) {
+            throw new IOException("TUN is null — cannot start Tun2Socks");
+        }
 
-        copyConfigFromAssets();
-        rewriteConfigPort(1080); // hev → bridge ไม่ใช่ V2Ray ตรง
-        VpnLogger.i(TAG, "Config: " + configFile.getAbsolutePath());
+        rewriteConfigPort(hevSocksPort);
 
         boolean started = false;
-        for (int attempt = 1; attempt <= 3 && !started; attempt++) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
             try {
+                if (configFile == null || !configFile.exists()) {
+                    rewriteConfigPort(hevSocksPort);
+                }
                 started = TProxyService.TProxyStartService(
-                        configFile.getAbsolutePath(),
-                        tunFd.getFd()
-                );
-                VpnLogger.i(TAG, "TProxyStart attempt " + attempt + " → " + started);
+                        configFile.getAbsolutePath(), tunFd.getFd());
+                VpnLogger.i(TAG, "TProxyStartService direct try " + attempt
+                        + " → " + started + " port=" + hevSocksPort);
+                if (started) break;
             } catch (Throwable t) {
-                VpnLogger.e(TAG, "TProxyStartService threw (try " + attempt + "): "
-                        + t.getMessage());
+                VpnLogger.e(TAG, "TProxyStartService direct threw: " + t.getMessage(), t);
                 started = false;
             }
-            if (!started) {
-                try { TProxyService.TProxyStopService(); } catch (Throwable ignored) {}
-                try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+            try { Thread.sleep(350L * attempt); } catch (InterruptedException ignored) {}
+        }
+
+        // Fallback: Java bridge 1080 → V2Ray 10808 (กรณี hev ต่อ 10808 ไม่ได้)
+        if (!started) {
+            VpnLogger.w(TAG, "Direct hev→10808 failed — trying bridge 1080→10808");
+            Exception lastBind = null;
+            for (int attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    v2rayBridge = new com.example.vpn.tunnel.V2RaySocksBridge(
+                            1080, "127.0.0.1", V2RayEngine.SOCKS_PORT);
+                    v2rayBridge.start();
+                    lastBind = null;
+                    useBridge = true;
+                    hevSocksPort = 1080;
+                    VpnLogger.i(TAG, "V2RaySocksBridge ready try " + attempt);
+                    break;
+                } catch (Exception e) {
+                    lastBind = e;
+                    try { if (v2rayBridge != null) v2rayBridge.stop(); } catch (Exception ignored) {}
+                    v2rayBridge = null;
+                    try { Thread.sleep(300L * attempt); } catch (InterruptedException ignored) {}
+                }
+            }
+            if (useBridge) {
+                rewriteConfigPort(1080);
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        started = TProxyService.TProxyStartService(
+                                configFile.getAbsolutePath(), tunFd.getFd());
+                        VpnLogger.i(TAG, "TProxyStartService bridge try " + attempt
+                                + " → " + started);
+                        if (started) break;
+                    } catch (Throwable t) {
+                        VpnLogger.e(TAG, "TProxy bridge threw: " + t.getMessage(), t);
+                        started = false;
+                    }
+                    try { Thread.sleep(350L * attempt); } catch (InterruptedException ignored) {}
+                }
+            } else if (lastBind != null) {
+                throw new IOException("V2Ray SOCKS path failed: " + lastBind.getMessage());
             }
         }
 
         if (!started) {
-            // อย่า throw ทั้งก้อน — แจ้งชัด (SSH path ก็ soft-fail ได้)
-            VpnLogger.e(TAG, "Tun2Socks failed after retries — V2Ray SOCKS ยังอยู่ที่ 1080");
-            throw new IOException("Tun2Socks failed — ลองปิด VPN แล้วเปิดใหม่ หรือ Reboot");
+            VpnLogger.e(TAG, "Tun2Socks failed after direct+bridge");
+            throw new IOException("Tun2Socks failed — ลองปิด VPN แล้วเปิดใหม่");
         }
 
         tun2socksRunning = true;
-        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready (hev→bridge:1080→V2Ray:"
+        VpnLogger.i(TAG, "V2Ray + Tun2Socks ready (hev→"
+                + (useBridge ? "bridge:1080→" : "")
+                + "V2Ray:" + V2RayEngine.SOCKS_PORT + ")");
                 + V2RayEngine.SOCKS_PORT + ")");
 
 

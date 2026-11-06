@@ -117,14 +117,11 @@ public class V2RayEngine {
         // DNS ใน core — query ผ่าน proxy outbound
         JSONObject dns = new JSONObject();
         JSONArray dnsServers = new JSONArray();
-        JSONObject dnsPrimary = new JSONObject();
-        dnsPrimary.put("address", "8.8.8.8");
-        dnsPrimary.put("port", 53);
-        JSONArray dnsTag = new JSONArray();
-        dnsTag.put("proxy");
-        // ไม่บังคับ tag ถ้า build เก่าไม่รองรับ
+        // DNS ผ่าน outbound proxy (สำคัญมาก — ไม่งั้น resolve ออกนอก tunnel)
+        // ใช้ string servers — ไม่พึ่ง geosite.dat (แอปอาจไม่มี asset)
         dnsServers.put("8.8.8.8");
         dnsServers.put("1.1.1.1");
+        dnsServers.put("8.8.4.4");
         dns.put("servers", dnsServers);
         dns.put("queryStrategy", "UseIPv4");
         dns.put("disableCache", false);
@@ -149,7 +146,7 @@ public class V2RayEngine {
         destOverride.put("http");
         destOverride.put("tls");
         sniffing.put("destOverride", destOverride);
-        sniffing.put("routeOnly", true);
+        sniffing.put("routeOnly", false);
         socksIn.put("sniffing", sniffing);
         inbounds.put(socksIn);
 
@@ -204,13 +201,13 @@ public class V2RayEngine {
 
         root.put("outbounds", outbounds);
 
-        // Routing — ใกล้เคียง V2BOX / v2rayNG
-        // outbound แรก (proxy) = default; private IP ออก direct กัน loop
+        // Routing — แบบ v2rayNG: default = proxy, private → direct
         JSONObject routing = new JSONObject();
-        routing.put("domainStrategy", "AsIs"); // เร็วกว่า IPIfNonMatch
+        // IPIfNonMatch: resolve domain ผ่าน DNS ของ core ก่อน แล้วค่อยจับ rule
+        routing.put("domainStrategy", "IPIfNonMatch");
         JSONArray rules = new JSONArray();
 
-        // localhost / private → direct
+        // localhost / private → direct (กัน loop)
         JSONObject privateRule = new JSONObject();
         privateRule.put("type", "field");
         JSONArray privateIp = new JSONArray();
@@ -224,13 +221,20 @@ public class V2RayEngine {
         privateRule.put("outboundTag", "direct");
         rules.put(privateRule);
 
-        // DNS → proxy
+        // DNS → ผ่าน proxy เสมอ
         JSONObject dnsRule = new JSONObject();
         dnsRule.put("type", "field");
         dnsRule.put("port", "53");
         dnsRule.put("network", "udp,tcp");
         dnsRule.put("outboundTag", "proxy");
         rules.put(dnsRule);
+
+        // ที่เหลือทั้งหมด → proxy (ชัดเจน ไม่พึ่ง default อย่างเดียว)
+        JSONObject allRule = new JSONObject();
+        allRule.put("type", "field");
+        allRule.put("network", "tcp,udp");
+        allRule.put("outboundTag", "proxy");
+        rules.put(allRule);
 
         routing.put("rules", rules);
         root.put("routing", routing);
