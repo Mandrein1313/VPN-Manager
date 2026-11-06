@@ -407,30 +407,30 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- ข้อความจากโปรไฟล์ (ผู้ใช้กำหนด) -->
-            <LinearLayout
-                android:id="@+id/cardUserNote"
+        </LinearLayout>
+
+
+        <!-- ข้อความโปรไฟล์ — โล่งด้านล่าง ไม่มีกรอบ -->
+        <LinearLayout
+            android:id="@+id/cardUserNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/txtUserNote"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_traffic_mini"
                 android:gravity="center"
-                android:minHeight="56dp"
-                android:orientation="vertical"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="12dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/txtUserNote"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:lineSpacingExtra="2dp"
-                    android:textColor="#E0E0E0"
-                    android:textSize="13sp"
-                    android:fontFamily="sans-serif-medium" />
-            </LinearLayout>
+                android:lineSpacingExtra="4dp"
+                android:textColor="#B0BEC5"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif" />
         </LinearLayout>
 
     </LinearLayout>
