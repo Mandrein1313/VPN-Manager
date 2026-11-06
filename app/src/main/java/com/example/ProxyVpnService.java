@@ -868,9 +868,6 @@ public class ProxyVpnService extends VpnService
         VpnLogger.i(TAG, "V2Ray + Tun2Socks ready (hev→"
                 + (useBridge ? "bridge:1080→" : "")
                 + "V2Ray:" + V2RayEngine.SOCKS_PORT + ")");
-                + V2RayEngine.SOCKS_PORT + ")");
-
-
 
         try { Thread.sleep(800); } catch (InterruptedException ignored) {}
 
