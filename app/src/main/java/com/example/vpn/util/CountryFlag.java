@@ -88,7 +88,7 @@ public final class CountryFlag {
         init(ctx);
 
         final String h = host != null ? host.trim() : "";
-        imageView.setTag(android.R.id.icon, h);
+        imageView.setTag(h); // host ปัจจุบัน — ห้ามใช้ android.R.id.* เป็น key
 
         String code = peekCode(h);
         if (code == null) code = detectOffline(name, h);
@@ -110,7 +110,7 @@ public final class CountryFlag {
         resolveGeo(ctx, hostKey, cc -> {
             if (cc == null) return;
             // กัน view ถูก bind โปรไฟล์อื่น
-            Object tag = imageView.getTag(android.R.id.icon);
+            Object tag = imageView.getTag();
             if (tag != null && !hostKey.equals(String.valueOf(tag))) return;
             bind(imageView, emojiFallback, cc);
             if (onResolved != null) onResolved.onCountry(cc);

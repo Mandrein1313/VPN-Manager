@@ -160,6 +160,14 @@ public class ProxyVpnService extends VpnService
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // Android 8–15: หลัง startForegroundService() ต้อง startForeground() ทันที
+        // (ทุก action รวม STOP/RECONNECT — ไม่งั้น ForegroundServiceDidNotStartInTime)
+        try {
+            startForeground(NOTIF_ID, buildNotification("VPN"));
+        } catch (Throwable e) {
+            VpnLogger.e(TAG, "startForeground (early) failed", e);
+        }
+
         if (intent == null) return START_NOT_STICKY;
 
         String action = intent.getAction();
