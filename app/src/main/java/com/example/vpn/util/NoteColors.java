@@ -3,9 +3,12 @@ package com.example.vpn.util;
 import android.graphics.Typeface;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
-import android.text.TextUtils;
+import android.text.TextPaint;
+import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
+import android.text.style.URLSpan;
+import android.view.View;
 
 import androidx.annotation.Nullable;
 
@@ -14,22 +17,23 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * ข้อความโปรไฟล์หลายสี
+ * ข้อความโปรไฟล์หลายสี + ลิงก์คลิกได้
  * - แท็ก: {green}ข้อความ{/} {gold}...{/} {cyan} {red} {white} {pink} {orange}
  * - หรือ {#RRGGBB}ข้อความ{/}
  * - ไม่มีแท็ก = ไล่สีทีละคำอัตโนมัติ
+ * - URL http/https คลิกเปิดเบราว์เซอร์ได้
  */
 public final class NoteColors {
 
     private static final int[] RAINBOW = {
-            0xFF69F0AE, // เขียวอ่อน
-            0xFF80D8FF, // ฟ้า
-            0xFFFFF176, // เหลือง
-            0xFFFF8A80, // แดงอ่อน
-            0xFFFF80AB, // ชมพู
-            0xFFB388FF, // ม่วง
-            0xFFFFD54F, // ทอง
-            0xFFE0E0E0  // ขาวเทา
+            0xFF69F0AE,
+            0xFF80D8FF,
+            0xFFFFF176,
+            0xFFFF8A80,
+            0xFFFF80AB,
+            0xFFB388FF,
+            0xFFFFD54F,
+            0xFFE0E0E0
     };
 
     private static final Pattern TAG = Pattern.compile(
@@ -38,6 +42,11 @@ public final class NoteColors {
                     + "\\{/\\}",
             Pattern.DOTALL);
 
+    /** URL + รหัสโปรโมชันแบบตัวอักษร/ตัวเลขติดกันยาวพอสมควร */
+    private static final Pattern URL = Pattern.compile(
+            "(https?://[^\\s<>\"']+)",
+            Pattern.CASE_INSENSITIVE);
+
     private NoteColors() {}
 
     public static CharSequence colorize(@Nullable String raw) {
@@ -45,11 +54,48 @@ public final class NoteColors {
         String text = raw.trim();
         if (text.isEmpty()) return "";
 
+        CharSequence colored;
         if (text.contains("{/") || text.contains("{#")) {
-            return parseTags(text);
+            colored = parseTags(text);
+        } else {
+            colored = rainbowWords(text);
         }
-        // แท็กสั้น ๆ โดยไม่มีปิด — ยังไล่สีคำ
-        return rainbowWords(text);
+        return linkify(colored);
+    }
+
+    /** ใส่ URLSpan ให้ลิงก์ — ใช้กับ LinkMovementMethod */
+    private static CharSequence linkify(CharSequence src) {
+        SpannableStringBuilder sb = src instanceof SpannableStringBuilder
+                ? (SpannableStringBuilder) src
+                : new SpannableStringBuilder(src);
+        String plain = sb.toString();
+        Matcher m = URL.matcher(plain);
+        while (m.find()) {
+            final String url = m.group(1);
+            if (url == null) continue;
+            int start = m.start(1);
+            int end = m.end(1);
+            // ตัดเครื่องหมายท้ายลิงก์ที่ติดมา
+            while (end > start) {
+                char c = plain.charAt(end - 1);
+                if (c == '.' || c == ',' || c == ')' || c == ']' || c == '!' || c == '?' || c == '…') {
+                    end--;
+                } else break;
+            }
+            if (end <= start) continue;
+            // ลบ URLSpan เก่าทับช่วงนี้ (ถ้ามี)
+            URLSpan[] old = sb.getSpans(start, end, URLSpan.class);
+            for (URLSpan u : old) sb.removeSpan(u);
+            sb.setSpan(new URLSpan(url) {
+                @Override
+                public void updateDrawState(TextPaint ds) {
+                    super.updateDrawState(ds);
+                    ds.setUnderlineText(true);
+                    ds.setColor(0xFF4FC3F7); // ฟ้าอ่อน เห็นว่าเป็นลิงก์
+                }
+            }, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return sb;
     }
 
     private static CharSequence parseTags(String text) {
@@ -78,17 +124,14 @@ public final class NoteColors {
 
     private static void appendRainbow(SpannableStringBuilder sb, String chunk) {
         if (chunk == null || chunk.isEmpty()) return;
-        CharSequence c = rainbowWords(chunk);
-        sb.append(c);
+        sb.append(rainbowWords(chunk));
     }
 
     private static CharSequence rainbowWords(String text) {
         SpannableStringBuilder sb = new SpannableStringBuilder();
-        // แยกตามช่องว่าง แต่คงช่องว่างเดิม
         int i = 0;
         int colorIdx = 0;
         while (i < text.length()) {
-            // whitespace
             int j = i;
             while (j < text.length() && Character.isWhitespace(text.charAt(j))) j++;
             if (j > i) {
@@ -99,7 +142,9 @@ public final class NoteColors {
             j = i;
             while (j < text.length() && !Character.isWhitespace(text.charAt(j))) j++;
             int start = sb.length();
-            sb.append(text.substring(i, j));
+            String word = text.substring(i, j);
+            sb.append(word);
+            // URL จะถูกทับสีตอน linkify เป็นฟ้า — คำอื่นไล่สีตามปกติ
             int color = RAINBOW[colorIdx % RAINBOW.length];
             sb.setSpan(new ForegroundColorSpan(color), start, sb.length(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);

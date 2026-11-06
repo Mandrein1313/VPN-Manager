@@ -427,9 +427,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:lineSpacingExtra="4dp"
+                android:lineSpacingExtra="2dp"
                 android:textColor="#B0BEC5"
-                android:textSize="14sp"
+                android:textSize="11sp"
                 android:fontFamily="sans-serif" />
         </LinearLayout>
 

@@ -3,6 +3,12 @@ package com.example.vpn.ui;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.os.Bundle;
+import com.example.vpn.util.StyledToast;
+import android.text.util.Linkify;
+import android.text.method.LinkMovementMethod;
+import android.content.Context;
+import android.content.ClipboardManager;
+import android.content.ClipData;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -209,17 +215,42 @@ public class MainFragment extends Fragment {
         setUserNote(p.note);
     }
 
-    /** แสดงข้อความที่ผู้ใช้ตั้งในโปรไฟล์ ใต้การ์ดดาวน์ลิงก์/อัปลิงก์ */
+    /** แสดงข้อความที่ผู้ใช้ตั้งในโปรไฟล์ ใต้การ์ดดาวน์ลิงก์/อัปลิงก์
+     *  - แตะลิงก์ → เปิดเบราว์เซอร์
+     *  - กดค้าง → คัดลอกทั้งข้อความ (รหัสโปรโมชัน ฯลฯ)
+     */
     private void setUserNote(@Nullable String note) {
         if (cardUserNote == null || txtUserNote == null) return;
-        String t = note != null ? note.trim() : "";
+        final String t = note != null ? note.trim() : "";
         if (t.isEmpty()) {
             cardUserNote.setVisibility(View.GONE);
             txtUserNote.setText("");
-        } else {
-            cardUserNote.setVisibility(View.VISIBLE);
-            txtUserNote.setText(NoteColors.colorize(t));
+            txtUserNote.setOnLongClickListener(null);
+            return;
         }
+        cardUserNote.setVisibility(View.VISIBLE);
+        txtUserNote.setText(NoteColors.colorize(t));
+        txtUserNote.setMovementMethod(LinkMovementMethod.getInstance());
+        txtUserNote.setHighlightColor(0x334FC3F7);
+        // กดค้างคัดลอกทั้งข้อความ (สะดวกกับรหัสโปรโมชัน)
+        txtUserNote.setOnLongClickListener(v -> {
+            Context ctx = getContext();
+            if (ctx == null) return true;
+            try {
+                ClipboardManager cm = (ClipboardManager)
+                        ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(ClipData.newPlainText("note", t));
+                    try {
+                        StyledToast.success(ctx, "คัดลอกแล้ว");
+                    } catch (Exception e) {
+                        android.widget.Toast.makeText(ctx, "คัดลอกแล้ว",
+                                android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                }
+            } catch (Exception ignored) {}
+            return true;
+        });
     }
 
     public void applyLatency(@Nullable Integer ms) {
