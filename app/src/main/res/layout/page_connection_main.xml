@@ -329,21 +329,35 @@
                     android:orientation="vertical"
                     android:padding="12dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:letterSpacing="0.06"
-                        android:text="@string/downlink"
-                        android:textColor="@color/text_muted"
-                        android:textSize="10sp"
-                        android:fontFamily="sans-serif-medium" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_traffic_down"
+                            android:contentDescription="@string/downlink" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:letterSpacing="0.06"
+                            android:text="@string/downlink"
+                            android:textColor="@color/text_muted"
+                            android:textSize="10sp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/txtDownload"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="▼  0 B"
+                        android:text="0 B"
                         android:textColor="@color/traffic_gold"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -358,21 +372,35 @@
                     android:orientation="vertical"
                     android:padding="12dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:letterSpacing="0.06"
-                        android:text="@string/uplink"
-                        android:textColor="@color/text_muted"
-                        android:textSize="10sp"
-                        android:fontFamily="sans-serif-medium" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_traffic_up"
+                            android:contentDescription="@string/uplink" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:letterSpacing="0.06"
+                            android:text="@string/uplink"
+                            android:textColor="@color/text_muted"
+                            android:textSize="10sp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/txtUpload"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="▲  0 B"
+                        android:text="0 B"
                         android:textColor="@color/traffic_gold"
                         android:textSize="15sp"
                         android:textStyle="bold" />
