@@ -5,6 +5,7 @@ import android.content.Context;
 
 import com.example.vpn.util.CrashHandler;
 import com.example.vpn.util.LanguagePrefs;
+import com.example.vpn.util.CountryFlag;
 import com.example.vpn.util.ThemePrefs;
 
 /**
@@ -34,6 +35,10 @@ public class VpnApp extends Application {
         try {
             // ตั้ง default locale ของ process (Activity ยัง wrap อีกชั้น)
             LanguagePrefs.updateResources(this, new LanguagePrefs(this).getLanguage());
+        } catch (Exception ignored) {
+        }
+        try {
+            CountryFlag.init(this); // cache ธงจาก IP
         } catch (Exception ignored) {
         }
     }

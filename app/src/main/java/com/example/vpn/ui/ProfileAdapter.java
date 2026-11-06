@@ -350,7 +350,14 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.VH> {
 
         void bind(Profile p, Integer latencyMs) {
             if (flag != null) {
-                CountryFlag.applyTo(flag, p.name, p.host);
+                final int pos = getBindingAdapterPosition();
+                CountryFlag.applyTo(flag, null, p.name, p.host, cc -> {
+                    // ได้ประเทศจาก IP แล้ว — รีเฟรชไอคอน (ถ้ายังที่ตำแหน่งเดิม)
+                    if (cc != null && pos >= 0 && pos < getItemCount()) {
+                        // bind รูปอีกครั้งจาก cache — ไม่ยิงเน็ตซ้ำ
+                        CountryFlag.applyTo(flag, p.name, p.host);
+                    }
+                });
             }
             name.setText(p.name != null ? p.name : "");
             host.setText(p.host + ":" + p.port);
