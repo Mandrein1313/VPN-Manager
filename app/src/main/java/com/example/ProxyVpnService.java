@@ -983,9 +983,10 @@ public class ProxyVpnService extends VpnService
 
 
     /**
-     * เขียน hev-config ตามโปรโตคอล
-     *  - SSH / Proxy     → port 1080  (เทมเพลต hev-config-ssh.yml)
-     *  - V2Ray/Trojan/SS → port 10808 (เทมเพลต hev-config-v2ray.yml)
+     * จุดเดียวที่กำหนด hev-config ทั้งก้อนตามโปรโตคอล
+     *  - SSH / Proxy      → port 1080 , connect-timeout 15000
+     *  - V2Ray/Trojan/SS  → port 10808, connect-timeout 20000
+     * ไม่พึ่ง hev-config-ssh.yml / hev-config-v2ray.yml ใน assets
      */
     private void rewriteConfigPort(int port) {
         try {
@@ -993,7 +994,11 @@ public class ProxyVpnService extends VpnService
                 configFile = new java.io.File(getFilesDir(), "hev-config.yml");
             }
             boolean v2 = (port == 10808) || isV2RayProfile();
-            int connectTimeout = v2 ? 20000 : 15000;
+            // ถ้า caller ส่งพอร์ตกลาง ๆ มา แต่เป็นโปรไฟล์ V2Ray ให้บังคับ 10808
+            if (v2 && port != 10808 && port != 1080) {
+                port = 10808;
+            }
+            int connectTimeout = v2 ? 20_000 : 15_000;
             String yml = "tunnel:\n"
                     + "  mtu: 1500\n"
                     + "  ipv4: " + VPN_ADDRESS + "\n"
@@ -1012,12 +1017,14 @@ public class ProxyVpnService extends VpnService
                     + "  tcp-buffer-size: 65536\n"
                     + "  udp-recv-buffer-size: 524288\n"
                     + "  limit-nofile: 65535\n";
-            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(configFile, false)) {
+            try (java.io.FileOutputStream fos =
+                         new java.io.FileOutputStream(configFile, false)) {
                 fos.write(yml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
-            VpnLogger.i(TAG, "hev-config written [" + (v2 ? "V2Ray" : "SSH")
+            VpnLogger.i(TAG, "hev-config [" + (v2 ? "V2Ray" : "SSH")
                     + "] → 127.0.0.1:" + port
-                    + " tun=" + VPN_ADDRESS + " file=" + configFile.getAbsolutePath());
+                    + " timeout=" + connectTimeout
+                    + " file=" + configFile.getAbsolutePath());
         } catch (Exception e) {
             VpnLogger.w(TAG, "rewriteConfigPort error: " + e.getMessage());
         }
@@ -1617,24 +1624,24 @@ public class ProxyVpnService extends VpnService
         } catch (IllegalArgumentException ignored) {}
     }
 
+    /**
+     * เตรียม path ไฟล์ config — ค่าจริงเขียนโดย {@link #rewriteConfigPort(int)} เท่านั้น
+     * assets/hev-config.yml เป็นสำรองถ้ายังไม่เคยเชื่อมต่อ
+     */
     private void copyConfigFromAssets() throws IOException {
         configFile = new File(getFilesDir(), "hev-config.yml");
-        // เลือกเทมเพลตตามโปรโตคอล (มีใน assets) — ไม่มีก็ใช้ hev-config.yml
-        String assetName = isV2RayProfile() ? "hev-config-v2ray.yml" : "hev-config-ssh.yml";
-        InputStream in = null;
-        try {
-            in = getAssets().open(assetName);
-        } catch (IOException ignored) {
-            in = getAssets().open("hev-config.yml");
-            assetName = "hev-config.yml";
+        if (configFile.exists() && configFile.length() > 0) {
+            return; // จะถูก rewriteConfigPort เขียนทับอยู่แล้ว
         }
-        try (InputStream input = in;
+        try (InputStream in = getAssets().open("hev-config.yml");
              FileOutputStream out = new FileOutputStream(configFile)) {
             byte[] buf = new byte[4096];
             int n;
-            while ((n = input.read(buf)) > 0) out.write(buf, 0, n);
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        } catch (IOException e) {
+            // ไม่มี assets ก็ได้ — rewriteConfigPort จะสร้างไฟล์เอง
+            VpnLogger.w(TAG, "copyConfigFromAssets: " + e.getMessage());
         }
-        VpnLogger.i(TAG, "copyConfigFromAssets ← " + assetName);
     }
 
     // ============================================================

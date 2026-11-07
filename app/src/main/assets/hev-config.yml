@@ -1,5 +1,5 @@
-# ค่าเริ่มต้น = SSH (1080) — ตอนรันแอปจะเขียนทับตามโปรโตคอล
-# ดูไฟล์แยก: hev-config-ssh.yml / hev-config-v2ray.yml
+# เทมเพลตสำรอง — ตอนเชื่อมต่อ ProxyVpnService.rewriteConfigPort() จะเขียนทับทั้งไฟล์
+# ตามโปรโตคอล (SSH:1080 / V2Ray:10808) ไม่ต้องแยกไฟล์ assets
 tunnel:
   mtu: 1500
   ipv4: 10.0.0.2
