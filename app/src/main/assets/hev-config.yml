@@ -1,3 +1,5 @@
+# ค่าเริ่มต้น = SSH (1080) — ตอนรันแอปจะเขียนทับตามโปรโตคอล
+# ดูไฟล์แยก: hev-config-ssh.yml / hev-config-v2ray.yml
 tunnel:
   mtu: 1500
   ipv4: 10.0.0.2

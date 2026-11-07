@@ -1,0 +1,19 @@
+# hev-socks5-tunnel — SSH / Proxy (SOCKS local :1080)
+tunnel:
+  mtu: 1500
+  ipv4: 10.0.0.2
+
+socks5:
+  port: 1080
+  address: 127.0.0.1
+  udp: 'tcp'
+
+misc:
+  log-file: stderr
+  log-level: warn
+  task-stack-size: 65536
+  connect-timeout: 15000
+  read-write-timeout: 300000
+  tcp-buffer-size: 65536
+  udp-recv-buffer-size: 524288
+  limit-nofile: 65535

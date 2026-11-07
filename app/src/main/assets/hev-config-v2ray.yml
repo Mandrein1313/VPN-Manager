@@ -1,0 +1,19 @@
+# hev-socks5-tunnel — V2Ray / Trojan / SS (SOCKS local :10808)
+tunnel:
+  mtu: 1500
+  ipv4: 10.0.0.2
+
+socks5:
+  port: 10808
+  address: 127.0.0.1
+  udp: 'tcp'
+
+misc:
+  log-file: stderr
+  log-level: warn
+  task-stack-size: 65536
+  connect-timeout: 20000
+  read-write-timeout: 300000
+  tcp-buffer-size: 65536
+  udp-recv-buffer-size: 524288
+  limit-nofile: 65535
