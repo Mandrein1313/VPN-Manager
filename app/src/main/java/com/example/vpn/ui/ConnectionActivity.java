@@ -30,6 +30,7 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.example.vpn.MainActivity;
 import com.example.vpn.ProxyVpnService;
 import com.example.vpn.VpnDisclosurePrefs;
+import com.example.vpn.ProPrefs;
 import com.example.vpn.R;
 import com.example.vpn.data.AppDatabase;
 import com.example.vpn.data.ProfileRepository;
@@ -875,6 +876,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
     @Override
     public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        // ปุ่ม PRO มุมขวาบน (ขายเวอร์ชันโปร)
+        getMenuInflater().inflate(R.menu.menu_main_toolbar, menu);
         if (logMenuVisible) {
             getMenuInflater().inflate(R.menu.menu_log_toolbar, menu);
         }
@@ -884,6 +887,10 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
     @Override
     public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
         int id = item.getItemId();
+        if (id == R.id.action_pro) {
+            showProOfferDialog();
+            return true;
+        }
         if (id == R.id.action_log_copy) {
             if (logFragment != null) logFragment.copyLogToClipboard();
             return true;
@@ -893,6 +900,49 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    /** หน้าต่างขาย Tunnel Mate PRO */
+    private void showProOfferDialog() {
+        ProPrefs pro = new ProPrefs(this);
+        if (pro.isPro()) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("⭐ Tunnel Mate PRO")
+                    .setMessage("คุณเป็นสมาชิก PRO อยู่แล้ว\n\nขอบคุณที่สนับสนุนแอป!")
+                    .setPositiveButton("ตกลง", null)
+                    .show();
+            return;
+        }
+        String msg =
+                "ปลดล็อกเวอร์ชันโปร\n\n"
+                        + "• ไม่มีโฆษณา\n"
+                        + "• เชื่อมต่อได้หลายโปรไฟล์เร็วขึ้น\n"
+                        + "• แชร์ Wi‑Fi / เครื่องมือพิเศษ\n"
+                        + "• รองรับอัปเดตก่อนใคร\n\n"
+                        + "ราคาพิเศษสำหรับผู้ใช้งานช่วงแรก";
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("⭐ อัปเกรดเป็น PRO")
+                .setMessage(msg)
+                .setPositiveButton("สนใจ / ติดต่อซื้อ", (d, w) -> {
+                    // เปิดช่องทางขาย — แก้ลิงก์เป็นของคุณได้
+                    try {
+                        String url = "https://www.vpnjantit.com/"; // TODO: ลิงก์ร้าน / Line / Telegram
+                        android.content.Intent i = new android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(url));
+                        startActivity(i);
+                    } catch (Exception e) {
+                        StyledToast.error(this, "เปิดลิงก์ไม่ได้");
+                    }
+                })
+                .setNeutralButton("เปิดใช้ทดลอง", (d, w) -> {
+                    // โหมดทดสอบในเครื่อง — ถอดเมื่อต่อ billing จริง
+                    pro.setPro(true);
+                    StyledToast.success(this, "เปิด PRO แล้ว (ทดลอง)");
+                    invalidateOptionsMenu();
+                })
+                .setNegativeButton("ไว้ก่อน", null)
+                .show();
     }
 
     @Override
