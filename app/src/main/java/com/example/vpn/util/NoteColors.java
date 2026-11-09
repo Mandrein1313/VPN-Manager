@@ -4,11 +4,9 @@ import android.graphics.Typeface;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextPaint;
-import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.text.style.URLSpan;
-import android.view.View;
 
 import androidx.annotation.Nullable;
 
@@ -17,35 +15,30 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * ข้อความโปรไฟล์หลายสี + ลิงก์คลิกได้
- * - แท็ก: {green}ข้อความ{/} {gold}...{/} {cyan} {red} {white} {pink} {orange}
- * - หรือ {#RRGGBB}ข้อความ{/}
- * - ไม่มีแท็ก = ไล่สีทีละคำอัตโนมัติ
- * - URL http/https คลิกเปิดเบราว์เซอร์ได้
+ * ข้อความโปรไฟล์ด้านล่างหน้า MAIN
+ * - ตัวอักษรปกติ = เทา
+ * - ตัวเลข / วันที่ / เวลา = ฟ้า
+ * - ลิงก์ http(s) = ฟ้า + ขีดเส้นใต้ คลิกเปิดเบราว์เซอร์
+ * - แท็กยังใช้ได้: {green}...{/} {#RRGGBB}...{/}
  */
 public final class NoteColors {
 
-    private static final int[] RAINBOW = {
-            0xFF69F0AE,
-            0xFF80D8FF,
-            0xFFFFF176,
-            0xFFFF8A80,
-            0xFFFF80AB,
-            0xFFB388FF,
-            0xFFFFD54F,
-            0xFFE0E0E0
-    };
+    private static final int COLOR_GRAY = 0xFF9E9E9E;
+    private static final int COLOR_BLUE = 0xFF4FC3F7;
 
     private static final Pattern TAG = Pattern.compile(
-            "\\{(green|gold|cyan|red|white|pink|orange|#[0-9A-Fa-f]{6})\\}"
+            "\\{(green|gold|cyan|red|white|pink|orange|gray|blue|#[0-9A-Fa-f]{6})\\}"
                     + "(.*?)"
                     + "\\{/\\}",
             Pattern.DOTALL);
 
-    /** URL + รหัสโปรโมชันแบบตัวอักษร/ตัวเลขติดกันยาวพอสมควร */
     private static final Pattern URL = Pattern.compile(
             "(https?://[^\\s<>\"']+)",
             Pattern.CASE_INSENSITIVE);
+
+    /** กลุ่มตัวเลข (รวมวันที่ เวลา พอร์ต รหัส เช่น 2026/11/09, 11:34:22, *900*131#) */
+    private static final Pattern NUMBERS = Pattern.compile(
+            "\\d+(?:[:./\\-]\\d+)*|#?\\d+(?:\\*\\d+)*#?");
 
     private NoteColors() {}
 
@@ -54,16 +47,33 @@ public final class NoteColors {
         String text = raw.trim();
         if (text.isEmpty()) return "";
 
-        CharSequence colored;
+        SpannableStringBuilder sb;
         if (text.contains("{/") || text.contains("{#")) {
-            colored = parseTags(text);
+            sb = parseTags(text);
         } else {
-            colored = rainbowWords(text);
+            sb = new SpannableStringBuilder(text);
+            // ทั้งก้อนเป็นเทา
+            sb.setSpan(new ForegroundColorSpan(COLOR_GRAY), 0, sb.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            // ตัวเลข = ฟ้า
+            applyNumberBlue(sb);
         }
-        return linkify(colored);
+        return linkify(sb);
     }
 
-    /** ใส่ URLSpan ให้ลิงก์ — ใช้กับ LinkMovementMethod */
+    private static void applyNumberBlue(SpannableStringBuilder sb) {
+        String plain = sb.toString();
+        Matcher m = NUMBERS.matcher(plain);
+        while (m.find()) {
+            int start = m.start();
+            int end = m.end();
+            if (end <= start) continue;
+            // อย่าทับช่วงที่เป็นส่วนหนึ่งของ URL ตอนนี้ — linkify จะทับทีหลัง
+            sb.setSpan(new ForegroundColorSpan(COLOR_BLUE), start, end,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+    }
+
     private static CharSequence linkify(CharSequence src) {
         SpannableStringBuilder sb = src instanceof SpannableStringBuilder
                 ? (SpannableStringBuilder) src
@@ -75,7 +85,6 @@ public final class NoteColors {
             if (url == null) continue;
             int start = m.start(1);
             int end = m.end(1);
-            // ตัดเครื่องหมายท้ายลิงก์ที่ติดมา
             while (end > start) {
                 char c = plain.charAt(end - 1);
                 if (c == '.' || c == ',' || c == ')' || c == ']' || c == '!' || c == '?' || c == '…') {
@@ -83,28 +92,36 @@ public final class NoteColors {
                 } else break;
             }
             if (end <= start) continue;
-            // ลบ URLSpan เก่าทับช่วงนี้ (ถ้ามี)
             URLSpan[] old = sb.getSpans(start, end, URLSpan.class);
             for (URLSpan u : old) sb.removeSpan(u);
+            // ลบสีเก่าในช่วงลิงก์ แล้วใส่ฟ้า + URL
+            ForegroundColorSpan[] colors = sb.getSpans(start, end, ForegroundColorSpan.class);
+            for (ForegroundColorSpan c : colors) {
+                int cs = sb.getSpanStart(c);
+                int ce = sb.getSpanEnd(c);
+                if (cs >= start && ce <= end) sb.removeSpan(c);
+            }
+            sb.setSpan(new ForegroundColorSpan(COLOR_BLUE), start, end,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             sb.setSpan(new URLSpan(url) {
                 @Override
                 public void updateDrawState(TextPaint ds) {
                     super.updateDrawState(ds);
                     ds.setUnderlineText(true);
-                    ds.setColor(0xFF4FC3F7); // ฟ้าอ่อน เห็นว่าเป็นลิงก์
+                    ds.setColor(COLOR_BLUE);
                 }
             }, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         return sb;
     }
 
-    private static CharSequence parseTags(String text) {
+    private static SpannableStringBuilder parseTags(String text) {
         SpannableStringBuilder sb = new SpannableStringBuilder();
         Matcher m = TAG.matcher(text);
         int last = 0;
         while (m.find()) {
             if (m.start() > last) {
-                appendRainbow(sb, text.substring(last, m.start()));
+                appendGrayWithNumbers(sb, text.substring(last, m.start()));
             }
             int color = resolveColor(m.group(1));
             String body = m.group(2) != null ? m.group(2) : "";
@@ -117,62 +134,46 @@ public final class NoteColors {
             last = m.end();
         }
         if (last < text.length()) {
-            appendRainbow(sb, text.substring(last));
+            appendGrayWithNumbers(sb, text.substring(last));
         }
         return sb;
     }
 
-    private static void appendRainbow(SpannableStringBuilder sb, String chunk) {
+    private static void appendGrayWithNumbers(SpannableStringBuilder sb, String chunk) {
         if (chunk == null || chunk.isEmpty()) return;
-        sb.append(rainbowWords(chunk));
-    }
-
-    private static CharSequence rainbowWords(String text) {
-        SpannableStringBuilder sb = new SpannableStringBuilder();
-        int i = 0;
-        int colorIdx = 0;
-        while (i < text.length()) {
-            int j = i;
-            while (j < text.length() && Character.isWhitespace(text.charAt(j))) j++;
-            if (j > i) {
-                sb.append(text.substring(i, j));
-                i = j;
-            }
-            if (i >= text.length()) break;
-            j = i;
-            while (j < text.length() && !Character.isWhitespace(text.charAt(j))) j++;
-            int start = sb.length();
-            String word = text.substring(i, j);
-            sb.append(word);
-            // URL จะถูกทับสีตอน linkify เป็นฟ้า — คำอื่นไล่สีตามปกติ
-            int color = RAINBOW[colorIdx % RAINBOW.length];
-            sb.setSpan(new ForegroundColorSpan(color), start, sb.length(),
+        int base = sb.length();
+        sb.append(chunk);
+        sb.setSpan(new ForegroundColorSpan(COLOR_GRAY), base, sb.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        Matcher m = NUMBERS.matcher(chunk);
+        while (m.find()) {
+            sb.setSpan(new ForegroundColorSpan(COLOR_BLUE),
+                    base + m.start(), base + m.end(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            colorIdx++;
-            i = j;
         }
-        return sb;
     }
 
     private static int resolveColor(String token) {
-        if (token == null) return 0xFFE0E0E0;
+        if (token == null) return COLOR_GRAY;
         String t = token.toLowerCase(Locale.US);
         if (t.startsWith("#") && t.length() == 7) {
             try {
                 return 0xFF000000 | Integer.parseInt(t.substring(1), 16);
             } catch (Exception e) {
-                return 0xFFE0E0E0;
+                return COLOR_GRAY;
             }
         }
         switch (t) {
             case "green": return 0xFF00E676;
             case "gold": return 0xFFFFD54F;
-            case "cyan": return 0xFF00E5FF;
+            case "cyan":
+            case "blue": return COLOR_BLUE;
             case "red": return 0xFFFF5252;
             case "white": return 0xFFFFFFFF;
             case "pink": return 0xFFFF80AB;
             case "orange": return 0xFFFFAB40;
-            default: return 0xFFE0E0E0;
+            case "gray":
+            default: return COLOR_GRAY;
         }
     }
 }
