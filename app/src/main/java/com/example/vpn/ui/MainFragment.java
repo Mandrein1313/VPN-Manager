@@ -265,15 +265,36 @@ public class MainFragment extends Fragment {
         }
         if (imgConfigSignal != null) {
             imgConfigSignal.setImageResource(signalIconFor(ms));
+            imgConfigSignal.setContentDescription(signalLabel(ms));
+            // โทนสีไอคอนตามระดับ (บาง theme ทับ tint)
+            imgConfigSignal.setImageTintList(null);
         }
     }
 
+    /**
+     * ระดับสัญญาณจาก latency (คล้ายแถบสัญญาณมือถือ)
+     *  4 ขีด &lt; 80ms   ดีมาก
+     *  3 ขีด &lt; 150ms  ดี
+     *  2 ขีด &lt; 250ms  ปานกลาง
+     *  1 ขีด &lt; 400ms  อ่อน
+     *  0 ขีด fail/ช้า
+     */
     private static int signalIconFor(Integer ms) {
         if (ms == null || ms < 0) return R.drawable.ic_signal_0;
         if (ms < 80) return R.drawable.ic_signal_4;
         if (ms < 150) return R.drawable.ic_signal_3;
-        if (ms < 300) return R.drawable.ic_signal_2;
-        return R.drawable.ic_signal_1;
+        if (ms < 250) return R.drawable.ic_signal_2;
+        if (ms < 400) return R.drawable.ic_signal_1;
+        return R.drawable.ic_signal_0;
+    }
+
+    private static String signalLabel(Integer ms) {
+        if (ms == null) return "ยังไม่วัด";
+        if (ms < 0 || ms >= 400) return "สัญญาณอ่อน";
+        if (ms < 80) return "สัญญาณดีมาก";
+        if (ms < 150) return "สัญญาณดี";
+        if (ms < 250) return "สัญญาณปานกลาง";
+        return "สัญญาณค่อนข้างอ่อน";
     }
 
     @Override

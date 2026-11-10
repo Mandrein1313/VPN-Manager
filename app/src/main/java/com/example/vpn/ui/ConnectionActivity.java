@@ -96,6 +96,9 @@ public class ConnectionActivity extends AppCompatActivity
     private final Runnable statsRunnable = this::updateStats;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Runnable delayedSyncRunnable = this::syncButtonState;
+    private final Runnable latencyRefreshRunnable = this::refreshActiveLatency;
+    private static final long LATENCY_REFRESH_MS = 5_000L;
+
     private final Runnable periodicSyncRunnable = new Runnable() {
         @Override public void run() {
             syncButtonState();
@@ -996,7 +999,14 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         }
         refreshAdFreeCard();
 
-        // ⭐ ถ้า UI บอกว่าไม่เชื่อมต่อ แต่ service flag ยัง running → บังคับหยุด (กันกุญแจค้าง)
+      
+
+        // วัดสัญญาณต่อเมื่อมีโปรไฟล์
+        if (targetProfile != null) {
+            mainHandler.removeCallbacks(latencyRefreshRunnable);
+            mainHandler.post(latencyRefreshRunnable);
+        }
+  // ⭐ ถ้า UI บอกว่าไม่เชื่อมต่อ แต่ service flag ยัง running → บังคับหยุด (กันกุญแจค้าง)
         tryCleanupOrphanVpn();
 
         syncButtonState();
@@ -1110,6 +1120,28 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                         + " (" + ms + "ms)");
     }
 
+    /** วัด ping โปรไฟล์ที่เลือก แล้วอัปเดตตัวเลข + แถบสัญญาณ */
+    private void refreshActiveLatency() {
+        Profile p = targetProfile;
+        if (p == null || p.host == null || p.host.isEmpty()) return;
+        if (isFinishing() || isDestroyed()) return;
+        final long pid = p.id;
+        com.example.vpn.util.LatencyProbe.measure(pid, p.host, p.port, (profileId, ms) -> {
+            try {
+                if (isFinishing() || isDestroyed()) return;
+                if (targetProfile == null || targetProfile.id != profileId) return;
+                if (mainFragment != null) {
+                    mainFragment.applyLatency(ms > 0 ? ms : -1);
+                }
+            } catch (Exception ignored) {}
+            // วัดซ้ำเป็นระยะ
+            if (!isFinishing() && !isDestroyed() && targetProfile != null) {
+                mainHandler.removeCallbacks(latencyRefreshRunnable);
+                mainHandler.postDelayed(latencyRefreshRunnable, LATENCY_REFRESH_MS);
+            }
+        });
+    }
+
     private void bindProfile(Profile p) {
         if (p == null) return;
         targetProfile = p;
@@ -1131,6 +1163,8 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                     if (isFinishing() || isDestroyed()) return;
                     if (targetProfile != null && targetProfile.id == profileId && mainFragment != null) {
                         mainFragment.applyLatency(ms);
+                        mainHandler.removeCallbacks(latencyRefreshRunnable);
+                        mainHandler.postDelayed(latencyRefreshRunnable, LATENCY_REFRESH_MS);
                     }
                 } catch (Exception ignored) {}
             });
@@ -1324,6 +1358,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         try {
             mainHandler.removeCallbacks(periodicSyncRunnable);
             mainHandler.removeCallbacks(delayedSyncRunnable);
+            mainHandler.removeCallbacks(latencyRefreshRunnable);
         } catch (Exception ignored) {}
         super.onPause();
     }
@@ -1334,6 +1369,7 @@ public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         try {
             mainHandler.removeCallbacks(periodicSyncRunnable);
             mainHandler.removeCallbacks(delayedSyncRunnable);
+            mainHandler.removeCallbacks(latencyRefreshRunnable);
         } catch (Exception ignored) {}
         statsHandler.removeCallbacks(statsRunnable);
         VpnLogger.setListener(null);
